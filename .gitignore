@@ -1,0 +1,13 @@
+# private design documents
+
+design/design_private.md
+
+# folders
+
+refer
+build
+
+# test files
+
+bin/tinywl
+bin/*.so
