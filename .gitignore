@@ -5,7 +5,12 @@ design/design_private.md
 # folders
 
 refer
+
+# generated folders
+
 build
+builddir
+.cache
 
 # test files
 

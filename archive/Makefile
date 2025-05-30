@@ -6,11 +6,13 @@ CXX: g++  # c++编译器
 
 ########### ↓↓↓ 重要! 这个wlroots的版本可能会随着上游更新发生变化, 需要随之修改 #############
 
-WLROOTS_VERSION = 0.19
+WLROOTS_VERSION = 0.20
 
 ########### ↑↑↑ 重要! 这个wlroots的版本可能会随着上游更新发生变化, 需要随之修改 #############
 
 WLROOTS_MODULE = wlroots-$(WLROOTS_VERSION)
+
+WLROOTS_INCLUDE_PATH = /usr/local/include/wlroots-$(WLROOTS_VERSION)
 
 # 创建构建目录(创建了则跳过)
 $(BUILD_DIR):
@@ -23,12 +25,13 @@ PKG_CONFIG_ENV = PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$$PKG_CONFIG_PATH
 # -Wall("Warning all", 输出尽可能多的警告)
 # -Wextra("Warning extra", 输出更多警告, 包括all不包括的警告)
 # 这么多警告是为了方便排查错误
-CFLAGS  = -Wall -Wextra
+CFLAGS  = -Wall -Wextra -I$(WLROOTS_INCLUDE_PATH)
 
 # C++ 编译选项
 # 同上, 多一个-std指定C++版本
 # 用C++17嘛
-CXXFLAGS = -Wall -Wextra -std=c++17 $(shell $(PKG_CONFIG_ENV) pkg-config --cflags $(WLROOTS_MODULE))
+# 添加包含的路径
+CXXFLAGS = -Wall -Wextra -std=c++17 -I$(WLROOTS_INCLUDE_PATH)
 
 # C/C++ 链接选项
 LDFLAGS = $(shell $(PKG_CONFIG_ENV) pkg-config --libs $(WLROOTS_MODULE))

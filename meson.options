@@ -1,0 +1,5 @@
+# 指定wlroots的版本参数
+option('wlroots-version', 
+        type: 'string', 
+        value: '', 
+        description: 'Desired wlroots version to build with')
