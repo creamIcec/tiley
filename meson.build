@@ -35,7 +35,7 @@ if not _system_wlroots_dep.found()
     if not _system_wlroots_dep.found() # 没找到系统库
       _system_wlroots_dep = dependency(_vname, version: '>=0.18.0', required: false)
       if _system_wlroots_dep.found()
-        message('找到了系统提供的 wlroots: ' + _vname + ' (version: ' + system_wlroots_dep.version() + ')')
+        message('找到了系统提供的 wlroots: ' + _vname + ' (version: ' + _system_wlroots_dep.version() + ')')
       endif
     endif
   endforeach
