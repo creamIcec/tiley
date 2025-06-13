@@ -1,6 +1,6 @@
 project(
   'tiley',
-  'cpp',
+  'cpp', 'c',
   meson_version : '>= 1.3.0',
   version : '0.1.0',
   default_options : [
@@ -19,6 +19,15 @@ add_project_arguments(
   language: 'cpp'
 )
 
+add_project_arguments(
+  '-DWLR_USE_UNSTABLE',
+  language: 'c'
+)
+
+# 公共包含文件夹
+
+common_includes = include_directories('include')
+
 # 决定我们依赖库灵活性的地方
 # 具体原因和思路见design/thought.md中的Q1
 
@@ -35,7 +44,7 @@ if not _system_wlroots_dep.found()
     if not _system_wlroots_dep.found() # 没找到系统库
       _system_wlroots_dep = dependency(_vname, version: '>=0.18.0', required: false)
       if _system_wlroots_dep.found()
-        message('找到了系统提供的 wlroots: ' + _vname + ' (version: ' + system_wlroots_dep.version() + ')')
+        message('找到了系统提供的 wlroots: ' + _vname + ' (version: ' + _system_wlroots_dep.version() + ')')
       endif
     endif
   endforeach
@@ -49,19 +58,32 @@ else
   message('找不到系统提供的wlroots. 使用子模块的wlroots.')
   wlroots_proj = subproject('wlroots')
 
-  wlroots_dep = wlroots_proj.get_variable('wlroots')
+  # 因为wlroots的一些头文件是生成的, 不会默认包含, 需要我们自己补全
+  incomplete_wlroots_dep = wlroots_proj.get_variable('wlroots')
 
-  if not wlroots_dep.version().version_compare('>=0.18.0')
+  # 补全
+  wlroots_protocol_inc = include_directories('subprojects/wlroots/protocol')
+
+  wlroots_dep = declare_dependency(
+    dependencies: [incomplete_wlroots_dep],
+    include_directories: [wlroots_protocol_inc]
+  )
+
+  if not incomplete_wlroots_dep.version().version_compare('>=0.18.0')
     error('子模块中的wlroots版本过旧: ' + wlroots_dep.version() + ', 请先运行git submodule update --init --recursive更新到 >= 0.18.0 的版本')
   endif
   message('使用子模块的wlroots.')
 endif
 
+all_tiley_sources = []
+subdir('src')
+
 exe = executable(
   'tiley',
-  files(source_root / 'tiley.cpp'),
+  all_tiley_sources,
   dependencies : [wlroots_dep],
   install : true,
+  include_directories: common_includes
 )
 
 test('basic_run_test', exe)
