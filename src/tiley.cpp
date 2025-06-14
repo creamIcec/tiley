@@ -25,7 +25,7 @@ void setup_params(int argc, char* argv[]){
         {0,0,0,0}
     };
 
-    while((c = getopt_long(argc, argv, ":a:", longopts, NULL)) != -1){
+    while((c = getopt_long(argc, argv, ":d", longopts, NULL)) != -1){
         switch(c){
             case 'd':
                 enable_debug = true;
@@ -40,7 +40,10 @@ void setup_params(int argc, char* argv[]){
 
 int main(int argc, char* argv[]){
     
-    // 处理启动参数
+    // 处理启动参数, 目前可用:
+    /*
+        --debug, -d: 启用调试输出。
+    */
     setup_params(argc, argv);
 
     wlr_log(WLR_DEBUG, "这是一条来自wlroots的log打印, 如果你看到了这条打印信息, 说明wlroots依赖引用成功!");

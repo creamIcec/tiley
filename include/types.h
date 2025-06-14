@@ -1,6 +1,7 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+#include "server.hpp"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
@@ -29,6 +30,22 @@ struct input_keyboard {
     struct wl_listener key;
     // 当键盘被拔出(不再可用)时触发
     struct wl_listener destroy;
+};
+
+// 定义一个窗口管理对象
+
+struct surface_toplevel{
+    struct wl_list link;
+    struct wlr_xdg_toplevel* new_xdg_toplevel;
+    struct wlr_scene_tree* scene_tree;
+    struct wl_listener map;
+    struct wl_listener unmap;
+    struct wl_listener commit;
+    struct wl_listener destroy;
+    struct wl_listener request_move;
+    struct wl_listener request_resize;
+    struct wl_listener request_maxmize;
+    struct wl_listener request_fullscreen;
 };
 
 #endif
