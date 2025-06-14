@@ -1,19 +1,49 @@
 #include "include/events.h"
 #include "include/server.hpp"
+#include "wlr/util/log.h"
 
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
+#include <getopt.h>
 
 #define PROJECT_NAME "tiley"
 
-int main(int argc, const char* argv[]){
-    std::cout << "我们的桌面管理器从这里开始!" << std::endl;
+/* 处理启动参数, 目前唯一功能是根据启动参数决定是否输出"DEBUG"等级的log.
+   为了逻辑配套, 建议我们在开发的时候打印的为了调试(例如, 检查某个事件是否正常触发, 打印某些数据)的log
+   都使用WLR_DEBUG这个等级。这样便可以通过设置"--debug"参数一键切换是否输出这些日志, 避免了手动删除打印代码
+*/
+void setup_params(int argc, char* argv[]){
 
-    wlr_log_init(WLR_INFO, NULL);
-    wlr_log(WLR_INFO, "这是一条来自wlroots的log打印, 如果你看到了这条打印信息, 说明wlroots依赖引用成功!");
+    bool enable_debug = false;
+    
+    int c;
+    // https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
+    struct option longopts[] = {
+        {"debug", no_argument, NULL, 'd'},
+        {0,0,0,0}
+    };
+
+    while((c = getopt_long(argc, argv, ":a:", longopts, NULL)) != -1){
+        switch(c){
+            case 'd':
+                enable_debug = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    wlr_log_init(enable_debug ? WLR_DEBUG : WLR_INFO, NULL);
+}
+
+int main(int argc, char* argv[]){
+    
+    // 处理启动参数
+    setup_params(argc, argv);
+
+    wlr_log(WLR_DEBUG, "这是一条来自wlroots的log打印, 如果你看到了这条打印信息, 说明wlroots依赖引用成功!");
 
     // 创建服务器对象
     // 该对象使用unique_ptr, 无需手动管理内存
