@@ -56,7 +56,7 @@ void server_new_output(struct wl_listener* _, void* data){
     wlr_output_state_finish(&state);
 
     //拿到显示屏对象
-    struct display_output* output = static_cast<display_output*>(calloc(1, sizeof(*output)));
+    struct output_display* output = static_cast<output_display*>(calloc(1, sizeof(*output)));
     output->wlr_output = wlr_output;
 
     //5

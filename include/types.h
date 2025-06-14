@@ -6,11 +6,28 @@
 
 // 定义一个显示屏管理对象
 
-struct display_output {
+struct output_display {
     struct wl_list link;
     struct wlr_output *wlr_output;
+    // 当有新的帧要渲染时触发
     struct wl_listener frame;
+    // 当显示屏状态改变时触发(例如旋转方向, 显示区域等发生了变化)  
     struct wl_listener request_state;
+    // 当显示屏被拔出(不再可用)时触发
+    struct wl_listener destroy;
+};
+
+
+// 定义一个键盘管理对象
+
+struct input_keyboard {
+    struct wl_list link;
+    struct wlr_keyboard* wlr_keyboard;
+    // 当键盘的修饰键按下时触发(Alt, ctrl, shift等)
+    struct wl_listener modifiers;
+    // 当键盘的任意按键按下时触发
+    struct wl_listener key;
+    // 当键盘被拔出(不再可用)时触发
     struct wl_listener destroy;
 };
 
