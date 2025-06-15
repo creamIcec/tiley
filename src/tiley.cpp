@@ -2,6 +2,7 @@
 #include "include/server.hpp"
 #include "wlr/util/log.h"
 
+#include <bits/getopt_core.h>
 #include <cstddef>
 #include <cstdlib>
 #include <wayland-server-core.h>
@@ -25,7 +26,7 @@ void setup_params(int argc, char* argv[]){
         {0,0,0,0}
     };
 
-    while((c = getopt_long(argc, argv, ":d", longopts, NULL)) != -1){
+    while((c = getopt_long(argc, argv, "ds:", longopts, NULL)) != -1){
         switch(c){
             case 'd':
                 enable_debug = true;
@@ -192,8 +193,10 @@ int main(int argc, char* argv[]){
     // 启动事件循环, while(true)这个万物之源:)
     // 该函数即为整个应用的主函数, 除非用户要求退出/出现错误, 否则不会退出。
     // 主要完成的工作即是我们在上面编写的各种输入处理事件循环, 不停地发出frame事件等等。
-    wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s",
+    wlr_log(WLR_INFO, "正在 WAYLAND_DISPLAY=%s 上运行",
 			socket);
+    wlr_log(WLR_INFO, "若要在Tiley中打开程序, 请在另一个控制台中输入:");
+    wlr_log(WLR_INFO, "\nexport WAYLAND_DISPLAY=%s\n<程序名>", socket);
     
     wl_display_run(server.wl_display_);
     
@@ -226,7 +229,7 @@ int main(int argc, char* argv[]){
     wl_list_remove(&server.new_output.link);
 
     // 销毁场景对象树
-    wlr_scene_node_destroy_(get_wlr_scene_node(server.scene));
+    wlr_scene_node_destroy_(get_wlr_scene_root_node(server.scene));
 
     // 销毁光标尺寸管理器
     wlr_xcursor_manager_destroy(server.cursor_mgr);

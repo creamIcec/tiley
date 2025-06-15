@@ -58,6 +58,7 @@ namespace tiley{
             wl_listener request_set_selection;
             wl_list keyboards;
             tiley_cursor_mode cursor_mode;
+            struct surface_toplevel *grabbed_toplevel;
             double grab_x, grab_y;
             wlr_box grab_geobox;
             uint32_t resize_edges;

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <ctime>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
@@ -7,9 +8,32 @@
 #include "include/server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 
+using namespace tiley;
 
 static void output_frame(struct wl_listener* listener, void* data){
-    //TODO: 当有新的帧要输出时触发的函数    
+    //TODO: 当有新的帧要输出时触发的函数
+
+    // 客户端函数
+
+    // 干下面的事:
+    // 1. 获取到场景输出(画布)
+    // 2. 渲染并提交帧
+    // 3. 为了同步, 更新时钟(指示此时渲染一帧成功完成)
+
+    struct output_display* output = wl_container_of(listener, output, frame);
+    
+    // 1
+    struct wlr_scene* scene = TileyServer::getInstance().scene;
+    struct wlr_scene_output* scene_output = wlr_scene_get_scene_output_(scene, output->wlr_output);
+
+    // 2
+    wlr_scene_output_commit_(scene_output, NULL);
+
+    // 3
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    wlr_scene_output_send_frame_done(scene_output, &now);
+
 }
 
 static void output_request_state(struct wl_listener *listener, void *data) {

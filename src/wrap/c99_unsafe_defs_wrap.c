@@ -1,5 +1,7 @@
 #include <wlr/types/wlr_scene.h>
+#include <wlr/types/wlr_output.h>
 #include "c99_unsafe_defs_wrap.h"
+#include "types.h"
 
 struct wlr_scene_rect* wlr_scene_rect_create_(struct wlr_scene_tree *parent,
     int width, int height, const float* color){
@@ -29,7 +31,49 @@ void wlr_scene_output_layout_add_output_(struct wlr_scene_output_layout *sol,
         wlr_scene_output_layout_add_output(sol, lo, so);
 }
 
+struct wlr_scene_tree *wlr_scene_xdg_surface_create_(
+	struct wlr_scene_tree *parent, struct wlr_xdg_surface *xdg_surface){
+        return wlr_scene_xdg_surface_create(parent, xdg_surface);
+}
+
+struct wlr_scene_output* wlr_scene_get_scene_output_(struct wlr_scene* scene, struct wlr_output* output){
+        return wlr_scene_get_scene_output(scene, output);
+}
+
+void wlr_scene_output_send_frame_done_(struct wlr_scene_output *scene_output,
+		struct timespec *now){
+        wlr_scene_output_send_frame_done(scene_output, now);
+}
+
+void wlr_scene_output_commit_(struct wlr_scene_output* scene_output, const struct wlr_scene_output_state_options *options){
+        wlr_scene_output_commit(scene_output, options);
+}
+
+void wlr_scene_node_raise_to_top_(struct wlr_scene_node* node){
+        wlr_scene_node_raise_to_top(node);
+}
+
 // 包装函数: 由于c/cpp隔离, 我们无法从cpp中直接获取到结构体中的内容, 需要一个辅助函数
-struct wlr_scene_node* get_wlr_scene_node(struct wlr_scene* scene){
+
+// 获取到场景根节点的node
+struct wlr_scene_node* get_wlr_scene_root_node(struct wlr_scene* scene){
         return &scene->tree.node;
+}
+
+struct wlr_scene_tree* get_wlr_scene_tree(struct wlr_scene* scene){
+        return &scene->tree;
+}
+
+// 获取一个窗口在场景中的节点
+struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
+        return &toplevel->scene_tree->node;
+}
+
+
+// 设置窗口对象的逻辑数据
+// 这个数据非常关键, 是我们保存平铺式管理的特殊数据的地方.
+// 例如, 我们使用KD树进行窗口的坐标分配和插入, 那么元素的KD树相关信息就应该
+// 保存在data中.
+void set_tree_node_data(struct surface_toplevel* toplevel){
+        toplevel->scene_tree->node.data = toplevel;
 }

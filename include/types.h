@@ -1,7 +1,6 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
-#include "server.hpp"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
@@ -36,7 +35,7 @@ struct input_keyboard {
 
 struct surface_toplevel{
     struct wl_list link;
-    struct wlr_xdg_toplevel* new_xdg_toplevel;
+    struct wlr_xdg_toplevel* xdg_toplevel;
     struct wlr_scene_tree* scene_tree;
     struct wl_listener map;
     struct wl_listener unmap;
@@ -44,7 +43,7 @@ struct surface_toplevel{
     struct wl_listener destroy;
     struct wl_listener request_move;
     struct wl_listener request_resize;
-    struct wl_listener request_maxmize;
+    struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
 };
 
