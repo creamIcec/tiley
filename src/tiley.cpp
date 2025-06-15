@@ -183,7 +183,7 @@ int main(int argc, char* argv[]){
     // 该环境变量的目的是告诉系统: 我想注册一个新的管理器, id是socket。
     // 参考: https://wayland-book.com/wayland-display/creation.html
     // https://wayland.arktoria.org/4-wayland-display/creation.html
-    setenv("WAYLAND_DISPLY", socket, true);
+    setenv("WAYLAND_DISPLAY", socket, true);
 
     
     /***********启动准备结束*************/
