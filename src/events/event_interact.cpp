@@ -4,6 +4,8 @@
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "types/wlr_xdg_shell.h"
+#include "wlr/util/edges.h"
 #include "wlr/util/log.h"
 #include <cstdint>
 #include <wayland-server-core.h>
@@ -34,6 +36,67 @@ static void process_cursor_move(TileyServer& server){
         server.cursor->x - server.grab_x,
         server.cursor->y - server.grab_y     
     );
+}
+
+
+/*********重要: 处理鼠标调整窗口大小的函数*************/
+static void process_cursor_resize(TileyServer& server){
+    struct surface_toplevel* toplevel = server.grabbed_toplevel;
+
+    // 需要分情况。在计算机显示坐标系中, 坐标轴从左上角开始向右向下:
+    // · 如果调整左边界: 移动左上角位置 + 更改大小
+    // · 如果调整上边界: 移动左上角位置 + 更改大小
+    // · 如果是其他两个边界: 仅更改大小
+    
+    // 1. 同移动的逻辑, 得到目标的绝对坐标
+    double border_x = server.cursor->x - server.grab_x;
+    double border_y = server.cursor->y - server.grab_y;
+
+    // 2. 先存储先前的坐标
+    int new_left = server.grab_geobox.x;
+    int new_right = server.grab_geobox.x + server.grab_geobox.width;
+    int new_top = server.grab_geobox.y;
+    int new_bottom = server.grab_geobox.y + server.grab_geobox.height;
+
+    // 3 调整大小
+    if(server.resize_edges & WLR_EDGE_TOP){
+        new_top = border_y;  //将窗口上边界设为目标y
+        if(new_top >= new_bottom){
+            new_top = new_bottom - 1;  //如果鼠标在往下面拖动上边界并且超过了下边界, 则锁死在离下边缘1像素的地方, 防止变成负数
+        }
+    } else if (server.resize_edges & WLR_EDGE_BOTTOM){
+        new_bottom = border_y;
+        if(new_bottom <= new_top){
+            new_bottom = new_top + 1;
+        }
+    }
+
+    // 调整上下边界和左右边界之间可以同时发生, 所以这里另起if
+
+    if(server.resize_edges & WLR_EDGE_LEFT){
+        new_left = border_x;
+        if(new_left >= new_right){
+            new_left = new_right - 1;
+        }
+    } else if (server.resize_edges & WLR_EDGE_RIGHT){
+        new_right = border_x;
+        if(new_right <= new_left){
+            new_right = new_left + 1;
+        }
+    }
+
+    // 4 调整位置
+    struct wlr_box* geo_box = &toplevel->xdg_toplevel->base->geometry;
+    wlr_scene_node_set_position_(get_wlr_scene_tree_node(toplevel->scene_tree), 
+        new_left - geo_box->x, 
+        new_top - geo_box->y
+    );
+
+    // 更新大小
+    int new_width = new_right - new_left;
+    int new_height = new_bottom - new_top;
+
+    wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width, new_height);
 }
 
 /*********重要: 判断某个鼠标位置对应的窗口函数**********/
@@ -114,6 +177,7 @@ static void process_cursor_motion(TileyServer& server, uint32_t time){
         return;
     }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
         //TODO: 缩放窗口, 同时影响其他窗口
+        process_cursor_resize(server);
         return;
     }
 
@@ -283,7 +347,22 @@ void seat_request_cursor(struct wl_listener* _, void* data){
     return;
 }
 
-void seat_request_set_selection(struct wl_listener *listener, void *data){
-    //TODO: 这里写当请求选中屏幕上的内容时的处理逻辑
-    return;
+void seat_request_set_selection(struct wl_listener* _, void* data){
+    // TODO: 这里写当请求选中屏幕上的内容时的处理逻辑
+    // 我们尊敬的用户想复制内容
+
+    // 客户端函数
+
+    // 干下面的事情:
+
+    // 直接调用库中设置选中内容的函数即可。
+    // 参数:
+    // seat: 当前用户; source: 选中的数据; serial: 同上, 操作的"车票", 用于保证安全
+
+    TileyServer& server = TileyServer::getInstance();
+
+    struct wlr_seat_request_set_selection_event* event =
+        static_cast<wlr_seat_request_set_selection_event*>(data);
+
+    wlr_seat_set_selection(server.seat, event->source, event->serial);
 }

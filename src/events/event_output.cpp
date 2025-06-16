@@ -52,6 +52,14 @@ static void output_request_state(struct wl_listener *listener, void *data) {
 
 static void output_destroy(struct wl_listener *listener, void *data) {
     //TODO: 当屏幕被拔出时(变得不可用时)触发的函数
+    struct output_display* output = wl_container_of(listener, output, destroy);
+
+    wl_list_remove(&output->frame.link);
+    wl_list_remove(&output->request_state.link);
+    wl_list_remove(&output->destroy.link);
+    wl_list_remove(&output->link);
+
+    free(output);
 }
 
 void server_new_output(struct wl_listener* _, void* data){

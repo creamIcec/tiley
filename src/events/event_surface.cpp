@@ -8,6 +8,7 @@
 #include "wlr/util/edges.h"
 #include "wlr/util/log.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
@@ -57,6 +58,29 @@ static void begin_interactive(struct surface_toplevel* toplevel,
         server.resize_edges = edges;
     }
     
+}
+
+/*********弹出窗口surface新帧待渲染事件*************/
+
+static void xdg_popup_commit(struct wl_listener* listener, void* data){
+    // 同toplevel_commit
+    
+    struct surface_popup* popup = wl_container_of(listener, popup, commit);
+
+    if(popup->xdg_popup->base->initial_commit){
+        // 排入待处理队列
+        wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
+    }
+}
+
+static void xdg_popup_destroy(struct wl_listener* listener, void* data){
+    // 同toplevel destroy
+	struct surface_popup* popup = wl_container_of(listener, popup, destroy);
+
+	wl_list_remove(&popup->commit.link);
+	wl_list_remove(&popup->destroy.link);
+
+	free(popup);
 }
 
 /*********窗口渲染状态改变事件**********/
@@ -277,5 +301,37 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
 
 void server_new_xdg_popup(struct wl_listener* listener, void* data){
     //TODO: 这里写当新的弹出界面创建时的处理逻辑
-    return;
+
+    //客户端函数
+
+    // 干下面的事情:
+    // 1. 分配新的弹出窗口管理对象内存
+    // 2. 指定这个弹出窗口的父窗口节点
+    // 3. 注册创建和销毁事件
+
+    struct wlr_xdg_popup* xdg_popup = 
+        static_cast<wlr_xdg_popup*>(data);
+
+    // 1
+    struct surface_popup* popup = 
+        static_cast<surface_popup*>(calloc(1, sizeof(surface_popup)));
+
+    popup->xdg_popup = xdg_popup;
+
+    // 2
+    struct wlr_xdg_surface* parent = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
+
+    assert(parent!=NULL);  //这个assert可以改成其他更友好的方式
+
+    struct wlr_scene_tree* parent_tree = 
+        static_cast<wlr_scene_tree*>(parent->data);
+
+    xdg_popup->base->data = wlr_scene_xdg_surface_create_(parent_tree, xdg_popup->base);
+
+    popup->commit.notify = xdg_popup_commit;
+    wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
+
+    popup->destroy.notify = xdg_popup_destroy;
+    wl_signal_add(&xdg_popup->events.destroy, &popup->destroy);
+
 }

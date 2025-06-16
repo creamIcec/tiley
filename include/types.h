@@ -1,6 +1,7 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
@@ -47,8 +48,14 @@ struct surface_toplevel{
     struct wl_listener request_fullscreen;
 };
 
+// 定义一个弹出窗口管理对象
+struct surface_popup{
+    struct wlr_xdg_popup* xdg_popup;
+    struct wl_listener commit;
+    struct wl_listener destroy;
+};
 
-// 覆盖定义enum, 在C++中使用
+// 覆盖scene_node_type的定义enum, 在C++中使用
 enum wlr_scene_node_type_ {
 	WLR_SCENE_NODE_TREE_,
 	WLR_SCENE_NODE_RECT_,
