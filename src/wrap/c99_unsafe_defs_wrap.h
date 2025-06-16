@@ -39,18 +39,38 @@ void wlr_scene_output_commit_(struct wlr_scene_output* scene_output, const struc
 void wlr_scene_output_send_frame_done(struct wlr_scene_output *scene_output,
 		struct timespec *now);
 
+struct wlr_scene_node *wlr_scene_node_at_(struct wlr_scene_node *node,
+		double lx, double ly, double *nx, double *ny);
+
+struct wlr_scene_buffer *wlr_scene_buffer_from_node_(
+		struct wlr_scene_node *node);
+
+struct wlr_scene_surface *wlr_scene_surface_try_from_buffer_(
+		struct wlr_scene_buffer *scene_buffer);
+
+struct wlr_scene_tree *get_parent(struct wlr_scene_node *node);
+
+struct wlr_surface* get_surface_from_scene_surface(struct wlr_scene_surface* scene_surface);
+
 struct wlr_scene_node* get_wlr_scene_root_node(struct wlr_scene*);
 
 struct wlr_scene_tree* get_wlr_scene_tree(struct wlr_scene* scene);
 
+struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree);
+
 struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel);
-
-
 
 void set_tree_node_data(struct surface_toplevel* toplevel);
 
 void set_scene_tree_node_data(struct surface_toplevel* toplevel);
 
+void* get_tree_node_data(struct wlr_scene_node* node);
+
+void set_tree(struct wlr_scene_tree* *tree, struct wlr_scene_tree* target);
+
+
+//trick: 绕开C++中的enum限制
+enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node);
 
 #ifdef __cplusplus
 }

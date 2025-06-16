@@ -47,4 +47,12 @@ struct surface_toplevel{
     struct wl_listener request_fullscreen;
 };
 
+
+// 覆盖定义enum, 在C++中使用
+enum wlr_scene_node_type_ {
+	WLR_SCENE_NODE_TREE_,
+	WLR_SCENE_NODE_RECT_,
+	WLR_SCENE_NODE_BUFFER_,
+};
+
 #endif

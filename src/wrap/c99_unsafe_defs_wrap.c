@@ -40,6 +40,29 @@ struct wlr_scene_output* wlr_scene_get_scene_output_(struct wlr_scene* scene, st
         return wlr_scene_get_scene_output(scene, output);
 }
 
+struct wlr_scene_node *wlr_scene_node_at_(struct wlr_scene_node *node,
+		double lx, double ly, double *nx, double *ny){
+        return wlr_scene_node_at(node, lx, ly, nx, ny);
+}
+
+struct wlr_scene_buffer *wlr_scene_buffer_from_node_(
+		struct wlr_scene_node *node){
+        return wlr_scene_buffer_from_node(node);
+}
+
+struct wlr_scene_surface *wlr_scene_surface_try_from_buffer_(
+		struct wlr_scene_buffer *scene_buffer){
+        return wlr_scene_surface_try_from_buffer(scene_buffer);
+}
+
+struct wlr_surface* get_surface_from_scene_surface(struct wlr_scene_surface* scene_surface){
+        return scene_surface->surface;
+}
+
+struct wlr_scene_tree *get_parent(struct wlr_scene_node *node){
+        return node->parent;
+}
+
 void wlr_scene_output_send_frame_done_(struct wlr_scene_output *scene_output,
 		struct timespec *now){
         wlr_scene_output_send_frame_done(scene_output, now);
@@ -64,11 +87,19 @@ struct wlr_scene_tree* get_wlr_scene_tree(struct wlr_scene* scene){
         return &scene->tree;
 }
 
+struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree){
+        return &tree->node;
+}
+
 // 获取一个窗口在场景中的节点
 struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
         return &toplevel->scene_tree->node;
 }
 
+// 获取节点类型信息
+enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node){
+        return (enum wlr_scene_node_type_)(node->type);
+}
 
 // 设置窗口对象的逻辑数据
 // 这个数据非常关键, 是我们保存平铺式管理的特殊数据的地方.
@@ -76,4 +107,12 @@ struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
 // 保存在data中.
 void set_tree_node_data(struct surface_toplevel* toplevel){
         toplevel->scene_tree->node.data = toplevel;
+}
+
+void* get_tree_node_data(struct wlr_scene_node* node){
+        return node->data;
+}
+
+void set_tree(struct wlr_scene_tree* *tree, struct wlr_scene_tree* target){
+        *tree = target;
 }
