@@ -1,8 +1,9 @@
 #include "include/events.h"
+#include "include/interact.hpp"
+
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
-#include "types/wlr_seat.h"
 #include "wlr/util/log.h"
 #include <cstdint>
 #include <wayland-server-core.h>
@@ -11,49 +12,28 @@
 
 using namespace tiley;
 
-/*********重要: 聚焦窗口的函数**********/
+/*********重要: 处理鼠标拖动窗口移动的函数***********/
+static void process_cursor_move(TileyServer& server){
+    // 这个函数也是我们平铺式需要重写逻辑的地方
+    // Hyprland的逻辑: 
+    // "抓住"窗口 -> 
+    // 缩放窗口至移动状态的大小 -> 
+    // 将他在二分树中的父节点扩大两倍, 占据自己的位置 -> 
+    // 根据鼠标释放点确定"槽位"
 
-static void focus_toplevel(struct surface_toplevel* toplevel){
-    // tinywl中说这个函数仅用于键盘聚焦。不太能理解"仅用于键盘"的含义,
-    // 因为正常情况下确实只有键盘聚焦。(需要其他设备也将输入定向到这个窗口中吗?)
+    //这里先使用堆叠式的逻辑
+    struct surface_toplevel* toplevel = server.grabbed_toplevel;
+    
 
-    if(toplevel == NULL){
-        return;  // 防止没有窗口(尤其是针对调用者是通过查找得到的窗口的情况, 有可能没有窗口)
-    }
-
-    TileyServer& server = TileyServer::getInstance();
-    struct wlr_seat* seat = server.seat;
-    struct wlr_surface* prev_surface = seat->keyboard_state.focused_surface;
-    struct wlr_surface* surface = toplevel->xdg_toplevel->base->surface;
-
-    if(prev_surface == surface){
-        // 如果就是之前那个(或者都为空), 不用再聚焦
-        return;
-    }
-
-    if(prev_surface){
-        //失焦之前的窗口
-        struct wlr_xdg_toplevel* prev_toplevel = 
-            wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
-        if(prev_toplevel != NULL){
-            wlr_xdg_toplevel_set_activated(prev_toplevel, false);
-        }
-    }
-
-    // 聚焦现在的窗口
-    // 1. 拿到键盘
-    struct wlr_keyboard* keyboard = wlr_seat_get_keyboard(seat);
-    // 2. 从场景中将窗口移动到最前面(前端)
-    wlr_scene_node_raise_to_top_(get_wlr_scene_tree_node(toplevel->scene_tree));
-    // 3. 从逻辑上将窗口移动到最前面(后端)
-    wl_list_remove(&toplevel->link);
-    wl_list_insert(&server.toplevels, &toplevel->link);
-    // 4. 激活窗口的surface
-    wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
-    // 5. 告知用户键盘已经移动到新的窗口中。后续输入将定向到这个窗口中
-    if(keyboard != NULL){
-        wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
-    }
+    // 将窗口移动到: 光标新位置(绝对) - 光标距窗口边界距离
+    // 可以分步理解:
+    // 1. 窗口要跟随光标, 所以移动到光标的绝对新位置;
+    // 2. 但是鼠标拖动的地方距离窗口的边框是有点距离的, 所以还需要减去这个距离, 
+    // 得到的才是平滑移动的效果, 不然窗口左上角就会直接闪现到光标处。
+    wlr_scene_node_set_position_(get_wlr_scene_tree_node(toplevel->scene_tree), 
+        server.cursor->x - server.grab_x,
+        server.cursor->y - server.grab_y     
+    );
 }
 
 /*********重要: 判断某个鼠标位置对应的窗口函数**********/
@@ -121,6 +101,43 @@ static struct surface_toplevel* desktop_toplevel_at(
     );
 }
 
+/*********鼠标处理: 通用的鼠标位置移动后的处理函数**********/
+static void process_cursor_motion(TileyServer& server, uint32_t time){
+    // 2.1 首先判断鼠标在干什么: 是正常移动, 缩放窗口大小还是在移动窗口
+    // 对于平铺式而言, 这里是主要的逻辑变化之处:
+    // a. 移动窗口只能是切换"槽位", 而不能任意移动坐标
+    // b. 缩放一个窗口大小会影响其他窗口的大小
+
+    if(server.cursor_mode == tiley::TILEY_CURSOR_MOVE){
+        //TODO: 平铺式: 移动并根据落点坐标切换槽位
+        process_cursor_move(server);
+        return;
+    }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
+        //TODO: 缩放窗口, 同时影响其他窗口
+        return;
+    }
+
+    // 2.2 找到鼠标所在的窗口, 如果没有窗口(或者没有在控件上), 则显示默认光标。
+    double sx, sy;
+    struct wlr_seat* seat = server.seat;
+    struct wlr_surface* surface = NULL;
+    struct surface_toplevel* toplevel = desktop_toplevel_at(server, server.cursor->x, server.cursor->y, &surface, &sx, &sy);  //TODO: 编写查找目前用户正在交互的窗口的逻辑
+    if(!toplevel){
+        wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
+    }
+    // 2.3 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
+    // 则通知该surface鼠标移入事件和鼠标移动事件。
+    // 例如浏览器中, 类似于javascript中的element.onmousemove这样的事件监听器就会收到该事件。
+    if(surface){
+        wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
+        wlr_seat_pointer_notify_motion(seat, time, sx, sy);
+    }else{
+        // 如果找不到surface, 说明光标移出去了, 此时清空上一个surface的监听。
+        // javascript中的element.onmouseleave就会触发。
+        wlr_seat_pointer_clear_focus(seat);
+    }
+}
+
 // 重置鼠标模式(从拖拽、改变大小模式复原成正常模式)
 static void reset_cursor_mode(TileyServer& server){
     server.cursor_mode = tiley::TILEY_CURSOR_PASSTHROUGH;
@@ -147,53 +164,37 @@ void server_cursor_motion(struct wl_listener* _, void* data){
     wlr_cursor_move(server.cursor, &event->pointer->base, 
         event->delta_x, event->delta_y);
 
-    
-    uint32_t time = event->time_msec;
-
     // 2
-    // 2.1 首先判断鼠标在干什么: 是正常移动, 缩放窗口大小还是在移动窗口
-    // 对于平铺式而言, 这里是主要的逻辑变化之处:
-    // a. 移动窗口只能是切换"槽位", 而不能任意移动坐标
-    // b. 缩放一个窗口大小会影响其他窗口的大小
-
-    if(server.cursor_mode == tiley::TILEY_CURSOR_MOVE){
-        //TODO: 切换槽位
-        return;
-    }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
-        //TODO: 缩放窗口, 同时影响其他窗口
-        return;
-    }
-
-    // 2.2 找到鼠标所在的窗口, 如果没有窗口(或者没有在控件上), 则显示默认光标。
-    double sx, sy;
-    struct wlr_seat* seat = server.seat;
-    struct wlr_surface* surface = NULL;
-    struct surface_toplevel* toplevel = desktop_toplevel_at(server, server.cursor->x, server.cursor->y, &surface, &sx, &sy);  //TODO: 编写查找目前用户正在交互的窗口的逻辑
-    if(!toplevel){
-        wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
-    }
-    // 2.3 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
-    // 则通知该surface鼠标移入事件和鼠标移动事件。
-    // 例如浏览器中, 类似于javascript中的element.onmousemove这样的事件监听器就会收到该事件。
-    if(surface){
-        wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
-        wlr_seat_pointer_notify_motion(seat, time, sx, sy);
-    }else{
-        // 如果找不到surface, 说明光标移出去了, 此时清空上一个surface的监听。
-        // javascript中的element.onmouseleave就会触发。
-        wlr_seat_pointer_clear_focus(seat);
-    }
+    // 跳转至process_cursor_motion继续逻辑...
+    process_cursor_motion(server, event->time_msec);
 
 }
 
-void server_cursor_motion_absolute(struct wl_listener* listener, void* data){
-    //TODO: 这里写当光标发出绝对移动事件时的处理逻辑
-    //绝对移动: 我想移动到屏幕坐标(200,300), 直接"飞"过去
-    //这个事件处理器在平铺式管理器中很常用
-    return;
+void server_cursor_motion_absolute(struct wl_listener* _, void* data){
+    // TODO: 这里写当光标发出绝对移动事件时的处理逻辑
+    // 绝对移动: 我想移动到屏幕坐标(200,300), 直接"飞"过去
+    // 绝对移动可能出现在两种情况下:
+    
+    // · 当我们的管理器在开发阶段还运行在其他桌面环境下(比如hyprland, KDE等)时, 对于
+    // Tiley而言, 它是不知道外界的情况的, 对于它而言鼠标直接凭空出现在了它的舞台范围内,
+    // 而之前处于一个默认位置(或者如果之前进去过, 就在退出的位置, 这个和虚拟机的逻辑有点像, 参考虚拟机怎么处理鼠标进入/退出的)
+    // , 此时就相当于从默认位置移动到了进去的位置;
+    
+    // · 用户真的在用绝对移动的设备, 比如画画的用户的手绘板(点哪里就到哪里)。如果没有这个功能,
+    // 就没办法画画了:(
+    // 屏幕的尺寸绘画设备不可能提前知道, 为了做到绝对移动, 手绘板等一般使用归一化坐标[0,1]
+    // Tiley需要映射这个坐标到屏幕上的真实位置。
+
+    TileyServer& server = TileyServer::getInstance();
+    struct wlr_pointer_motion_absolute_event* event = 
+        static_cast<wlr_pointer_motion_absolute_event*>(data);
+    
+    wlr_cursor_warp_absolute(server.cursor, &event->pointer->base, event->x, event->y);
+
+    process_cursor_motion(server, event->time_msec);
 }
 
-void server_cursor_button(struct wl_listener* listener, void* data){
+void server_cursor_button(struct wl_listener* _, void* data){
     //TODO: 这里写当光标按钮按下时的处理逻辑
     //data中包含具体的事件数据(哪个按钮, 是按下还是释放)
     TileyServer& server = TileyServer::getInstance();

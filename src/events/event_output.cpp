@@ -7,6 +7,7 @@
 #include "include/types.h"
 #include "include/server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
+#include "wlr/util/log.h"
 
 using namespace tiley;
 
@@ -37,7 +38,16 @@ static void output_frame(struct wl_listener* listener, void* data){
 }
 
 static void output_request_state(struct wl_listener *listener, void *data) {
-	//TODO: 当屏幕状态改变时触发的函数
+	// TODO: 当屏幕状态改变时触发的函数
+    // 第一次, 初始化屏幕时也会触发
+    wlr_log(WLR_DEBUG, "屏幕状态发生改变");
+
+    struct output_display* output = wl_container_of(listener, output, request_state);
+    const struct wlr_output_event_request_state* event = 
+        static_cast<wlr_output_event_request_state*>(data);
+    
+    // 使用屏幕状态提交新的状态
+    wlr_output_commit_state(output->wlr_output, event->state);
 }
 
 static void output_destroy(struct wl_listener *listener, void *data) {
@@ -102,6 +112,4 @@ void server_new_output(struct wl_listener* _, void* data){
     struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
     struct wlr_scene_output* scene_output = wlr_scene_output_create_(server.scene, wlr_output);
     wlr_scene_output_layout_add_output_(server.scene_layout, l_output, scene_output);
-
-    return;
 }

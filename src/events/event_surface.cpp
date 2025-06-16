@@ -1,9 +1,11 @@
 #include "include/events.h"
 #include "include/server.hpp"
+#include "include/interact.hpp"
 #include "include/types.h"
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
-#include "types/wlr_xdg_shell.h"
+#include "wlr/util/box.h"
+#include "wlr/util/edges.h"
 #include "wlr/util/log.h"
 
 #include <cstdlib>
@@ -12,16 +14,6 @@
 
 using namespace tiley;
 
-static void focus_toplevel(struct surface_toplevel* toplevel){
-    //TODO: 这里编写聚焦窗口的逻辑
-    //对于我们的平铺式管理器而言, 需要做下面的事情:
-    //1. 从上一个窗口失焦
-    //2. 将该窗口置于顶层
-    //3. 激活新的窗口
-    //4. 将键盘聚焦到该窗口
-    //5. 平铺式特色: 将鼠标瞬移到该窗口(对于刚创建的窗口, 移动到中心)
-}
-
 static void reset_cursor_mode(TileyServer& server){
     server.cursor_mode = tiley::TILEY_CURSOR_PASSTHROUGH;
     server.grabbed_toplevel = nullptr;
@@ -29,8 +21,42 @@ static void reset_cursor_mode(TileyServer& server){
 
 static void begin_interactive(struct surface_toplevel* toplevel,
     enum tiley_cursor_mode mode, uint32_t edges){
-        // TODO: 这个是tinywl的函数, 我们先留空, 这里面涉及到的移动和缩放操作
-        // 在平铺式和堆叠式中行为大相径庭.
+    // TODO: 这个是tinywl的函数, 这里面涉及到的移动和缩放操作
+    // 在平铺式和堆叠式中行为大相径庭. 为了完整性暂时使用tinywl的写法
+    // 之后修改为平铺式的行为
+    
+    TileyServer& server = TileyServer::getInstance();
+    server.grabbed_toplevel = toplevel;
+    server.cursor_mode = mode;
+
+    if(mode == tiley::TILEY_CURSOR_MOVE){
+        // 计算相对窗口左上角的"拖拽位置"
+        server.grab_x = server.cursor->x - get_scene_tree_node_x(toplevel);
+        server.grab_y = server.cursor->y - get_scene_tree_node_y(toplevel);
+    }else{
+        // 获得窗口的碰撞箱
+        struct wlr_box* geo_box = &toplevel->xdg_toplevel->base->geometry;
+
+        // wlroots用一个4位二进制数(相当于4个标志位)表示拖拽的边缘, 以便使用位运算简化逻辑(允许同时操作多条边)
+        // 0000按顺序代表上,下,左,右
+        
+        // 根据
+        double border_x = (get_scene_tree_node_x(toplevel) + geo_box->x)
+            + ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
+        double border_y = (get_scene_tree_node_y(toplevel) + geo_box->y) +
+			((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+        
+
+        server.grab_x = server.cursor->x - border_x;
+        server.grab_y = server.cursor->y - border_y;
+
+        server.grab_geobox = *geo_box;
+        server.grab_geobox.x += get_scene_tree_node_x(toplevel);
+        server.grab_geobox.y += get_scene_tree_node_y(toplevel);
+
+        server.resize_edges = edges;
+    }
+    
 }
 
 /*********窗口渲染状态改变事件**********/
@@ -137,7 +163,8 @@ static void xdg_toplevel_request_move(struct wl_listener* listener, void* data){
     // 移动窗口, 需要同时按住一个快捷键. 我们遵循社区主流规范.
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, request_move);
     
-    begin_interactive(toplevel, tiley::TILEY_CURSOR_MOVE, 0); //0是什么?
+    // 改成0b0000可能清晰一些, 表示四个标志位
+    begin_interactive(toplevel, tiley::TILEY_CURSOR_MOVE, 0b0000);
 }
 
 

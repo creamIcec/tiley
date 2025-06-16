@@ -68,6 +68,14 @@ void* get_tree_node_data(struct wlr_scene_node* node);
 
 void set_tree(struct wlr_scene_tree* *tree, struct wlr_scene_tree* target);
 
+// 获得根节点的x坐标
+int get_scene_tree_node_x(struct surface_toplevel* toplevel);
+
+// 获得根节点的y坐标
+int get_scene_tree_node_y(struct surface_toplevel* toplevel);
+
+// 移动一个窗口(节点)
+void wlr_scene_node_set_position_(struct wlr_scene_node* node, int x, int y);
 
 //trick: 绕开C++中的enum限制
 enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node);

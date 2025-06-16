@@ -91,6 +91,21 @@ struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree){
         return &tree->node;
 }
 
+// 获得根节点的x坐标
+int get_scene_tree_node_x(struct surface_toplevel* toplevel){
+        return toplevel->scene_tree->node.x;
+}
+
+// 获得根节点的y坐标
+int get_scene_tree_node_y(struct surface_toplevel* toplevel){
+        return toplevel->scene_tree->node.y;
+}
+
+void wlr_scene_node_set_position_(struct wlr_scene_node* node, int x, int y){
+        wlr_scene_node_set_position(node, x, y);
+}
+
+
 // 获取一个窗口在场景中的节点
 struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
         return &toplevel->scene_tree->node;
