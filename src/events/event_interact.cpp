@@ -2,12 +2,59 @@
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "types/wlr_seat.h"
 #include "wlr/util/log.h"
 #include <cstdint>
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
+#include <wayland-util.h>
 
 using namespace tiley;
 
+/*********重要: 聚焦窗口的函数**********/
+
+static void focus_toplevel(struct surface_toplevel* toplevel){
+    // tinywl中说这个函数仅用于键盘聚焦。不太能理解"仅用于键盘"的含义,
+    // 因为正常情况下确实只有键盘聚焦。(需要其他设备也将输入定向到这个窗口中吗?)
+
+    if(toplevel == NULL){
+        return;  // 防止没有窗口(尤其是针对调用者是通过查找得到的窗口的情况, 有可能没有窗口)
+    }
+
+    TileyServer& server = TileyServer::getInstance();
+    struct wlr_seat* seat = server.seat;
+    struct wlr_surface* prev_surface = seat->keyboard_state.focused_surface;
+    struct wlr_surface* surface = toplevel->xdg_toplevel->base->surface;
+
+    if(prev_surface == surface){
+        // 如果就是之前那个(或者都为空), 不用再聚焦
+        return;
+    }
+
+    if(prev_surface){
+        //失焦之前的窗口
+        struct wlr_xdg_toplevel* prev_toplevel = 
+            wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
+        if(prev_toplevel != NULL){
+            wlr_xdg_toplevel_set_activated(prev_toplevel, false);
+        }
+    }
+
+    // 聚焦现在的窗口
+    // 1. 拿到键盘
+    struct wlr_keyboard* keyboard = wlr_seat_get_keyboard(seat);
+    // 2. 从场景中将窗口移动到最前面(前端)
+    wlr_scene_node_raise_to_top_(get_wlr_scene_tree_node(toplevel->scene_tree));
+    // 3. 从逻辑上将窗口移动到最前面(后端)
+    wl_list_remove(&toplevel->link);
+    wl_list_insert(&server.toplevels, &toplevel->link);
+    // 4. 激活窗口的surface
+    wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+    // 5. 告知用户键盘已经移动到新的窗口中。后续输入将定向到这个窗口中
+    if(keyboard != NULL){
+        wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
+    }
+}
 
 /*********重要: 判断某个鼠标位置对应的窗口函数**********/
 
@@ -72,6 +119,12 @@ static struct surface_toplevel* desktop_toplevel_at(
     return static_cast<surface_toplevel*>(
         get_tree_node_data(get_wlr_scene_tree_node(tree))
     );
+}
+
+// 重置鼠标模式(从拖拽、改变大小模式复原成正常模式)
+static void reset_cursor_mode(TileyServer& server){
+    server.cursor_mode = tiley::TILEY_CURSOR_PASSTHROUGH;
+    server.grabbed_toplevel = NULL;
 }
 
 void server_cursor_motion(struct wl_listener* _, void* data){
@@ -143,7 +196,28 @@ void server_cursor_motion_absolute(struct wl_listener* listener, void* data){
 void server_cursor_button(struct wl_listener* listener, void* data){
     //TODO: 这里写当光标按钮按下时的处理逻辑
     //data中包含具体的事件数据(哪个按钮, 是按下还是释放)
-    return;
+    TileyServer& server = TileyServer::getInstance();
+    struct wlr_pointer_button_event* event = 
+        static_cast<wlr_pointer_button_event*>(data);
+
+    wlr_seat_pointer_notify_button(
+        server.seat, 
+        event->time_msec, 
+        event->button, 
+         event->state
+    );
+
+    if(event->state == WL_POINTER_BUTTON_STATE_RELEASED){
+        reset_cursor_mode(server);
+    } else {
+        // 聚焦于点击的窗口
+        double sx, sy;
+        struct wlr_surface* surface = NULL;
+        struct surface_toplevel* toplevel = desktop_toplevel_at(server, server.cursor->x, server.cursor->y, &surface, &sx, &sy);
+
+        focus_toplevel(toplevel);
+    }
+
 }
 
 void server_cursor_axis(struct wl_listener* listener, void* data){
@@ -180,8 +254,16 @@ void server_cursor_axis(struct wl_listener* listener, void* data){
     );
 }
 
-void server_cursor_frame(struct wl_listener* listener, void* data){
+void server_cursor_frame(struct wl_listener* _, void* data){
+
+    (void)data;  //忽略多余参数
+
     //TODO: 这里写当一个frame完成时的处理逻辑
+    //时钟同步(非常重要! 否则会导致很多奇怪的现象, 包括但不限于反应慢、事件卡顿等)
+    
+    TileyServer& server = TileyServer::getInstance();
+    wlr_seat_pointer_notify_frame(server.seat);
+
     return;
 }
 
