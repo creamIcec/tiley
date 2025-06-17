@@ -4,7 +4,6 @@
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
-#include "types/wlr_xdg_shell.h"
 #include "wlr/util/edges.h"
 #include "wlr/util/log.h"
 #include <cstdint>
