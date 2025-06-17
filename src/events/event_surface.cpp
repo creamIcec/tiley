@@ -1,6 +1,7 @@
 #include "include/events.h"
 #include "include/server.hpp"
 #include "include/interact.hpp"
+#include "include/core.hpp"
 #include "include/types.h"
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
@@ -141,15 +142,66 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
     // 当新的帧被提交待渲染时触发
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, commit);
 
+    TileyServer& server = TileyServer::getInstance();
+    
     // 如果是第一次渲染
     if(toplevel->xdg_toplevel->base->initial_commit){
         // 这里我们可以进行一些窗口显示配置, 例如设置窗口大小等等
         // 这个对于平铺式管理非常重要, 因为在平铺式管理中, 对于普通窗口, 
         // 我们不能让它自由决定自己的大小, 而是为其分配树中的下一块区域(对半)
-        // FIXME: 平铺式决定窗口大小. 此处暂时使用0,0让窗口自行决定大小
-        wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
-    }
+        // FIXME: 平铺式决定窗口大小。
 
+        // 获取鼠标所在的显示器的大小
+        wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+        int32_t display_width = output->width;
+        int32_t display_height = output->height;
+
+        WindowStateManager& manager = WindowStateManager::getInstance();
+
+        wlr_log(WLR_DEBUG, "获取显示器大小");
+
+        // 设置窗口大小
+
+        // 1. 根据鼠标位置取得窗口尺寸
+        // FIXME: 暂时是0号workspace
+
+        int width, height;
+        
+
+        area_container* old_container = manager.desktop_container_at(server.cursor->x, server.cursor->y, 0);
+        if(old_container->parent == nullptr){   // 为空说明只有桌面容器
+            wlr_log(WLR_DEBUG, "打开新窗口: 之前是桌面");
+            width = display_width;
+            height = display_height; // 设置为桌面参数    
+        } else {  //否则拿到窗口参数
+            wlr_box bb = old_container->toplevel->xdg_toplevel->base->geometry;
+            width = bb.width;
+            height = bb.height;
+        }
+
+        wlr_log(WLR_DEBUG, "获得父容器");
+
+        // 2. 根据窗口的长边得到分割方式
+        split_info split = width > height ? SPLIT_H : SPLIT_V;
+        // 3. 创建新节点
+        area_container* new_container = manager.create_toplevel_container(toplevel);
+
+        wlr_log(WLR_DEBUG, "创建新节点");
+
+        // 4. 插入容器树
+        manager.insert(new_container, old_container, split);
+
+        if(manager.get_workspace_root(0) != nullptr){
+            wlr_log(WLR_DEBUG, "找到根节点");
+        }
+
+        wlr_log(WLR_DEBUG, "插入容器树");
+
+        // 5. 重新计算布局
+        manager.reflow(0, {0,0,display_width,display_height});
+
+        wlr_log(WLR_DEBUG, "重新计算布局");
+    }
 }
 
 static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
@@ -237,7 +289,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     // 客户端函数
 
     // 干下面的事情:
-    // 1. 为新的窗口找到一块surface供其渲染
+    // 1. 为新的窗口分配一块surface和以该窗口为root的场景子树
     // 2. 添加窗口到场景树中, 并为其生成新的子树
     // 3. 注册事件
     
