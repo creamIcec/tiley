@@ -184,13 +184,11 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
 
         // 2. 根据窗口的长边得到分割方式
         split_info split = width > height ? SPLIT_H : SPLIT_V;
-        // 3. 创建新节点
-        area_container* new_container = manager.create_toplevel_container(toplevel);
 
         wlr_log(WLR_DEBUG, "创建新节点");
 
-        // 4. 插入容器树
-        manager.insert(new_container, old_container, split);
+        // 3. 拿到toplevel的container并插入容器树
+        manager.insert(toplevel->container, old_container, split);
 
         wlr_log(WLR_DEBUG, "插入容器树");
 
@@ -206,6 +204,29 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
     // 注意: 和unmap的区别在于, unmap只是暂时不渲染它了(有可能是因为最小化等原因), 但是它的进程还在;
     // destroy是整个窗口对应的进程都退出了
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, destroy);
+
+    WindowStateManager& manager = WindowStateManager::getInstance();
+    TileyServer& server = TileyServer::getInstance();
+
+    // 1. 执行从树中移除节点的操作
+    if (toplevel->container) {
+        manager.remove(toplevel->container);
+    }
+
+    // 2. 触发重新计算布局
+    
+    wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+    //struct output_display* display = wl_container_of(output, display, wlr_output);
+    //int workspace = manager.get_workspace_by_output_display(display);
+    int workspace = 0;  //TODO: 上述代码有问题, 暂时不启用, 默认用workspace0
+    std::cout << "获取workspace完成" << std::endl;
+    if(workspace != -1){
+        manager.reflow(workspace, {0,0, output->width, output->height});
+    }
+
+    std::cout << "重新计算布局完成" << std::endl;
+
+    // 3. TODO: 平铺式常见做法: 移动鼠标到兄弟窗口
 
     // 执行一系列销毁操作
     wl_list_remove(&toplevel->map.link);
@@ -294,6 +315,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
 
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_xdg_toplevel* xdg_toplevel = 
         static_cast<wlr_xdg_toplevel*>(data);
 
@@ -304,6 +326,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     toplevel->xdg_toplevel = xdg_toplevel;
     toplevel->scene_tree = 
         wlr_scene_xdg_surface_create_(get_wlr_scene_tree(server.scene), xdg_toplevel->base);
+    toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
 
     wlr_log(WLR_DEBUG, "新窗口分配新子树完成");
     

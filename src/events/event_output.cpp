@@ -6,6 +6,7 @@
 #include "include/events.h"
 #include "include/types.h"
 #include "include/server.hpp"
+#include "include/core.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "wlr/util/log.h"
 
@@ -74,8 +75,10 @@ void server_new_output(struct wl_listener* _, void* data){
     // 4. 提交渲染更新状态(虽然这里并不渲染任何东西, 但是要让服务端知道多了一个显示屏)
     // 5. 为新的显示屏注册客户端事件处理器: 刷新屏幕事件, 刷新屏幕状态事件和屏幕拔出事件
     // 6. 添加屏幕到输出布局中, 同时也告知客户端可以查询关于该屏幕的信息: 分辨率, 缩放比例, 名称, 制造商等等
+    // 7. 添加屏幕到窗口管理中, 便于后期查找
 
     tiley::TileyServer& server = tiley::TileyServer::getInstance();
+    tiley::WindowStateManager& manager = tiley::WindowStateManager::getInstance();
 
     wlr_output* wlr_output = static_cast<struct wlr_output*>(data);
 
@@ -120,4 +123,8 @@ void server_new_output(struct wl_listener* _, void* data){
     struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
     struct wlr_scene_output* scene_output = wlr_scene_output_create_(server.scene, wlr_output);
     wlr_scene_output_layout_add_output_(server.scene_layout, l_output, scene_output);
+
+    //7
+    manager.insert_display(output);
+
 }

@@ -4,6 +4,7 @@
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "wlr/util/box.h"
 #include "wlr/util/log.h"
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <iostream>
@@ -47,10 +48,12 @@ void WindowStateManager::reflow(int workspace, wlr_box display_geometry){
     // 先处理桌面的情况
     // 只有桌面
     if(root->child1 == nullptr && root->child2 == nullptr){
+        std::cout << "只有桌面" << std::endl;
         return;  // 直接停止
     }
     // 桌面 + 1个窗口
     if(root->child1->split == SPLIT_NONE && root->child2 == nullptr){
+        std::cout << "只有一个窗口" << std::endl;
         wlr_xdg_toplevel_set_size(root->child1->toplevel->xdg_toplevel,display_geometry.width, display_geometry.height);
         wlr_scene_node_set_position_(get_wlr_scene_tree_node(root->child1->toplevel->scene_tree), display_geometry.x, display_geometry.y);
         return;
@@ -68,8 +71,9 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         // 2. 如果我是叶子, 说明我是窗口, 设置大小和位置
         wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
         wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
+        wlr_xdg_surface_schedule_configure(container->toplevel->xdg_toplevel->base);
         //wlr_log(WLR_DEBUG, "设置完成");
-        //std::cout << "toplevel: " << "split= " << container->split << std::endl;
+        std::cout << "toplevel: " << "split= " << container->split << std::endl;
         return;
     }
     // 3. 如果我是容器, 计算两个子节点的区域
@@ -81,7 +85,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
         // 给child2, 右边
         area2 = {split_point, remaining_area.y, remaining_area.width - (split_point - remaining_area.x), remaining_area.height};
-        //std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
+        std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
     }else if(container->split == SPLIT_V){  // 纵向分割
         //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
         int split_point = remaining_area.y + (remaining_area.height * 0.5);
@@ -89,7 +93,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
         // 给child2, 下边
         area2 = {remaining_area.x, split_point, remaining_area.width, remaining_area.height - (split_point - remaining_area.y)};
-        //std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
+        std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
     }
 
     // 递归
@@ -115,7 +119,6 @@ area_container* WindowStateManager::create_toplevel_container(surface_toplevel* 
 // 3. 创建新的容器作为根节点, 并将container作为child1插入, 设置desktop_root为水平分割, 插入成功;
 // 4. 继续create_toplevel_container的第2步。根据传入的分割方式设置分割方式(外部根据鼠标位置计算), 插入成功。
 bool WindowStateManager::insert(area_container* container, area_container* target_leaf, enum split_info split){
-
 
     // FIXME: 暂时用0号显示器
     int workspace = 0;
@@ -157,6 +160,87 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
 
     return true;
 }
+
+// 移除一个节点, 用于关闭一个窗口
+bool WindowStateManager::remove(area_container* container_to_remove){
+    std::cout << "开始移除" << std::endl;
+    // 1. 处理特殊情况
+    // 1.1 如果传入的是一个容器或者桌面, 不允许移除(必须是叶子节点)
+    if(container_to_remove->toplevel == nullptr || container_to_remove->parent == nullptr){
+        return false;
+    }
+    assert(container_to_remove->toplevel != nullptr);  //必须是叶子节点
+
+    std::cout << "1.1" << std::endl;
+
+    // 取得父节点的指针
+    area_container* parent = container_to_remove->parent;
+
+    // 1.2 特殊情况: 关闭的是唯一的窗口, 剩下的是桌面
+    if(parent != nullptr && parent->parent == nullptr){
+        // 恢复初始状态
+        parent->toplevel = nullptr;
+        parent->split = SPLIT_NONE;
+        parent->child1 = nullptr;
+        parent->child2 = nullptr;
+
+        // 释放内存
+        delete container_to_remove;
+         std::cout << "1.2" << std::endl;
+        return true;
+    }
+
+    // ***如果父节点是根，但要移除的窗口不是唯一的窗口，这种情况正确的树结构中不应该发生***
+    // ***但为了安全起见，我们还是处理一下***
+    if (parent == nullptr) {
+        // 一个独立的窗口，没有父节点? 不应该发生，但是需要安全处理
+        delete container_to_remove;
+        return true;
+    }
+
+    // 2. 移除叶子节点
+    // 2.1 移除父节点->子节点的连接
+    // 由于不知道是child1还是child2, 需要先判断并保存备用
+    area_container* sibling = nullptr;  //兄弟树
+    if(container_to_remove->parent->child1 == container_to_remove){
+        container_to_remove->parent->child1 = nullptr;
+        sibling = container_to_remove->parent->child2;
+    } else if (container_to_remove->parent->child2 == container_to_remove){
+        container_to_remove->parent->child2 = nullptr;
+        sibling = container_to_remove->parent->child1;
+    }
+
+     std::cout << "2.1" << std::endl;
+
+    assert(sibling != nullptr);  //保证兄弟不是空节点
+    
+    // 2.2 移除子节点->父节点的连接
+    container_to_remove->parent = nullptr;
+     std::cout << "2.2" << std::endl;
+    // 2.3 清除内存
+    delete container_to_remove;
+    container_to_remove = nullptr;
+     std::cout << "2.3" << std::endl;
+    // 3. 将父节点的另一个子树提升到父节点(注意, 以下的"父节点"都是以被删除的container为主语)
+    // 3.1 找到父节点的父节点(曾父节点)
+    area_container* grand_parent = parent->parent;
+     std::cout << "3.1" << std::endl;
+    // 3.2 将曾父节点的子节点设置为父节点的另一个子树根节点
+    // 同理, 由于不知道是child1还是child2, 需要分情况
+    if(grand_parent->child1 == parent){   //父节点是曾父节点的child1
+        grand_parent->child1 = sibling;    
+    }else if(grand_parent->child2 == parent){ //父节点是曾父节点的child2
+        grand_parent->child2 = sibling;
+    }
+     std::cout << "3.2" << std::endl;
+    // 3.3 只清除parent的内存, 因为其中的一个子节点已经移动到parent的位置, 另一个已清除, 不会内存泄漏
+    delete parent;
+    parent = nullptr;
+     std::cout << "3.3" << std::endl;
+    
+    return true;  //操作成功
+}
+
 
 static bool pos_in_range(int lx, int ly, int sx, int sy, int width, int height){
     return lx >= sx && lx <= sx + width && ly >= sy && ly <= sy + height;
@@ -230,5 +314,10 @@ bool WindowStateManager::find(area_container* as_root, area_container* target){ 
     }
     
     return false;  //最后仍然没找到
+
+}
+
+
+struct output_display* WindowStateManager::get_display(int workspace){
 
 }
