@@ -1,39 +1,18 @@
+#include "server.hpp"
 #include "types.h"
 #include "wlr/util/box.h"
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <vector>
+#include <iostream>
 
 namespace tiley{
 
     // 暂时写死的工作区数量
     static const int WORKSPACES = 10;
-
-    // 某个container的分割信息
-    enum split_info{
-        SPLIT_NONE,  // 窗口, 叶子节点, 不进行分割
-        SPLIT_H,     // 该容器水平分割(左右)
-        SPLIT_V      // 该容器垂直分割(上下)
-    };
-
-    // 一个屏幕对应一个workspace
-    struct display_workspace_pair{
-        struct output_display* display;
-        int workspace;
-    };
-
-    // 一个container可以代表一个叶子节点(真正的窗口)
-    // 也可以代表一个容器(用于分割的)
-    struct area_container{
-        enum split_info split;
-        
-        struct area_container* parent;
-        struct area_container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
-        struct area_container* child2;
-    
-        struct surface_toplevel* toplevel;   //当是叶子节点时, 指向一个真正的窗口
-    };
 
     class WindowStateManager{
         public:
@@ -42,17 +21,59 @@ namespace tiley{
             area_container* create_toplevel_container(surface_toplevel* toplevel);   //创建一个新的container用来装toplevel
             bool insert(area_container* container, area_container* old_leaf, enum split_info split);  // 内部方法: 将一个container插入到container树中, 如果container已经存在, 则不能插入, 返回false; 如果不存在, 则插入, 返回true
             bool find(area_container* as_root, area_container* target);   //以传入的节点作为根节点遍历整棵树, 查找目标
+            bool remove(area_container* container);   //移除传入的窗口节点, 用于关闭窗口
             area_container* desktop_container_at(int lx, int ly, int workspace);  //以坐标获取容器
-            struct output_display* get_display(int workspace);  //根据workspace编号获得对应的屏幕(暂时保留)
-            struct area_container* get_workspace_root(int workspace){
+            struct output_display* get_display(int workspace);  //根据workspace编号获得对应的屏幕
+            inline struct area_container* get_workspace_root(int workspace){
                 return this->workspace_roots[workspace];
             }  // 调试: 查看一个工作区的根节点
+            inline void insert_display(output_display* new_display){  //用于在有新的显示屏插入时添加到管理
+                int workspace = display_to_workspace_map.size();
+                const std::string name = new_display->wlr_output->name;
+                display_to_workspace_map[name] = workspace;  //size = 下标 + 1 
+                std::cout << "插入显示屏" << std::endl;
+                std::cout << "display: " << name << " workspace: " << workspace  << std::endl;
+            }
+            inline bool remove_display(output_display* removed_display){   //用于在显示屏不再可用时从管理中移除
+                const std::string name = removed_display->wlr_output->name;
+                std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
+                if(it == display_to_workspace_map.end()){
+                    return false;  //移除失败, 不存在这个显示屏
+                }
+                display_to_workspace_map.erase(name);
+                //TODO: 检查内存, 极小的可能性一个display对应到了多个工作区, 但是也要避免
+                return true;
+            }
+            inline bool move_display_to_workspace(output_display* display, int target_workspace){   //用于将显示屏移动到某个工作区
+                const std::string name = display->wlr_output->name;
+                std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
+                if(it == display_to_workspace_map.end()){
+                    return false;  //移动失败, 不存在这个显示屏
+                }
+                display_to_workspace_map[name] = target_workspace;
+                return true;
+            }
+            inline int get_workspace_by_output_display(output_display* display){
+                const std::string name = display->wlr_output->name;
+                std::cout << "target display: " << name << std::endl;
+                std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
+                if(it == display_to_workspace_map.end()){
+                    std::cout << "display: " << it->first << " workspace: " << it->second << std::endl;
+                    return -1;  //查找失败, 不存在这个显示屏
+                }
+                return it->second;  //查找成功
+            }
+            void print_container_tree(int workspace);  //打印容器树, 用于调试。
         private:
             // 当前工作区(目前只使用一个)
             int current_workspace = 0;
 
+            // 工作区
             std::vector<area_container*> workspace_roots{WORKSPACES};
-            
+
+            // 显示屏到工作区的对应关系, 可以移动
+            std::map<std::string, int> display_to_workspace_map;
+
             struct WindowStateManagerDeleter{
                 
                 // 后序遍历递归删除树节点
@@ -89,6 +110,7 @@ namespace tiley{
 
             area_container* _desktop_container_at(int sx, int sy, area_container* container);
             void _reflow(area_container* container, wlr_box remaining_area);
+            void _print_container_tree(area_container* container);
     };
 
 }

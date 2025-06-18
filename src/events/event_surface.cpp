@@ -62,6 +62,18 @@ static void begin_interactive(struct surface_toplevel* toplevel,
     
 }
 
+/*********窗口存活状态心跳检测事件******************/
+static void handle_ack_configure(struct wl_listener* listener, void* data){
+    struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, ack_configure);
+    struct wlr_xdg_surface_configure* event = 
+        static_cast<wlr_xdg_surface_configure*>(data);
+    
+    // 检查序列号是否对应(同样类似发车票的机制)
+    if(toplevel->pending_configure && event->serial >= toplevel->last_configure_signal){  //用>=保险一点(虽然大概率是==)
+        toplevel->pending_configure = false;
+    }
+}
+
 /*********弹出窗口surface新帧待渲染事件*************/
 
 static void xdg_popup_commit(struct wl_listener* listener, void* data){
@@ -184,13 +196,11 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
 
         // 2. 根据窗口的长边得到分割方式
         split_info split = width > height ? SPLIT_H : SPLIT_V;
-        // 3. 创建新节点
-        area_container* new_container = manager.create_toplevel_container(toplevel);
 
         wlr_log(WLR_DEBUG, "创建新节点");
 
-        // 4. 插入容器树
-        manager.insert(new_container, old_container, split);
+        // 3. 拿到toplevel的container并插入容器树
+        manager.insert(toplevel->container, old_container, split);
 
         wlr_log(WLR_DEBUG, "插入容器树");
 
@@ -207,6 +217,30 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
     // destroy是整个窗口对应的进程都退出了
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, destroy);
 
+    WindowStateManager& manager = WindowStateManager::getInstance();
+    TileyServer& server = TileyServer::getInstance();
+
+    // 1. 执行从树中移除节点的操作
+    if (toplevel->container) {
+        manager.remove(toplevel->container);
+    }
+
+    // DEBUG: 竞态问题?
+    manager.print_container_tree(0);
+    // 2. 触发重新计算布局
+    
+    wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+    //struct output_display* display = wl_container_of(output, display, wlr_output);
+    //int workspace = manager.get_workspace_by_output_display(display);
+    int workspace = 0;  //TODO: 上述代码有问题, 暂时不启用, 默认用workspace0
+    std::cout << "获取workspace完成" << std::endl;
+    if(workspace != -1){
+        manager.reflow(workspace, {0,0, output->width, output->height});
+    }
+    std::cout << "重新计算布局完成" << std::endl;
+
+    // 3. TODO: 平铺式常见做法: 移动鼠标到兄弟窗口
+
     // 执行一系列销毁操作
     wl_list_remove(&toplevel->map.link);
 	wl_list_remove(&toplevel->unmap.link);
@@ -216,9 +250,11 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
 	wl_list_remove(&toplevel->request_resize.link);
 	wl_list_remove(&toplevel->request_maximize.link);
 	wl_list_remove(&toplevel->request_fullscreen.link);
+    wl_list_remove(&toplevel->ack_configure.link);
 
     // 释放窗口对象的内存
     free(toplevel);
+
 }
 
 
@@ -294,6 +330,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
 
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_xdg_toplevel* xdg_toplevel = 
         static_cast<wlr_xdg_toplevel*>(data);
 
@@ -304,6 +341,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     toplevel->xdg_toplevel = xdg_toplevel;
     toplevel->scene_tree = 
         wlr_scene_xdg_surface_create_(get_wlr_scene_tree(server.scene), xdg_toplevel->base);
+    toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
 
     wlr_log(WLR_DEBUG, "新窗口分配新子树完成");
     
@@ -343,6 +381,9 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     // 全屏
     toplevel->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
     wl_signal_add(&xdg_toplevel->events.request_fullscreen, &toplevel->request_fullscreen);
+    // 心跳检测
+    toplevel->ack_configure.notify = handle_ack_configure;
+    wl_signal_add(&toplevel->xdg_toplevel->base->events.ack_configure, &toplevel->ack_configure);
 
     wlr_log(WLR_DEBUG, "完成新窗口事件注册");
 
