@@ -70,13 +70,33 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
 
     // 1. 判断我是叶子还是容器
     if(container->toplevel != nullptr){
+        
+        // 添加心跳检测机制(防止某个窗口被冻结而崩溃整个序列)
+        if(container->toplevel->pending_configure){
+            // 上次发出的信号对方还杳无音讯
+            // 极有可能该窗口已经无响应了
+            // 跳过, 看下次是否响应
+            wlr_log(WLR_DEBUG, "Skipping configuring for a potentially unresponsive client.");
+            return;
+        }
+        
         //wlr_log(WLR_DEBUG, "是叶子");
         // 2. 如果我是叶子, 说明我是窗口, 设置大小和位置
-        wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
-        wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
-        wlr_xdg_surface_schedule_configure(container->toplevel->xdg_toplevel->base);
-        //wlr_log(WLR_DEBUG, "设置完成");
-        std::cout << "toplevel: " << "split= " << container->split << std::endl;
+        
+        struct wlr_xdg_surface* surface = container->toplevel->xdg_toplevel->base;
+        if(surface->initialized){
+            wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
+            wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
+            wlr_xdg_surface_schedule_configure(container->toplevel->xdg_toplevel->base);
+            //wlr_log(WLR_DEBUG, "设置完成");
+            std::cout << "toplevel: " << "split= " << container->split << std::endl;
+            // 如果正常响应了, 则发送一个信号, 用于下次对应
+            uint32_t serial = wlr_xdg_surface_schedule_configure(surface);
+            if (serial > 0) { // serial > 0 表示真的发送了一个新的 configure
+                container->toplevel->pending_configure = true;
+                container->toplevel->last_configure_signal = serial;
+            }
+        }
         return;
     }
     // 3. 如果我是容器, 计算两个子节点的区域

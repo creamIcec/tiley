@@ -58,6 +58,11 @@ struct surface_toplevel{
     struct wl_list link;
     struct wlr_xdg_toplevel* xdg_toplevel;
     struct wlr_scene_tree* scene_tree;
+
+    // 这里借用网络里面的握手机制
+    bool pending_configure;   //心跳等待, 当准备配置一个窗口时会先设置为true
+    uint32_t last_configure_signal;   //最后一个心跳序列号
+
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener commit;
@@ -66,6 +71,7 @@ struct surface_toplevel{
     struct wl_listener request_resize;
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
+    struct wl_listener ack_configure;  // 收到心跳回复事件
 };
 
 // 定义一个弹出窗口管理对象

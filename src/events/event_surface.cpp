@@ -62,6 +62,18 @@ static void begin_interactive(struct surface_toplevel* toplevel,
     
 }
 
+/*********窗口存活状态心跳检测事件******************/
+static void handle_ack_configure(struct wl_listener* listener, void* data){
+    struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, ack_configure);
+    struct wlr_xdg_surface_configure* event = 
+        static_cast<wlr_xdg_surface_configure*>(data);
+    
+    // 检查序列号是否对应(同样类似发车票的机制)
+    if(toplevel->pending_configure && event->serial >= toplevel->last_configure_signal){  //用>=保险一点(虽然大概率是==)
+        toplevel->pending_configure = false;
+    }
+}
+
 /*********弹出窗口surface新帧待渲染事件*************/
 
 static void xdg_popup_commit(struct wl_listener* listener, void* data){
@@ -238,6 +250,7 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
 	wl_list_remove(&toplevel->request_resize.link);
 	wl_list_remove(&toplevel->request_maximize.link);
 	wl_list_remove(&toplevel->request_fullscreen.link);
+    wl_list_remove(&toplevel->ack_configure.link);
 
     // 释放窗口对象的内存
     free(toplevel);
@@ -368,6 +381,9 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     // 全屏
     toplevel->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
     wl_signal_add(&xdg_toplevel->events.request_fullscreen, &toplevel->request_fullscreen);
+    // 心跳检测
+    toplevel->ack_configure.notify = handle_ack_configure;
+    wl_signal_add(&toplevel->xdg_toplevel->base->events.ack_configure, &toplevel->ack_configure);
 
     wlr_log(WLR_DEBUG, "完成新窗口事件注册");
 
