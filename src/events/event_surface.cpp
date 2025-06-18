@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
+#include <iostream>
 
 using namespace tiley;
 
@@ -166,9 +167,9 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
         // FIXME: 暂时是0号workspace
 
         int width, height;
-        
 
         area_container* old_container = manager.desktop_container_at(server.cursor->x, server.cursor->y, 0);
+        //std::cout << "鼠标所在对象地址:" << old_container << std::endl;
         if(old_container->parent == nullptr){   // 为空说明只有桌面容器
             wlr_log(WLR_DEBUG, "打开新窗口: 之前是桌面");
             width = display_width;
@@ -190,10 +191,6 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
 
         // 4. 插入容器树
         manager.insert(new_container, old_container, split);
-
-        if(manager.get_workspace_root(0) != nullptr){
-            wlr_log(WLR_DEBUG, "找到根节点");
-        }
 
         wlr_log(WLR_DEBUG, "插入容器树");
 

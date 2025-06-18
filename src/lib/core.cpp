@@ -34,6 +34,7 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->child1 = nullptr;
         this->workspace_roots[i]->child2 = nullptr;
         this->workspace_roots[i]->parent = nullptr;
+        this->workspace_roots[i]->toplevel = nullptr;
     }
 }
 
@@ -45,7 +46,7 @@ void WindowStateManager::reflow(int workspace, wlr_box display_geometry){
     wlr_log(WLR_DEBUG, "获取工作区");
     // 先处理桌面的情况
     // 只有桌面
-    if(root->child1 == nullptr && root->child1 == nullptr){
+    if(root->child1 == nullptr && root->child2 == nullptr){
         return;  // 直接停止
     }
     // 桌面 + 1个窗口
@@ -63,29 +64,32 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
 
     // 1. 判断我是叶子还是容器
     if(container->toplevel != nullptr){
-        wlr_log(WLR_DEBUG, "是叶子");
+        //wlr_log(WLR_DEBUG, "是叶子");
         // 2. 如果我是叶子, 说明我是窗口, 设置大小和位置
         wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
         wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
-        wlr_log(WLR_DEBUG, "设置完成");
+        //wlr_log(WLR_DEBUG, "设置完成");
+        //std::cout << "toplevel: " << "split= " << container->split << std::endl;
         return;
     }
     // 3. 如果我是容器, 计算两个子节点的区域
     struct wlr_box area1, area2;   //分别给child1, child2
     if(container->split == SPLIT_H){   // 如果是横向分割
-        wlr_log(WLR_DEBUG, "是容器, 横向分割");
+        //wlr_log(WLR_DEBUG, "是容器, 横向分割");
         int split_point = remaining_area.x + (remaining_area.width * 0.5);  //按照hyprland等的惯例, 对半分
         // 给child1, 左边
         area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
         // 给child2, 右边
         area2 = {split_point, remaining_area.y, remaining_area.width - (split_point - remaining_area.x), remaining_area.height};
+        //std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
     }else if(container->split == SPLIT_V){  // 纵向分割
-        wlr_log(WLR_DEBUG, "是容器, 纵向分割");
+        //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
         int split_point = remaining_area.y + (remaining_area.height * 0.5);
         // 给child1, 上边
         area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
         // 给child2, 下边
         area2 = {remaining_area.x, split_point, remaining_area.width, remaining_area.height - (split_point - remaining_area.y)};
+        //std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
     }
 
     // 递归
@@ -133,6 +137,7 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
     area_container* new_leaf = nullptr;
     
     if(target_leaf->parent != nullptr){  //上一个窗口不是桌面
+        //std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
         // 将以前的叶子窗口变成新的节点
         new_leaf = this->create_toplevel_container(target_leaf->toplevel);
         // 改变以前的类型
@@ -161,12 +166,17 @@ static bool pos_in_range(int lx, int ly, int sx, int sy, int width, int height){
 area_container* WindowStateManager::desktop_container_at(int lx, int ly, int workspace){
     // 获取工作区root
     area_container* root = this->workspace_roots[workspace];
-    return this->_desktop_container_at(lx,ly,root); 
+    // 是桌面, 直接返回root
+    if(root->child1 == nullptr && root->child2 == nullptr){
+        return root;
+    }
+    // 否则从第一个child开始查找
+    return this->_desktop_container_at(lx,ly,root->child1); 
 }
 
 area_container* WindowStateManager::_desktop_container_at(int lx, int ly, area_container* container){
 
-    std::cout << "桌面对象地址(内部):" << container << std::endl;
+    //std::cout<< "调用查找, container address: " << container << "container是:" << (container->toplevel != nullptr ? "窗口" : "容器") << std::endl; 
     
     if(container == nullptr){
         return nullptr;
@@ -174,9 +184,18 @@ area_container* WindowStateManager::_desktop_container_at(int lx, int ly, area_c
 
     // 1. 先序遍历, 找出所有不是容器的窗口
     if(container->toplevel != nullptr){
-        wlr_box bb = container->toplevel->xdg_toplevel->base->geometry;
+        wlr_box bb = {
+            get_scene_tree_node_x(container->toplevel),
+            get_scene_tree_node_y(container->toplevel),
+            container->toplevel->xdg_toplevel->base->geometry.width,
+            container->toplevel->xdg_toplevel->base->geometry.height
+        };
+        //std::cout << "container has toplevel? " << container->toplevel << std::endl;
+        //std::cout << "container address: " << container << " cursor x: " << lx << " cursor y: " << ly << " bb x: " << bb.x << " bb.y: " << bb.y << " bb.width: " << bb.width << " bb.height: " << bb.height << std::endl;
         if(pos_in_range(lx, ly, bb.x, bb.y,bb.width, bb.height)){
             return container;
+        }else{
+            return nullptr;
         }
     }
 
@@ -184,13 +203,13 @@ area_container* WindowStateManager::_desktop_container_at(int lx, int ly, area_c
     if(found){
         return found;
     }
-    found = _desktop_container_at(lx, ly, container->child2);
-    if(found){
-        return found;
-    }
 
-    // 这种情况不太可能发生(平铺式总是会占满空间), 安全起见, 我们还是返回原来的容器。
-    return container;
+    return _desktop_container_at(lx, ly, container->child2);
+
+    // 这种情况有两种可能:
+    // 1. 是桌面; 2. 除了桌面以外, 不太可能发生(平铺式总是会占满空间)
+    // 暂时注释
+    //return container;
 }
 
 bool WindowStateManager::find(area_container* as_root, area_container* target){   //以传入的节点作为根节点先序遍历整棵树
