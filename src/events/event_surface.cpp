@@ -213,6 +213,8 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
         manager.remove(toplevel->container);
     }
 
+    // DEBUG: 竞态问题?
+    manager.print_container_tree(0);
     // 2. 触发重新计算布局
     
     wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
@@ -223,7 +225,6 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
     if(workspace != -1){
         manager.reflow(workspace, {0,0, output->width, output->height});
     }
-
     std::cout << "重新计算布局完成" << std::endl;
 
     // 3. TODO: 平铺式常见做法: 移动鼠标到兄弟窗口
@@ -240,6 +241,7 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
 
     // 释放窗口对象的内存
     free(toplevel);
+
 }
 
 

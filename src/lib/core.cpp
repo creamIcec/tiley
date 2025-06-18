@@ -2,12 +2,15 @@
 #include "include/server.hpp"
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
+#include "types.h"
 #include "wlr/util/box.h"
 #include "wlr/util/log.h"
 #include <cassert>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <iostream>
+#include <ostream>
 
 using namespace tiley;
 
@@ -141,8 +144,17 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
     
     if(target_leaf->parent != nullptr){  //上一个窗口不是桌面
         //std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
+
+        // FIX: 解决双向链接不一致的问题(会导致关闭窗口崩溃!)
+
+        // 获取要被移动的 toplevel
+        surface_toplevel* toplevel_to_move = target_leaf->toplevel;
+
         // 将以前的叶子窗口变成新的节点
         new_leaf = this->create_toplevel_container(target_leaf->toplevel);
+
+        toplevel_to_move->container = new_leaf;
+        
         // 改变以前的类型
         target_leaf->toplevel = nullptr;
         target_leaf->split = split;
@@ -165,11 +177,14 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
 bool WindowStateManager::remove(area_container* container_to_remove){
     std::cout << "开始移除" << std::endl;
     // 1. 处理特殊情况
-    // 1.1 如果传入的是一个容器或者桌面, 不允许移除(必须是叶子节点)
-    if(container_to_remove->toplevel == nullptr || container_to_remove->parent == nullptr){
+    // 1.1 如果传入的是一个容器或者桌面, 不允许移除, 因为必须是叶子节点，并且在树中（有父节点）
+    if (container_to_remove == nullptr || container_to_remove->toplevel == nullptr || container_to_remove->parent == nullptr) {
+        //DEBUG
+        std::cout << "container= " << container_to_remove << " split= " << container_to_remove->split << " toplevel= " << container_to_remove->toplevel << " child1= " << container_to_remove->child1 << " child2= " << container_to_remove->child2 << std::endl;
         return false;
     }
-    assert(container_to_remove->toplevel != nullptr);  //必须是叶子节点
+
+    assert(container_to_remove->toplevel != nullptr);  //再次确保必须是叶子节点
 
     std::cout << "1.1" << std::endl;
 
@@ -232,6 +247,11 @@ bool WindowStateManager::remove(area_container* container_to_remove){
     }else if(grand_parent->child2 == parent){ //父节点是曾父节点的child2
         grand_parent->child2 = sibling;
     }
+
+    if(sibling){
+        sibling->parent = grand_parent;  // 更新双向指针
+    }
+
      std::cout << "3.2" << std::endl;
     // 3.3 只清除parent的内存, 因为其中的一个子节点已经移动到parent的位置, 另一个已清除, 不会内存泄漏
     delete parent;
@@ -317,7 +337,32 @@ bool WindowStateManager::find(area_container* as_root, area_container* target){ 
 
 }
 
+void WindowStateManager::print_container_tree(int workspace){
+    std::cout << "******************Start of container tree************************" << std::endl;
+    if(workspace < 0 || workspace >= WORKSPACES){
+        std::cout << "Workspace out of range. Stop printing." << std::endl;
+        return;
+    }
+    area_container* root = workspace_roots[workspace];
+    if(root == nullptr){
+        std::cout << "Root container of workspace " << workspace << " is null.";
+        return;
+    }
+    std::cout << "root: id= " << root << std::endl;
+    this->_print_container_tree(root);
+    std::cout << "******************End of container tree************************" << std::endl;
+}
+
+void WindowStateManager::_print_container_tree(area_container* container){
+    if(container == nullptr){
+        return;
+    }
+    std::cout << "container: id= " << container << " split= " << container->split << " child1: id= " << container->child1 << " child2: id= " << container->child2 << std::endl;
+    _print_container_tree(container->child1);
+    _print_container_tree(container->child2);
+}
+
 
 struct output_display* WindowStateManager::get_display(int workspace){
-
+    assert(false);  //未实现!
 }

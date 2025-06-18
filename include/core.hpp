@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <vector>
 #include <iostream>
 
@@ -62,6 +63,7 @@ namespace tiley{
                 }
                 return it->second;  //查找成功
             }
+            void print_container_tree(int workspace);  //打印容器树, 用于调试。
         private:
             // 当前工作区(目前只使用一个)
             int current_workspace = 0;
@@ -108,6 +110,7 @@ namespace tiley{
 
             area_container* _desktop_container_at(int sx, int sy, area_container* container);
             void _reflow(area_container* container, wlr_box remaining_area);
+            void _print_container_tree(area_container* container);
     };
 
 }
