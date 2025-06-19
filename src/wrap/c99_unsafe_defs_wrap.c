@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
+#include <time.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_output.h>
 #include "c99_unsafe_defs_wrap.h"
 #include "types.h"
+
 
 struct wlr_scene_rect* wlr_scene_rect_create_(struct wlr_scene_tree *parent,
     int width, int height, const float* color){

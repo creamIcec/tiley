@@ -40,7 +40,7 @@ static void keyboard_handle_modifiers(struct wl_listener* listener, void* _){
 // 处理一般按键。
 static void keyboard_handle_key(struct wl_listener* listener, void* data){
     //data 类型: 查看wlr_keyboard_key_event的定义。
-
+    //wl_container_of从成员指针反向获得结构体指针
     struct input_keyboard* keyboard = wl_container_of(listener, keyboard, key);
     TileyServer& server = TileyServer::getInstance();
     struct wlr_keyboard_key_event* event = static_cast<wlr_keyboard_key_event*>(data);

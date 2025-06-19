@@ -27,32 +27,80 @@ namespace tiley{
             inline struct area_container* get_workspace_root(int workspace){
                 return this->workspace_roots[workspace];
             }  // 调试: 查看一个工作区的根节点
-            inline void insert_display(output_display* new_display){  //用于在有新的显示屏插入时添加到管理
+            inline void insert_display(output_display* new_display){ 
+                 //用于在有新的显示屏插入时添加到管理
+                std::lock_guard<std::mutex>lock(insert_mutex);
+                //这里没必要用unique_guard，简单的lock_guard性能更高。
                 int workspace = display_to_workspace_map.size();
+
                 const std::string name = new_display->wlr_output->name;
-                display_to_workspace_map[name] = workspace;  //size = 下标 + 1 
+                //获取显示器的名字
+                if(display_to_workspace_map.find(name)!=display_to_workspace_map.end()){
+                 std::cout<<"请勿重复添加"<<name<<"显示器"<<std::endl;
+                 return;
+                //size = 下标 + 1 ，检查是否已经映射过了。
+                }
+                if (workspace >= WORKSPACES) {
+                std::cout << "工作区已满，无法添加更多显示器。" << std::endl;
+                return;
+            }
+            std::pair<std::string, int> workspace_key(name, workspace);
+            if (workspace_to_display_map.find(workspace_key) != workspace_to_display_map.end()) {
+                std::cout << "该工作区已经被映射到显示器，不能再次分配该工作区。" << std::endl;
+                return;
+            }
+            display_to_workspace_map[name] = workspace;
+            workspace_to_display_map[workspace_key] = name;
                 std::cout << "插入显示屏" << std::endl;
                 std::cout << "display: " << name << " workspace: " << workspace  << std::endl;
+
             }
+                
+                /*
+                else{    
+                 display_to_workspace_map[name] = workspace; 
+                }
+*/
+
+            
             inline bool remove_display(output_display* removed_display){   //用于在显示屏不再可用时从管理中移除
+                std::lock_guard<std::mutex>lock(remove_mutex);
                 const std::string name = removed_display->wlr_output->name;
                 std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
                 if(it == display_to_workspace_map.end()){
                     return false;  //移除失败, 不存在这个显示屏
                 }
                 display_to_workspace_map.erase(name);
+                int workspace = it->second;
+                std::pair<std::string, int> workspace_key(name, workspace);
+                workspace_to_display_map.erase(workspace_key);
                 //TODO: 检查内存, 极小的可能性一个display对应到了多个工作区, 但是也要避免
                 return true;
             }
-            inline bool move_display_to_workspace(output_display* display, int target_workspace){   //用于将显示屏移动到某个工作区
-                const std::string name = display->wlr_output->name;
-                std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
-                if(it == display_to_workspace_map.end()){
-                    return false;  //移动失败, 不存在这个显示屏
-                }
-                display_to_workspace_map[name] = target_workspace;
-                return true;
+      inline bool move_display_to_workspace(output_display* display, int target_workspace) {
+            const std::string name = display->wlr_output->name;
+            std::map<std::string, int>::iterator it = display_to_workspace_map.find(name);
+            if (it == display_to_workspace_map.end()) {
+                return false;  // 移动失败, 显示器不存在
             }
+
+            // 确保目标工作区没有其他显示器
+            std::pair<std::string, int> workspace_key(name, target_workspace);
+            if (workspace_to_display_map.find(workspace_key) != workspace_to_display_map.end()) {
+                std::cout << "目标工作区已被映射到显示器，无法移动显示器。" << std::endl;
+                return false;
+            }
+
+            int current_workspace = it->second;
+            display_to_workspace_map[name] = target_workspace;
+            workspace_to_display_map[workspace_key] = name;  // 更新工作区到显示器的映射
+
+            // 从当前工作区移除显示器
+            std::pair<std::string, int> current_workspace_key(name, current_workspace);
+            workspace_to_display_map.erase(current_workspace_key);
+
+            return true;
+        }
             inline int get_workspace_by_output_display(output_display* display){
                 const std::string name = display->wlr_output->name;
                 std::cout << "target display: " << name << std::endl;
@@ -67,7 +115,10 @@ namespace tiley{
         private:
             // 当前工作区(目前只使用一个)
             int current_workspace = 0;
-
+            std::map<std::pair<std::string, int>, std::string> workspace_to_display_map;  // 工作区到显示器的映射,TODO，这里我感觉我好像为了盘醋，包了饺子
+            //增加显示器移除显示器的锁；
+            std::mutex insert_mutex;
+            std::mutex remove_mutex;
             // 工作区
             std::vector<area_container*> workspace_roots{WORKSPACES};
 

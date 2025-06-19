@@ -36,7 +36,7 @@ struct wlr_scene_output* wlr_scene_get_scene_output_(struct wlr_scene* scene, st
 
 void wlr_scene_output_commit_(struct wlr_scene_output* scene_output, const struct wlr_scene_output_state_options *options);
 
-void wlr_scene_output_send_frame_done(struct wlr_scene_output *scene_output,
+void wlr_scene_output_send_frame_done_(struct wlr_scene_output *scene_output,
 		struct timespec *now);
 
 struct wlr_scene_node *wlr_scene_node_at_(struct wlr_scene_node *node,

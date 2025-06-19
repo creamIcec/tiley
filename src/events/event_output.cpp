@@ -34,7 +34,7 @@ static void output_frame(struct wl_listener* listener, void* data){
     // 3
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    wlr_scene_output_send_frame_done(scene_output, &now);
+    wlr_scene_output_send_frame_done_(scene_output, &now);
 
 }
 
