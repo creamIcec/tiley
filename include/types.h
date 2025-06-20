@@ -39,10 +39,18 @@ enum split_info{
     SPLIT_V      // 该容器垂直分割(上下)
 };
 
+// 某个container的浮动信息, 表示因何种原因而浮动
+enum floating_reason{
+    NONE,       // 不浮动
+    MOVING,     // 因为用户正在移动窗口
+    STACKING,   // 因为用户请求将这个窗口变成堆叠显示, 可以堆叠显示在其他窗口上方
+};
+
 // 一个container可以代表一个叶子节点(真正的窗口)
 // 也可以代表一个容器(用于分割的)
 struct area_container{
     enum split_info split;
+    enum floating_reason floating;
     
     struct area_container* parent;
     struct area_container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
@@ -59,7 +67,6 @@ struct surface_toplevel{
     struct wlr_xdg_toplevel* xdg_toplevel;
     struct wlr_scene_tree* scene_tree;
 
-    // 这里借用网络里面的握手机制
     bool pending_configure;   //心跳等待, 当准备配置一个窗口时会先设置为true
     uint32_t last_configure_signal;   //最后一个心跳序列号
 

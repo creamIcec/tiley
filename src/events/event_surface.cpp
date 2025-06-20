@@ -36,7 +36,8 @@ static void begin_interactive(struct surface_toplevel* toplevel,
         // 计算相对窗口左上角的"拖拽位置"
         server.grab_x = server.cursor->x - get_scene_tree_node_x(toplevel);
         server.grab_y = server.cursor->y - get_scene_tree_node_y(toplevel);
-    }else{
+        // 这里我们保留grab_x,grab_y作为拖拽位置, 用于拖拽过程中跟随鼠标
+    }else if(mode == tiley::TILEY_CURSOR_RESIZE){
         // 获得窗口的碰撞箱
         struct wlr_box* geo_box = &toplevel->xdg_toplevel->base->geometry;
 

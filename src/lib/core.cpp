@@ -39,6 +39,7 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->parent = nullptr;
         this->workspace_roots[i]->toplevel = nullptr;
     }
+    this->moving_container_ = nullptr;
 }
 
 WindowStateManager::~WindowStateManager(){}
@@ -164,8 +165,6 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
     if(target_leaf->parent != nullptr){  //上一个窗口不是桌面
         //std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
 
-        // FIX: 解决双向链接不一致的问题(会导致关闭窗口崩溃!)
-
         // 获取要被移动的 toplevel
         surface_toplevel* toplevel_to_move = target_leaf->toplevel;
 
@@ -280,6 +279,125 @@ bool WindowStateManager::remove(area_container* container_to_remove){
     return true;  //操作成功
 }
 
+// 分离一个container. 用于移动窗口或者将一个窗口变成堆叠模式. 和remove的逻辑接近, 可以考虑复用代码
+bool WindowStateManager::detach(area_container* container, floating_reason reason){
+    
+    if(container == nullptr){
+        return false;
+    }
+    if(reason == NONE){
+        return false;
+    }
+    // 如果已经是相应状态, 则不修改, 操作结束
+    if(container->floating == reason){
+        return false;
+    }
+
+    // 1. 将container的floating_reason设置成reason
+    container->floating = reason;
+
+    bool flag = false;
+
+    // 2. 从容器树中移除这个container但不删除
+    std::cout << "开始分离"<< std::endl;
+    
+    // 2.1 处理特殊情况
+    // 2.1.1 如果传入的是一个容器或者桌面, 不允许移除, 因为必须是叶子节点，并且在树中(有父节点)
+    if (container->toplevel == nullptr || container->parent == nullptr) {
+        return false;
+    }
+
+    assert(container->toplevel != nullptr);  //再次确保必须是叶子节点
+
+    std::cout << "2.1.1" << std::endl;
+
+    // 取得父节点的指针
+    area_container* parent = container->parent;
+
+    // 2.1.2 特殊情况: 分离的是唯一的窗口, 剩下的是桌面
+    if(parent != nullptr && parent->parent == nullptr){
+        // 恢复初始状态
+        parent->toplevel = nullptr;
+        parent->split = SPLIT_NONE;
+        parent->child1 = nullptr;
+        parent->child2 = nullptr;
+         
+        std::cout << "2.1.2" << std::endl;
+        flag = true;
+    }
+
+    // ***如果父节点是根，但要移除的窗口不是唯一的窗口，这种情况正确的树结构中不应该发生***
+    // ***但为了安全起见，我们还是处理一下***
+    if (parent == nullptr) {
+        // 一个独立的窗口，没有父节点? 不应该发生，但是还是分离
+        flag = true;
+    }
+
+    // 2.2 移除叶子节点
+    // 2.2.1 移除父节点->子节点的连接
+    // 由于不知道是child1还是child2, 需要先判断并保存备用
+    if(!flag){
+        area_container* sibling = nullptr;  //兄弟树
+        if(container->parent->child1 == container){
+            container->parent->child1 = nullptr;
+            sibling = container->parent->child2;
+        } else if (container->parent->child2 == container){
+            container->parent->child2 = nullptr;
+            sibling = container->parent->child1;
+        }
+
+        std::cout << "2.2.1" << std::endl;
+
+        assert(sibling != nullptr);  //保证兄弟不是空节点
+        
+        // 2.2.2 移除子节点->父节点的连接
+        container->parent = nullptr;
+        std::cout << "2.2.2" << std::endl;
+        std::cout << "2.3" << std::endl;
+
+        // 2.3 将父节点的另一个子树提升到父节点(注意, 以下的"父节点"都是以被分离的container为主语)
+        // 2.3.1 找到父节点的父节点(曾父节点)
+        area_container* grand_parent = parent->parent;
+        std::cout << "2.3.1" << std::endl;
+        // 2.3.2 将曾父节点的子节点设置为父节点的另一个子树根节点
+        // 同理, 由于不知道是child1还是child2, 需要分情况
+        if(grand_parent->child1 == parent){   //父节点是曾父节点的child1
+            grand_parent->child1 = sibling;    
+        }else if(grand_parent->child2 == parent){ //父节点是曾父节点的child2
+            grand_parent->child2 = sibling;
+        }
+
+        if(sibling){
+            sibling->parent = grand_parent;  // 更新双向指针
+        }
+
+        std::cout << "2.3.3" << std::endl;
+        // 2.3.3 只清除parent的内存, 因为其中的一个子节点已经移动到parent的位置, 另一个已经分离, 不会内存泄漏
+        delete parent;
+        parent = nullptr;
+
+        flag = true;
+    }
+
+    if(flag){
+        this->moving_container_ = container;
+    }
+
+    return flag;
+}
+
+// 合并一个之前处于移动或者堆叠模式的container. 
+// 直接insert.
+bool WindowStateManager::attach(area_container* container, area_container* target, enum split_info split){
+    bool result = this->insert(container, target, split);
+    if(result){
+        // 重置移动状态
+        this->moving_container_->floating = NONE;
+        this->moving_container_ = nullptr;
+    }
+
+    return result;
+}
 
 static bool pos_in_range(int lx, int ly, int sx, int sy, int width, int height){
     return lx >= sx && lx <= sx + width && ly >= sy && ly <= sy + height;

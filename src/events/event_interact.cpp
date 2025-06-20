@@ -1,4 +1,5 @@
 #include "include/events.h"
+#include "include/core.hpp"
 #include "include/interact.hpp"
 
 #include "server.hpp"
@@ -14,7 +15,7 @@
 using namespace tiley;
 
 /*********重要: 处理鼠标拖动窗口移动的函数***********/
-static void process_cursor_move(TileyServer& server){
+static void process_cursor_move(TileyServer& server, WindowStateManager& manager){
     // 这个函数也是我们平铺式需要重写逻辑的地方
     // Hyprland的逻辑: 
     // "抓住"窗口 -> 
@@ -22,9 +23,25 @@ static void process_cursor_move(TileyServer& server){
     // 将他在二分树中的父节点扩大两倍, 占据自己的位置 -> 
     // 根据鼠标释放点确定"槽位"
 
-    //这里先使用堆叠式的逻辑
     struct surface_toplevel* toplevel = server.grabbed_toplevel;
     
+    // 1. 调用detach分离窗口
+    area_container* container = toplevel->container;
+    
+    // 只在第一次处理时分离窗口
+    if(container->floating != MOVING){
+        manager.detach(container, MOVING);
+    }
+
+    // 2. 如果是移动窗口, 绘制临时窗口装饰(随时修改)
+    
+    // 3. 通知布局更新
+    wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+    int32_t display_width = output->width;
+    int32_t display_height = output->height;
+
+    // TODO: 仍然是默认0号工作区
+    manager.reflow(0, {0,0,display_width,display_height});
 
     // 将窗口移动到: 光标新位置(绝对) - 光标距窗口边界距离
     // 可以分步理解:
@@ -35,6 +52,7 @@ static void process_cursor_move(TileyServer& server){
         server.cursor->x - server.grab_x,
         server.cursor->y - server.grab_y     
     );
+
 }
 
 
@@ -164,7 +182,7 @@ static struct surface_toplevel* desktop_toplevel_at(
 }
 
 /*********鼠标处理: 通用的鼠标位置移动后的处理函数**********/
-static void process_cursor_motion(TileyServer& server, uint32_t time){
+static void process_cursor_motion(TileyServer& server, WindowStateManager& manager, uint32_t time){
     // 2.1 首先判断鼠标在干什么: 是正常移动, 缩放窗口大小还是在移动窗口
     // 对于平铺式而言, 这里是主要的逻辑变化之处:
     // a. 移动窗口只能是切换"槽位", 而不能任意移动坐标
@@ -172,7 +190,7 @@ static void process_cursor_motion(TileyServer& server, uint32_t time){
 
     if(server.cursor_mode == tiley::TILEY_CURSOR_MOVE){
         //TODO: 平铺式: 移动并根据落点坐标切换槽位
-        process_cursor_move(server);
+        process_cursor_move(server, manager);
         return;
     }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
         //TODO: 缩放窗口, 同时影响其他窗口
@@ -220,6 +238,7 @@ void server_cursor_motion(struct wl_listener* _, void* data){
     wlr_log(WLR_DEBUG, "收到光标相对移动事件");
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_pointer_motion_event* event = 
         static_cast<wlr_pointer_motion_event*>(data);
     
@@ -229,7 +248,7 @@ void server_cursor_motion(struct wl_listener* _, void* data){
 
     // 2
     // 跳转至process_cursor_motion继续逻辑...
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, manager, event->time_msec);
 
 }
 
@@ -249,18 +268,21 @@ void server_cursor_motion_absolute(struct wl_listener* _, void* data){
     // Tiley需要映射这个坐标到屏幕上的真实位置。
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_pointer_motion_absolute_event* event = 
         static_cast<wlr_pointer_motion_absolute_event*>(data);
     
     wlr_cursor_warp_absolute(server.cursor, &event->pointer->base, event->x, event->y);
 
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, manager, event->time_msec);
 }
 
 void server_cursor_button(struct wl_listener* _, void* data){
     //TODO: 这里写当光标按钮按下时的处理逻辑
     //data中包含具体的事件数据(哪个按钮, 是按下还是释放)
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
+
     struct wlr_pointer_button_event* event = 
         static_cast<wlr_pointer_button_event*>(data);
 
@@ -272,6 +294,29 @@ void server_cursor_button(struct wl_listener* _, void* data){
     );
 
     if(event->state == WL_POINTER_BUTTON_STATE_RELEASED){
+        // 如果之前正在移动窗口, 则执行重新插入逻辑
+        // 1. 拿到正在移动的窗口
+        area_container* moving_container = manager.moving_container();
+        // 2. 拿到目标放置的位置
+        // TODO: 默认0号工作区
+        area_container* target_container = manager.desktop_container_at(server.cursor->x, server.cursor->y, 0);
+        std::cout << "鼠标释放" << std::endl;
+        if(moving_container != nullptr){
+            // 3. 获取目标分割模式(仍然是长边分割)
+            wlr_box bb = target_container->toplevel->xdg_toplevel->base->geometry;
+            split_info split = bb.width > bb.height ? SPLIT_H : SPLIT_V;
+
+            wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+            int32_t display_width = output->width;
+            int32_t display_height = output->height;
+
+            // 4. 重新挂载节点
+            manager.attach(moving_container, target_container, split);
+            
+            // 5. 通知布局更新
+            manager.reflow(0, {0,0, display_width, display_height});
+            std::cout << "更新布局" << std::endl;
+        }
         reset_cursor_mode(server);
     } else {
         // 聚焦于点击的窗口
