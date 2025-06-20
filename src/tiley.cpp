@@ -1,51 +1,59 @@
 #include "include/events.h"
 #include "include/server.hpp"
+#include "types.h"
 #include "wlr/util/log.h"
 
 #include <bits/getopt_core.h>
 #include <cstddef>
 #include <cstdlib>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <getopt.h>
 
 #define PROJECT_NAME "tiley"
 
-/* 处理启动参数, 目前唯一功能是根据启动参数决定是否输出"DEBUG"等级的log.
-   为了逻辑配套, 建议我们在开发的时候打印的为了调试(例如, 检查某个事件是否正常触发, 打印某些数据)的log
-   都使用WLR_DEBUG这个等级。这样便可以通过设置"--debug"参数一键切换是否输出这些日志, 避免了手动删除打印代码
-*/
-void setup_params(int argc, char* argv[]){
+// 处理启动参数。
+launch_args setup_params(int argc, char* argv[]){
 
-    bool enable_debug = false;
+    launch_args args = {false, nullptr};
     
     int c;
     // https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
     struct option longopts[] = {
         {"debug", no_argument, NULL, 'd'},
+        {"start", required_argument, NULL, 's'},
         {0,0,0,0}
     };
 
     while((c = getopt_long(argc, argv, "ds:", longopts, NULL)) != -1){
         switch(c){
             case 'd':
-                enable_debug = true;
+                args.enable_debug = true;
+                break;
+            case 's':
+                args.startup_cmd = optarg;
                 break;
             default:
                 break;
         }
     }
 
-    wlr_log_init(enable_debug ? WLR_DEBUG : WLR_INFO, NULL);
+    return args;
 }
 
 int main(int argc, char* argv[]){
     
     // 处理启动参数, 目前可用:
     /*
-        --debug, -d: 启用调试输出。
+        --debug, -d: 启用调试输出。为了逻辑配套, 
+        建议我们在开发的时候打印的为了调试(例如, 检查某个事件是否正常触发, 打印某些数据)的log
+        都使用WLR_DEBUG这个等级。这样便可以通过设置"--debug"参数一键切换是否输出这些日志, 避免了手动删除打印代码;
+        --start, -s: 指定启动时要运行的程序。注意: 某些程序可能不能在嵌套模式(即Tiley运行在其他Compositor之下)下运行, 如果需要验证, 请切换至tty运行Tiley。
     */
-    setup_params(argc, argv);
+    launch_args args = setup_params(argc, argv);
+
+    wlr_log_init(args.enable_debug ? WLR_DEBUG : WLR_INFO, NULL);
 
     wlr_log(WLR_DEBUG, "这是一条来自wlroots的log打印, 如果你看到了这条打印信息, 说明wlroots依赖引用成功!");
 
@@ -185,7 +193,12 @@ int main(int argc, char* argv[]){
     // https://wayland.arktoria.org/4-wayland-display/creation.html
     setenv("WAYLAND_DISPLAY", socket, true);
 
-    
+    if (args.startup_cmd) {
+		if (fork() == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", args.startup_cmd, (void *)NULL);
+		}
+	}
+
     /***********启动准备结束*************/
 
     /**************启!动!***************/

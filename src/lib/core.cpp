@@ -6,7 +6,6 @@
 #include "wlr/util/box.h"
 #include "wlr/util/log.h"
 #include <cassert>
-#include <exception>
 #include <memory>
 #include <mutex>
 #include <iostream>

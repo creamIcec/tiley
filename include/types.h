@@ -88,4 +88,11 @@ enum wlr_scene_node_type_ {
 	WLR_SCENE_NODE_BUFFER_,
 };
 
+
+// 启动参数结构体
+struct launch_args{
+    bool enable_debug;
+    char* startup_cmd;
+};
+
 #endif
