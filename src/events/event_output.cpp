@@ -13,6 +13,7 @@
 using namespace tiley;
 
 static void output_frame(struct wl_listener* listener, void* data){
+
     //TODO: 当有新的帧要输出时触发的函数
 
     // 客户端函数

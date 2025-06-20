@@ -2,6 +2,7 @@
 #define __TYPES_H__
 
 
+#include "wlr/util/box.h"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
@@ -57,6 +58,7 @@ struct area_container{
     struct area_container* child2;
 
     struct surface_toplevel* toplevel;   //当是叶子节点时, 指向一个真正的窗口
+    struct wlr_box geometry;
 };
 
 // 定义一个窗口管理对象

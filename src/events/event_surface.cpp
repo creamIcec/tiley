@@ -43,8 +43,7 @@ static void begin_interactive(struct surface_toplevel* toplevel,
 
         // wlroots用一个4位二进制数(相当于4个标志位)表示拖拽的边缘, 以便使用位运算简化逻辑(允许同时操作多条边)
         // 0000按顺序代表上,下,左,右
-        
-        // 根据
+
         double border_x = (get_scene_tree_node_x(toplevel) + geo_box->x)
             + ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
         double border_y = (get_scene_tree_node_y(toplevel) + geo_box->y) +
@@ -157,6 +156,8 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, commit);
 
     TileyServer& server = TileyServer::getInstance();
+
+    WindowStateManager& manager = WindowStateManager::getInstance();
     
     // 如果是第一次渲染
     if(toplevel->xdg_toplevel->base->initial_commit){
@@ -167,10 +168,13 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
 
         // 获取鼠标所在的显示器的大小
         wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-        int32_t display_width = output->width;
-        int32_t display_height = output->height;
+        struct wlr_box output_box;
+        wlr_output_layout_get_box(server.output_layout, output, &output_box);
 
-        WindowStateManager& manager = WindowStateManager::getInstance();
+        int32_t display_width = output_box.width;
+        int32_t display_height = output_box.height;
+
+        std::cout << "屏幕尺寸: " << display_width << "x" << display_height << std::endl;
 
         wlr_log(WLR_DEBUG, "获取显示器大小");
 
@@ -206,10 +210,22 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
         wlr_log(WLR_DEBUG, "插入容器树");
 
         // 5. 重新计算布局
-        manager.reflow(0, {0,0,display_width,display_height});
+        manager.reflow(0, output_box);
 
         wlr_log(WLR_DEBUG, "重新计算布局");
+
+        return;
     }
+
+    if (manager.get_decorating()) {
+        wlr_box display_geometry;
+        wlr_output_layout_get_box(server.output_layout, NULL, &display_geometry);
+
+        // 重新触发布局
+        manager.reflow(0, display_geometry);
+        manager.set_decorating(false);
+    }
+
 }
 
 static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
@@ -226,7 +242,6 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
         manager.remove(toplevel->container);
     }
 
-    // DEBUG: 竞态问题?
     manager.print_container_tree(0);
     // 2. 触发重新计算布局
     
@@ -328,7 +343,6 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     // 3. 注册事件
     
     wlr_log(WLR_DEBUG, "触发新的窗口打开");
-
 
     TileyServer& server = TileyServer::getInstance();
     WindowStateManager& manager = WindowStateManager::getInstance();

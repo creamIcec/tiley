@@ -68,7 +68,14 @@ namespace tiley{
             inline area_container* moving_container(){  // 用户正在移动窗口
                 return this->moving_container_;
             }
+            inline void set_decorating(bool decorating){
+                this->is_decorating = decorating;
+            }
+            inline bool get_decorating(){
+                return this->is_decorating;
+            }
             void print_container_tree(int workspace);  //打印容器树, 用于调试。
+            bool is_alt_down = false;  //暂时写死alt键作为modifier
         private:
             // 当前工作区(目前只使用一个)
             int current_workspace = 0;
@@ -81,6 +88,9 @@ namespace tiley{
             
             // 正在移动的容器
             area_container* moving_container_;
+
+            // 是否协商边框处理
+            bool is_decorating = false;
 
             struct WindowStateManagerDeleter{
                 

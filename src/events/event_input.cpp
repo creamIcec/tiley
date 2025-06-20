@@ -1,4 +1,5 @@
 #include "include/events.h"
+#include "include/core.hpp"
 #include "server.hpp"
 #include "include/types.h"
 #include "wlr/util/log.h"
@@ -15,7 +16,7 @@ using namespace tiley;
 /*********键盘事件***********/
 
 // 处理修饰键。
-static void keyboard_handle_modifiers(struct wl_listener* listener, void* _){
+static void keyboard_handle_modifiers(struct wl_listener* listener, void* data){
     
     struct input_keyboard* keyboard = wl_container_of(listener, keyboard, modifiers);
 
@@ -30,6 +31,16 @@ static void keyboard_handle_modifiers(struct wl_listener* listener, void* _){
     TileyServer& server = TileyServer::getInstance();
 
     wlr_log(WLR_DEBUG, "收到键盘修饰键事件");
+
+    WindowStateManager& manager = WindowStateManager::getInstance();
+
+    uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->wlr_keyboard);
+
+    manager.is_alt_down = (modifiers & WLR_MODIFIER_ALT);
+
+    if(modifiers & WLR_MODIFIER_ALT){
+        std::cout << "按下alt" << std::endl;
+    }
 
     // 同样地, 由于协议限制, 在每次输入按键时, 把正在用的键盘设置为"使用"的键盘 
     wlr_seat_set_keyboard(server.seat, keyboard->wlr_keyboard);
