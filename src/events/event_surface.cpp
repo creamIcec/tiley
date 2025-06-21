@@ -355,7 +355,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
 
     toplevel->xdg_toplevel = xdg_toplevel;
     toplevel->scene_tree = 
-        wlr_scene_xdg_surface_create_(get_wlr_scene_tree(server.scene), xdg_toplevel->base);
+        wlr_scene_xdg_surface_create_(server.tiled_layer, xdg_toplevel->base);
     toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
 
     wlr_log(WLR_DEBUG, "新窗口分配新子树完成");

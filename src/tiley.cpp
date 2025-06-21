@@ -1,5 +1,6 @@
 #include "include/events.h"
 #include "include/server.hpp"
+#include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
 #include "wlr/util/log.h"
 
@@ -105,6 +106,17 @@ int main(int argc, char* argv[]){
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
 
     server.scene = wlr_scene_create_();
+
+    wlr_scene_tree* scene_tree = get_wlr_scene_tree(server.scene);
+
+    // 添加多棵树(多图层)
+    // 需要以底层到顶层的顺序添加(这样才能让后端识别到渲染顺序!)
+    // 背景层
+    server.background_layer = wlr_scene_tree_create_(scene_tree);
+    // 平铺层
+    server.tiled_layer = wlr_scene_tree_create_(scene_tree);
+    // 浮动层
+    server.floating_layer = wlr_scene_tree_create_(scene_tree);
 
     server.scene_layout = wlr_scene_attach_output_layout_(server.scene, server.output_layout);
 

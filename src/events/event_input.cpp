@@ -1,5 +1,6 @@
 #include "include/events.h"
 #include "include/core.hpp"
+#include "interact.hpp"
 #include "server.hpp"
 #include "include/types.h"
 #include "wlr/util/log.h"
@@ -9,9 +10,38 @@
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include <xkbcommon/xkbcommon.h>
 
 using namespace tiley;
+
+/*******临时快捷键处理(随时修改)*********/
+// 合成器级别的快捷键处理, 不传递给客户端窗口
+static bool handle_keybinding(TileyServer& server, WindowStateManager& manager, xkb_keysym_t sym) {
+    
+	switch (sym) {
+	    case XKB_KEY_Escape:
+		    wl_display_terminate(server.wl_display_);   // Alt+ESC 退出Compositor
+		    break;
+        case XKB_KEY_space:{
+            //仍然是默认0号工作区
+            const int workspace = 0;
+            //1. 获取聚焦的窗口
+            area_container* focused_container = manager.get_focused_container();
+            //2. 没有聚焦的或者不是窗口则跳过
+            if(!focused_container || focused_container->toplevel == nullptr){
+                return false;
+            }
+            //3. 切换聚焦窗口的堆叠状态
+            std::cout << "窗口状态: " << focused_container->floating << std::endl;
+            toggle_overhang_toplevel(focused_container, manager, server, workspace);
+            break;
+        }
+	    default:
+		    return false;
+	}
+	return true;
+}
 
 /*********键盘事件***********/
 
@@ -54,6 +84,7 @@ static void keyboard_handle_key(struct wl_listener* listener, void* data){
 
     struct input_keyboard* keyboard = wl_container_of(listener, keyboard, key);
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_keyboard_key_event* event = static_cast<wlr_keyboard_key_event*>(data);
     struct wlr_seat* seat = server.seat;
 
@@ -73,16 +104,14 @@ static void keyboard_handle_key(struct wl_listener* listener, void* data){
 
     /***tinywl的设置: 将alt+一个按键视为合成器级别的快捷键, 
         我们最好是允许用户自定义快捷键, 这里先注释掉***/
-    /*
-        if ((modifiers & WLR_MODIFIER_ALT) &&
+    if ((modifiers & WLR_MODIFIER_ALT) &&
 			event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-		// If alt is held down and this button was _pressed_, we attempt to
-		// process it as a compositor keybinding.
+        // alt之前已经被按下 且 正在按的按键是"按下"而不是"释放"
 		for (int i = 0; i < nsyms; i++) {
-			handled = handle_keybinding(server, syms[i]);
+			handled = handle_keybinding(server, manager, syms[i]);
 		}
 	}
-    */
+    
 
     // 如果事件没有被处理, 交给下一个层级(说明不是合成器的快捷键)
     if(!handled){

@@ -1,3 +1,6 @@
+#ifndef __CORE_H__
+#define __CORE_H__
+
 #include "server.hpp"
 #include "types.h"
 #include "wlr/util/box.h"
@@ -5,7 +8,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <random>
 #include <vector>
 #include <iostream>
 
@@ -68,11 +70,21 @@ namespace tiley{
             inline area_container* moving_container(){  // 用户正在移动窗口
                 return this->moving_container_;
             }
+            inline void interupt_moving(){   //打断移动。目前用于在移动时切换到悬浮
+                this->moving_container_->floating = NONE;
+                this->moving_container_ = nullptr;
+            }
             inline void set_decorating(bool decorating){
                 this->is_decorating = decorating;
             }
             inline bool get_decorating(){
                 return this->is_decorating;
+            }
+            inline area_container* get_focused_container(){
+                return this->focused_container_;
+            }
+            inline void set_focused_container(area_container* container){
+                this->focused_container_ = container;
             }
             void print_container_tree(int workspace);  //打印容器树, 用于调试。
             bool is_alt_down = false;  //暂时写死alt键作为modifier
@@ -88,6 +100,9 @@ namespace tiley{
             
             // 正在移动的容器
             area_container* moving_container_;
+
+            // 目前聚焦的容器
+            area_container* focused_container_;
 
             // 是否协商边框处理
             bool is_decorating = false;
@@ -132,3 +147,5 @@ namespace tiley{
     };
 
 }
+
+#endif

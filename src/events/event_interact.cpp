@@ -171,7 +171,6 @@ static void process_cursor_motion(TileyServer& server, WindowStateManager& manag
     // b. 缩放一个窗口大小会影响其他窗口的大小
 
     if(server.cursor_mode == tiley::TILEY_CURSOR_MOVE){
-        //TODO: 平铺式: 移动并根据落点坐标切换槽位
         if(manager.is_alt_down){
             process_cursor_move(server);
         }
@@ -190,7 +189,11 @@ static void process_cursor_motion(TileyServer& server, WindowStateManager& manag
     if(!toplevel){
         wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
     }
-    // 2.3 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
+
+    // 2.3 如果鼠标在一个窗口上, 并且该窗口未激活(focus_toplevel内部判断), 则激活该窗口
+    focus_toplevel(toplevel);
+
+    // 2.4 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
     // 则通知该surface鼠标移入事件和鼠标移动事件。
     // 例如浏览器中, 类似于javascript中的element.onmousemove这样的事件监听器就会收到该事件。
     if(surface){
@@ -287,13 +290,14 @@ void server_cursor_button(struct wl_listener* _, void* data){
         std::cout << "鼠标释放" << std::endl;
         if(moving_container != nullptr){
             // 3. 获取目标分割模式(仍然是长边分割)
+            std::cout << "尝试合并回正在移动的窗口" << std::endl;
             wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
             int32_t display_width = output->width;
             int32_t display_height = output->height;
 
             int width, height;
             if(target_container->parent == nullptr){   // 为空说明只有桌面容器
-                wlr_log(WLR_DEBUG, "打开新窗口: 之前是桌面");
+                wlr_log(WLR_DEBUG, "合并窗口到桌面根节点");
                 width = display_width;
                 height = display_height; // 设置为桌面参数    
             } else {  //否则拿到窗口参数
@@ -317,9 +321,6 @@ void server_cursor_button(struct wl_listener* _, void* data){
         double sx, sy;
         struct wlr_surface* surface = NULL;
         struct surface_toplevel* toplevel = desktop_toplevel_at(server, server.cursor->x, server.cursor->y, &surface, &sx, &sy);
-
-        focus_toplevel(toplevel);
-
         // 判断是否要移动窗口
         if(manager.is_alt_down){
 
@@ -328,8 +329,8 @@ void server_cursor_button(struct wl_listener* _, void* data){
             // 1. 调用detach分离窗口
             area_container* container = toplevel->container;
             
-            // 只在第一次处理时分离窗口
-            if(container->floating != MOVING){
+            // 只在第一次处理时分离窗口, 并且只能是平铺状态
+            if(container->floating == NONE){
                 manager.detach(container, MOVING);
             }
 

@@ -68,6 +68,10 @@ void* get_tree_node_data(struct wlr_scene_node* node);
 
 void set_tree(struct wlr_scene_tree* *tree, struct wlr_scene_tree* target);
 
+void wlr_scene_node_reparent_(struct wlr_scene_node *node, struct wlr_scene_tree *new_parent);
+
+struct wlr_scene_tree* wlr_scene_tree_create_(struct wlr_scene_tree *parent);
+
 // 获得根节点的x坐标
 int get_scene_tree_node_x(struct surface_toplevel* toplevel);
 

@@ -40,6 +40,7 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->toplevel = nullptr;
     }
     this->moving_container_ = nullptr;
+    this->focused_container_ = nullptr;
 }
 
 WindowStateManager::~WindowStateManager(){}
@@ -85,11 +86,13 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         int target_geometry_height = remaining_area.height + border_height;
 
         // 打印出来进行对比
+        /*
         std::cout << "--- Geometry Debug ---" << std::endl;
         std::cout << "Assigned Content Area: " << remaining_area.width << "x" << remaining_area.height << std::endl;
         std::cout << "Detected Border: " << border_width << "x" << border_height << std::endl;
         std::cout << "Final Window Geometry to Set: " << target_geometry_width << "x" << target_geometry_height << std::endl;
         std::cout << "----------------------" << std::endl;
+        */
 
         // 添加心跳检测机制(防止某个窗口被冻结而崩溃整个序列)
         if(container->toplevel->pending_configure){
@@ -205,7 +208,7 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
     area_container* new_leaf = nullptr;
     
     if(target_leaf->parent != nullptr){  //上一个窗口不是桌面
-        //std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
+        std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
 
         // 获取要被移动的 toplevel
         surface_toplevel* toplevel_to_move = target_leaf->toplevel;
@@ -421,7 +424,7 @@ bool WindowStateManager::detach(area_container* container, floating_reason reaso
         flag = true;
     }
 
-    if(flag){
+    if(flag && reason == MOVING){
         this->moving_container_ = container;
     }
 
@@ -433,10 +436,18 @@ bool WindowStateManager::detach(area_container* container, floating_reason reaso
 bool WindowStateManager::attach(area_container* container, area_container* target, enum split_info split){
     bool result = this->insert(container, target, split);
     if(result){
-        // 重置移动状态
-        this->moving_container_->floating = NONE;
-        this->moving_container_ = nullptr;
+        if(this->moving_container_ != nullptr){
+            // 重置移动状态
+            this->moving_container_->floating = NONE;
+            this->moving_container_ = nullptr;
+        }
+        if(container->floating == STACKING){
+            // 重置堆叠状态
+            container->floating = NONE;
+        }
     }
+
+    std::cout << "合并窗口完成" << std::endl;
 
     return result;
 }
