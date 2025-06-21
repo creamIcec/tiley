@@ -2,6 +2,7 @@
 #include "include/server.hpp"
 #include "include/interact.hpp"
 #include "include/core.hpp"
+#include "include/decoration.hpp"
 #include "include/types.h"
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
@@ -255,7 +256,8 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
     }
     std::cout << "重新计算布局完成" << std::endl;
 
-    // 3. TODO: 平铺式常见做法: 移动鼠标到兄弟窗口
+    // 3. 如果窗口是浮动的, 则清除浮动标记
+    destroy_toplevel_decoration(toplevel);
 
     // 执行一系列销毁操作
     wl_list_remove(&toplevel->map.link);

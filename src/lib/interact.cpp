@@ -3,6 +3,7 @@
 #include "include/core.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "include/decoration.hpp"
 
 /*********重要: 聚焦窗口的函数**********/
 
@@ -94,13 +95,17 @@ void toggle_overhang_toplevel(struct area_container *container, tiley::WindowSta
         wlr_scene_node_raise_to_top_(node);
     }
 
+    bool stacking_flag = false;
+
     // 在hyprland中, 按此优先级, 高的会覆盖低的。比如如果用户正在移动窗口, 但在移动过程中按下了悬挂快捷键, 会马上停止移动, 在当时的位置变成悬挂。
     if(container->floating == NONE){
-        manager.detach(container, STACKING);   
+        manager.detach(container, STACKING);
+        stacking_flag = true;   
     }else if(container->floating == MOVING){
-        manager.interupt_moving(); //清除移动状态
+        manager.stop_moving(); //清除移动状态
         container->floating = STACKING;
-    }else{   //3. 如果就是STACKING, 说明要切换回去, 则调用attach合并
+        stacking_flag = true;
+    }else{   // 3. 如果就是STACKING, 说明要切换回去, 则调用attach合并
         // 3.1 获取鼠标位置的container
         area_container* target_container = manager.desktop_container_at(server.cursor->x, server.cursor->y, workspace);
         int width, height;
@@ -129,7 +134,21 @@ void toggle_overhang_toplevel(struct area_container *container, tiley::WindowSta
         manager.attach(container, target_container, split);
     }
 
+    surface_toplevel* toplevel = container->toplevel;
+
+    create_toplevel_decoration(toplevel);
+
+    if(stacking_flag){
+        update_toplevel_decoration(toplevel);
+        set_toplevel_decoration_enabled(toplevel, true);
+    }else{
+        set_toplevel_decoration_enabled(toplevel, false);
+    }
+
+
     // 4. 无论何种情况, 都需要通知布局更新
     manager.reflow(0, {0,0, display_width, display_height});
     std::cout << "更新布局" << std::endl;
+
+
 }

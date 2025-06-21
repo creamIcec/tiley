@@ -438,8 +438,7 @@ bool WindowStateManager::attach(area_container* container, area_container* targe
     if(result){
         if(this->moving_container_ != nullptr){
             // 重置移动状态
-            this->moving_container_->floating = NONE;
-            this->moving_container_ = nullptr;
+            this->stop_moving();
         }
         if(container->floating == STACKING){
             // 重置堆叠状态

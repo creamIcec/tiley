@@ -1,5 +1,6 @@
 lib_sources = files(
     'server.cpp',
     'interact.cpp',
-    'core.cpp'
+    'core.cpp',
+    'decoration.cpp'
 )

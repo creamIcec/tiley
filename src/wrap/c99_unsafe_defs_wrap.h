@@ -58,6 +58,10 @@ struct wlr_scene_tree* get_wlr_scene_tree(struct wlr_scene* scene);
 
 struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree);
 
+struct wlr_scene_node* get_wlr_scene_rect_node(struct wlr_scene_rect* rect);
+
+void wlr_scene_rect_set_size_(struct wlr_scene_rect *rect, int width, int height);
+
 struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel);
 
 void set_tree_node_data(struct surface_toplevel* toplevel);
@@ -80,6 +84,8 @@ int get_scene_tree_node_y(struct surface_toplevel* toplevel);
 
 // 移动一个窗口(节点)
 void wlr_scene_node_set_position_(struct wlr_scene_node* node, int x, int y);
+
+void wlr_scene_node_set_enabled_(struct wlr_scene_node *node, bool enabled);
 
 //trick: 绕开C++中的enum限制
 enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node);

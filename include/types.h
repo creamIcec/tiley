@@ -6,6 +6,14 @@
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
+// 定义窗口装饰(目前用于浮动窗口的标记)
+struct toplevel_decoration {
+    struct wlr_scene_rect* top;
+    struct wlr_scene_rect* bottom;
+    struct wlr_scene_rect* left;
+    struct wlr_scene_rect* right;
+};
+
 // 定义一个显示屏管理对象
 
 struct output_display {
@@ -81,6 +89,8 @@ struct surface_toplevel{
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
     struct wl_listener ack_configure;  // 收到心跳回复事件
+
+    struct toplevel_decoration decoration;
 };
 
 // 定义一个弹出窗口管理对象
@@ -103,5 +113,9 @@ struct launch_args{
     bool enable_debug;
     char* startup_cmd;
 };
+
+
+
+
 
 #endif

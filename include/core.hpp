@@ -70,7 +70,7 @@ namespace tiley{
             inline area_container* moving_container(){  // 用户正在移动窗口
                 return this->moving_container_;
             }
-            inline void interupt_moving(){   //打断移动。目前用于在移动时切换到悬浮
+            inline void stop_moving(){   //打断移动。目前用于在移动时切换到悬浮
                 this->moving_container_->floating = NONE;
                 this->moving_container_ = nullptr;
             }

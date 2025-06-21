@@ -1,6 +1,7 @@
 #include "include/events.h"
 #include "include/core.hpp"
 #include "include/interact.hpp"
+#include "include/decoration.hpp"
 
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
@@ -96,6 +97,11 @@ static void process_cursor_resize(TileyServer& server){
     int new_height = new_bottom - new_top;
 
     wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width, new_height);
+
+    // 5 如果窗口浮动, 则同步更新边框
+    if(toplevel->container->floating == STACKING){
+        update_toplevel_decoration(toplevel);
+    }
 }
 
 /*********重要: 判断某个鼠标位置对应的窗口函数**********/
