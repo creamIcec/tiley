@@ -2,14 +2,15 @@
 #include "server.hpp"
 #include "include/types.h"
 #include "wlr/util/log.h"
-
+#include "include/hotkey.hpp"
+#include "include/interact.hpp"
 #include <cstdint>
 #include <cstdlib>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
-
+#include <xkbcommon/xkbcommon-keysyms.h>
 using namespace tiley;
 
 /*********键盘事件***********/
@@ -59,7 +60,6 @@ static void keyboard_handle_key(struct wl_listener* listener, void* data){
 
     // 3. 拿到修饰键
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->wlr_keyboard);
-
     /***tinywl的设置: 将alt+一个按键视为合成器级别的快捷键, 
         我们最好是允许用户自定义快捷键, 这里先注释掉***/
     /*
@@ -72,6 +72,26 @@ static void keyboard_handle_key(struct wl_listener* listener, void* data){
 		}
 	}
     */
+    std::string combo = keycombo_to_string(keycode, modifiers);
+      if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED
+        && (modifiers & WLR_MODIFIER_CTRL)) {
+        for (int i = 0; i < nsyms; ++i) {
+            if (syms[i] == XKB_KEY_Right) {
+                // 调用切换下一个窗口功能
+                focus_next_window();
+                return;  // 拦截后不再传给客户端
+            }
+        }
+    }
+    // 查表
+    {
+        std::lock_guard _(g_hotkey_mutex);
+        auto it = g_hotkey_map.find(combo);
+        if (it != g_hotkey_map.end() && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+            execute_hotkey_action(it->second);
+            return;  // 拦截，不再传给客户端
+        }
+    }
 
     // 如果事件没有被处理, 交给下一个层级(说明不是合成器的快捷键)
     if(!handled){

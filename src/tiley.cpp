@@ -1,14 +1,14 @@
 #include "include/events.h"
 #include "include/server.hpp"
 #include "wlr/util/log.h"
-
+#include "include/hotkey.hpp"
 #include <bits/getopt_core.h>
 #include <cstddef>
 #include <cstdlib>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <getopt.h>
-
+#include <thread>
 #define PROJECT_NAME "tiley"
 
 /* 处理启动参数, 目前唯一功能是根据启动参数决定是否输出"DEBUG"等级的log.
@@ -157,6 +157,12 @@ int main(int argc, char* argv[]){
     wl_signal_add(&server.seat->events.request_set_selection, &server.request_set_selection);
 
     /***********事件注册结束************/
+    // 首次加载
+load_hotkey_config("./hotkey.json");
+// 后台监视文件变化，自动重载
+std::thread([]{
+    watch_hotkey_file("./hotkey.json");
+}).detach();
 
     /***********启动准备开始************/
 

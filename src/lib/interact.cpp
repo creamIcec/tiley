@@ -1,8 +1,10 @@
 #include "include/interact.hpp"
 #include "include/server.hpp"
-
+#include <wayland-server-core.h>
+#include "include/types.h"
+#include "src/wrap/c99_unsafe_defs_wrap.h" 
 /*********重要: 聚焦窗口的函数**********/
-
+using namespace tiley;
 void focus_toplevel(struct surface_toplevel* toplevel){
 
     //对于我们的平铺式管理器而言, 需要做下面的事情:
@@ -53,3 +55,35 @@ void focus_toplevel(struct surface_toplevel* toplevel){
         wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
     }
 }
+
+
+void focus_next_window() {
+    auto &server = TileyServer::getInstance();
+    // 当前焦点 surface
+    struct wlr_surface *focused = server.seat->keyboard_state.focused_surface;
+
+    struct surface_toplevel *toplevel = nullptr;
+    struct surface_toplevel *first = nullptr;
+    bool found = false;
+
+    // 遍历 toplevels 链表
+    wl_list_for_each(toplevel, &server.toplevels, link) {
+        if (!first)
+            first = toplevel;          // 记录第一个窗口
+        if (found) {
+            // 上一次循环中找到了当前焦点，这次就是下一个
+            focus_toplevel(toplevel);
+            return;
+        }
+        if (toplevel->xdg_toplevel->base->surface == focused) {
+            found = true;
+        }
+    }
+
+    // 如果没找到当前焦点，或已到链表末尾，则聚焦第一个
+    if (first) {
+        focus_toplevel(first);
+    }
+}
+
+

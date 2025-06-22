@@ -1,6 +1,5 @@
 #include "include/events.h"
 #include "include/interact.hpp"
-
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
