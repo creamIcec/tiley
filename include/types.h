@@ -2,8 +2,17 @@
 #define __TYPES_H__
 
 
+#include "wlr/util/box.h"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
+
+// 定义窗口装饰(目前用于浮动窗口的标记)
+struct toplevel_decoration {
+    struct wlr_scene_rect* top;
+    struct wlr_scene_rect* bottom;
+    struct wlr_scene_rect* left;
+    struct wlr_scene_rect* right;
+};
 
 // 定义一个显示屏管理对象
 
@@ -39,16 +48,25 @@ enum split_info{
     SPLIT_V      // 该容器垂直分割(上下)
 };
 
+// 某个container的浮动信息, 表示因何种原因而浮动
+enum floating_reason{
+    NONE,       // 不浮动
+    MOVING,     // 因为用户正在移动窗口
+    STACKING,   // 因为用户请求将这个窗口变成堆叠显示, 可以堆叠显示在其他窗口上方
+};
+
 // 一个container可以代表一个叶子节点(真正的窗口)
 // 也可以代表一个容器(用于分割的)
 struct area_container{
     enum split_info split;
+    enum floating_reason floating;
     
     struct area_container* parent;
     struct area_container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
     struct area_container* child2;
 
     struct surface_toplevel* toplevel;   //当是叶子节点时, 指向一个真正的窗口
+    struct wlr_box geometry;
 };
 
 // 定义一个窗口管理对象
@@ -59,7 +77,6 @@ struct surface_toplevel{
     struct wlr_xdg_toplevel* xdg_toplevel;
     struct wlr_scene_tree* scene_tree;
 
-    // 这里借用网络里面的握手机制
     bool pending_configure;   //心跳等待, 当准备配置一个窗口时会先设置为true
     uint32_t last_configure_signal;   //最后一个心跳序列号
 
@@ -72,6 +89,8 @@ struct surface_toplevel{
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
     struct wl_listener ack_configure;  // 收到心跳回复事件
+
+    struct toplevel_decoration decoration;
 };
 
 // 定义一个弹出窗口管理对象
@@ -87,5 +106,16 @@ enum wlr_scene_node_type_ {
 	WLR_SCENE_NODE_RECT_,
 	WLR_SCENE_NODE_BUFFER_,
 };
+
+
+// 启动参数结构体
+struct launch_args{
+    bool enable_debug;
+    char* startup_cmd;
+};
+
+
+
+
 
 #endif

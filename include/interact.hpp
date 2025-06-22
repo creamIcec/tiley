@@ -1,6 +1,10 @@
 #ifndef __INTERACT_H__
 #define __INTERACT_H__
 
-void focus_toplevel(struct surface_toplevel* toplevel);
+#include "include/server.hpp"
+#include "include/core.hpp"
+
+bool focus_toplevel(struct surface_toplevel* toplevel);
+void toggle_overhang_toplevel(struct area_container *container, tiley::WindowStateManager& manager, tiley::TileyServer& server, int workspace);
 
 #endif

@@ -1,3 +1,6 @@
+#ifndef __CORE_H__
+#define __CORE_H__
+
 #include "server.hpp"
 #include "types.h"
 #include "wlr/util/box.h"
@@ -5,7 +8,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <random>
 #include <vector>
 #include <iostream>
 
@@ -19,9 +21,11 @@ namespace tiley{
             static WindowStateManager& getInstance();
             void reflow(int workspace, wlr_box display_geometry); // 刷新布局(重新流动~)
             area_container* create_toplevel_container(surface_toplevel* toplevel);   //创建一个新的container用来装toplevel
-            bool insert(area_container* container, area_container* old_leaf, enum split_info split);  // 内部方法: 将一个container插入到container树中, 如果container已经存在, 则不能插入, 返回false; 如果不存在, 则插入, 返回true
+            bool insert(area_container* container, area_container* old_leaf, enum split_info split, int workspace);  // 内部方法: 将一个container插入到container树中, 如果container已经存在, 则不能插入, 返回false; 如果不存在, 则插入, 返回true
             bool find(area_container* as_root, area_container* target);   //以传入的节点作为根节点遍历整棵树, 查找目标
             bool remove(area_container* container);   //移除传入的窗口节点, 用于关闭窗口
+            bool detach(area_container* container, floating_reason reason);   //将窗口暂时分离, 用于移动, 浮动等目的
+            bool attach(area_container* container, area_container* target, enum split_info split, int workspace);  // 合入detach暂时分离的窗口
             area_container* desktop_container_at(int lx, int ly, int workspace);  //以坐标获取容器
             struct output_display* get_display(int workspace);  //根据workspace编号获得对应的屏幕
             inline struct area_container* get_workspace_root(int workspace){
@@ -63,7 +67,30 @@ namespace tiley{
                 }
                 return it->second;  //查找成功
             }
+            inline area_container* moving_container(){  // 用户正在移动窗口
+                return this->moving_container_;
+            }
+            inline void stop_moving(){   //打断移动。目前用于在移动时切换到悬浮
+                this->moving_container_->floating = NONE;
+                this->moving_container_ = nullptr;
+            }
+            inline void set_decorating(bool decorating){
+                this->is_decorating = decorating;
+            }
+            inline bool get_decorating(){
+                return this->is_decorating;
+            }
+            inline area_container* get_focused_container(){
+                return this->focused_container_;
+            }
+            inline void set_focused_container(area_container* container){
+                this->focused_container_ = container;
+            }
+            inline int get_current_workspace(){
+                return this->current_workspace;
+            }
             void print_container_tree(int workspace);  //打印容器树, 用于调试。
+            bool is_alt_down = false;  //暂时写死alt键作为modifier
         private:
             // 当前工作区(目前只使用一个)
             int current_workspace = 0;
@@ -73,6 +100,15 @@ namespace tiley{
 
             // 显示屏到工作区的对应关系, 可以移动
             std::map<std::string, int> display_to_workspace_map;
+            
+            // 正在移动的容器
+            area_container* moving_container_;
+
+            // 目前聚焦的容器
+            area_container* focused_container_;
+
+            // 是否协商边框处理
+            bool is_decorating = false;
 
             struct WindowStateManagerDeleter{
                 
@@ -114,3 +150,5 @@ namespace tiley{
     };
 
 }
+
+#endif

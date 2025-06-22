@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
@@ -13,6 +14,7 @@
 using namespace tiley;
 
 static void output_frame(struct wl_listener* listener, void* data){
+
     //TODO: 当有新的帧要输出时触发的函数
 
     // 客户端函数
@@ -46,6 +48,9 @@ static void output_request_state(struct wl_listener *listener, void *data) {
     struct output_display* output = wl_container_of(listener, output, request_state);
     const struct wlr_output_event_request_state* event = 
         static_cast<wlr_output_event_request_state*>(data);
+
+    // 这个只会在嵌套模式下输出
+    wlr_log(WLR_INFO, "接收到来自宿主对 %s 的状态变更请求", output->wlr_output->name);
     
     // 使用屏幕状态提交新的状态
     wlr_output_commit_state(output->wlr_output, event->state);
@@ -71,11 +76,12 @@ void server_new_output(struct wl_listener* _, void* data){
     //大致来讲干下面的事情:
     // 1. 指定新的显示屏使用我们的buffer allocator和renderer
     // 2. 打开新的显示屏的输出状态
-    // 3. 指定显示参数: (长度, 宽度, 刷新率)
-    // 4. 提交渲染更新状态(虽然这里并不渲染任何东西, 但是要让服务端知道多了一个显示屏)
-    // 5. 为新的显示屏注册客户端事件处理器: 刷新屏幕事件, 刷新屏幕状态事件和屏幕拔出事件
-    // 6. 添加屏幕到输出布局中, 同时也告知客户端可以查询关于该屏幕的信息: 分辨率, 缩放比例, 名称, 制造商等等
-    // 7. 添加屏幕到窗口管理中, 便于后期查找
+    // 3. 判断是否是嵌套运行。如果是嵌套运行, 则设置自定义显示参数, 防止变糊
+    // 4. 物理模式指定显示参数: (长度, 宽度, 刷新率)
+    // 5. 提交渲染更新状态(虽然这里并不渲染任何东西, 但是要让服务端知道多了一个显示屏)
+    // 6. 为新的显示屏注册客户端事件处理器: 刷新屏幕事件, 刷新屏幕状态事件和屏幕拔出事件
+    // 7. 添加屏幕到输出布局中, 同时也告知客户端可以查询关于该屏幕的信息: 分辨率, 缩放比例, 名称, 制造商等等
+    // 8. 添加屏幕到窗口管理中, 便于后期查找
 
     tiley::TileyServer& server = tiley::TileyServer::getInstance();
     tiley::WindowStateManager& manager = tiley::WindowStateManager::getInstance();
@@ -88,23 +94,29 @@ void server_new_output(struct wl_listener* _, void* data){
     //2
     struct wlr_output_state state;
     wlr_output_state_init(&state);
-    wlr_output_state_set_enabled(&state, true);
 
-    //3
+    //3,4
     struct wlr_output_mode* mode = wlr_output_preferred_mode(wlr_output);
-    if(mode != NULL){
+    if (mode != NULL) {
         wlr_output_state_set_mode(&state, mode);
     }
 
-    //4
-    wlr_output_commit_state(wlr_output, &state);
+    wlr_output_state_set_enabled(&state, true);
+
+    //5
+    if (!wlr_output_commit_state(wlr_output, &state)) {
+        wlr_log(WLR_ERROR, "无法提交输出 %s 的初始状态", wlr_output->name);
+        wlr_output_state_finish(&state);
+        return;
+    }
+
     wlr_output_state_finish(&state);
 
     //拿到显示屏对象
     struct output_display* output = static_cast<output_display*>(calloc(1, sizeof(*output)));
     output->wlr_output = wlr_output;
 
-    //5
+    //6
     //刷新屏幕事件
     output->frame.notify = output_frame;
     wl_signal_add(&wlr_output->events.frame, &output->frame);
@@ -119,12 +131,12 @@ void server_new_output(struct wl_listener* _, void* data){
     
     wl_list_insert(&server.outputs, &output->link);
 
-    //6
+    //7
     struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
     struct wlr_scene_output* scene_output = wlr_scene_output_create_(server.scene, wlr_output);
     wlr_scene_output_layout_add_output_(server.scene_layout, l_output, scene_output);
-
-    //7
+    
+    //8
     manager.insert_display(output);
 
 }

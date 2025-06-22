@@ -1,5 +1,7 @@
 #include "include/events.h"
+#include "include/core.hpp"
 #include "include/interact.hpp"
+#include "include/decoration.hpp"
 
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
@@ -22,9 +24,7 @@ static void process_cursor_move(TileyServer& server){
     // 将他在二分树中的父节点扩大两倍, 占据自己的位置 -> 
     // 根据鼠标释放点确定"槽位"
 
-    //这里先使用堆叠式的逻辑
     struct surface_toplevel* toplevel = server.grabbed_toplevel;
-    
 
     // 将窗口移动到: 光标新位置(绝对) - 光标距窗口边界距离
     // 可以分步理解:
@@ -35,6 +35,7 @@ static void process_cursor_move(TileyServer& server){
         server.cursor->x - server.grab_x,
         server.cursor->y - server.grab_y     
     );
+
 }
 
 
@@ -96,6 +97,11 @@ static void process_cursor_resize(TileyServer& server){
     int new_height = new_bottom - new_top;
 
     wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width, new_height);
+
+    // 5 如果窗口浮动, 则同步更新边框
+    if(toplevel->container->floating == STACKING){
+        update_toplevel_decoration(toplevel);
+    }
 }
 
 /*********重要: 判断某个鼠标位置对应的窗口函数**********/
@@ -164,15 +170,16 @@ static struct surface_toplevel* desktop_toplevel_at(
 }
 
 /*********鼠标处理: 通用的鼠标位置移动后的处理函数**********/
-static void process_cursor_motion(TileyServer& server, uint32_t time){
+static void process_cursor_motion(TileyServer& server, WindowStateManager& manager, uint32_t time){
     // 2.1 首先判断鼠标在干什么: 是正常移动, 缩放窗口大小还是在移动窗口
     // 对于平铺式而言, 这里是主要的逻辑变化之处:
     // a. 移动窗口只能是切换"槽位", 而不能任意移动坐标
     // b. 缩放一个窗口大小会影响其他窗口的大小
 
     if(server.cursor_mode == tiley::TILEY_CURSOR_MOVE){
-        //TODO: 平铺式: 移动并根据落点坐标切换槽位
-        process_cursor_move(server);
+        if(manager.is_alt_down){
+            process_cursor_move(server);
+        }
         return;
     }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
         //TODO: 缩放窗口, 同时影响其他窗口
@@ -188,7 +195,11 @@ static void process_cursor_motion(TileyServer& server, uint32_t time){
     if(!toplevel){
         wlr_cursor_set_xcursor(server.cursor, server.cursor_mgr, "default");
     }
-    // 2.3 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
+
+    // 2.3 如果鼠标在一个窗口上, 并且该窗口未激活(focus_toplevel内部判断), 则激活该窗口
+    focus_toplevel(toplevel);
+
+    // 2.4 如果鼠标当前在一个surface上(surface是窗口里面的一个可绘制的小区域。一个按钮, 一个菜单都可以是一个surface)
     // 则通知该surface鼠标移入事件和鼠标移动事件。
     // 例如浏览器中, 类似于javascript中的element.onmousemove这样的事件监听器就会收到该事件。
     if(surface){
@@ -220,6 +231,7 @@ void server_cursor_motion(struct wl_listener* _, void* data){
     wlr_log(WLR_DEBUG, "收到光标相对移动事件");
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_pointer_motion_event* event = 
         static_cast<wlr_pointer_motion_event*>(data);
     
@@ -229,7 +241,7 @@ void server_cursor_motion(struct wl_listener* _, void* data){
 
     // 2
     // 跳转至process_cursor_motion继续逻辑...
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, manager, event->time_msec);
 
 }
 
@@ -249,18 +261,21 @@ void server_cursor_motion_absolute(struct wl_listener* _, void* data){
     // Tiley需要映射这个坐标到屏幕上的真实位置。
 
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_pointer_motion_absolute_event* event = 
         static_cast<wlr_pointer_motion_absolute_event*>(data);
     
     wlr_cursor_warp_absolute(server.cursor, &event->pointer->base, event->x, event->y);
 
-    process_cursor_motion(server, event->time_msec);
+    process_cursor_motion(server, manager, event->time_msec);
 }
 
 void server_cursor_button(struct wl_listener* _, void* data){
     //TODO: 这里写当光标按钮按下时的处理逻辑
     //data中包含具体的事件数据(哪个按钮, 是按下还是释放)
     TileyServer& server = TileyServer::getInstance();
+    WindowStateManager& manager = WindowStateManager::getInstance();
+
     struct wlr_pointer_button_event* event = 
         static_cast<wlr_pointer_button_event*>(data);
 
@@ -272,14 +287,70 @@ void server_cursor_button(struct wl_listener* _, void* data){
     );
 
     if(event->state == WL_POINTER_BUTTON_STATE_RELEASED){
+        // 如果之前正在移动窗口, 则执行重新插入逻辑
+        // 1. 拿到正在移动的窗口
+        area_container* moving_container = manager.moving_container();
+        // 2. 拿到目标放置的位置
+        // TODO: 默认0号工作区
+        area_container* target_container = manager.desktop_container_at(server.cursor->x, server.cursor->y, 0);
+        std::cout << "鼠标释放" << std::endl;
+        if(moving_container != nullptr){
+            // 3. 获取目标分割模式(仍然是长边分割)
+            std::cout << "尝试合并回正在移动的窗口" << std::endl;
+            wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+            int32_t display_width = output->width;
+            int32_t display_height = output->height;
+
+            int width, height;
+            if(target_container->parent == nullptr){   // 为空说明只有桌面容器
+                wlr_log(WLR_DEBUG, "合并窗口到桌面根节点");
+                width = display_width;
+                height = display_height; // 设置为桌面参数    
+            } else {  //否则拿到窗口参数
+                wlr_box bb = target_container->toplevel->xdg_toplevel->base->geometry;
+                width = bb.width;
+                height = bb.height;
+            }
+
+            split_info split = width > height ? SPLIT_H : SPLIT_V;
+
+            // 4. 重新挂载节点
+            int workspace = manager.get_current_workspace();
+            manager.attach(moving_container, target_container, split, workspace);
+            
+            // 5. 通知布局更新
+            manager.reflow(0, {0,0, display_width, display_height});
+            std::cout << "更新布局" << std::endl;
+        }
         reset_cursor_mode(server);
     } else {
         // 聚焦于点击的窗口
         double sx, sy;
         struct wlr_surface* surface = NULL;
         struct surface_toplevel* toplevel = desktop_toplevel_at(server, server.cursor->x, server.cursor->y, &surface, &sx, &sy);
+        // 判断是否要移动窗口
+        if(manager.is_alt_down){
 
-        focus_toplevel(toplevel);
+            std::cout << "要移动窗口" << std::endl;
+
+            // 1. 调用detach分离窗口
+            area_container* container = toplevel->container;
+            
+            // 只在第一次处理时分离窗口, 并且只能是平铺状态
+            if(container->floating == NONE){
+                manager.detach(container, MOVING);
+            }
+
+            // 2. 如果是移动窗口, 绘制临时窗口装饰(随时修改)
+            
+            // 3. 通知布局更新
+            wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
+            int32_t display_width = output->width;
+            int32_t display_height = output->height;
+
+            // TODO: 仍然是默认0号工作区
+            manager.reflow(0, {0,0,display_width,display_height});
+        }
     }
 
 }

@@ -2,6 +2,7 @@
 #include "include/server.hpp"
 #include "include/interact.hpp"
 #include "include/core.hpp"
+#include "include/decoration.hpp"
 #include "include/types.h"
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
@@ -36,14 +37,14 @@ static void begin_interactive(struct surface_toplevel* toplevel,
         // 计算相对窗口左上角的"拖拽位置"
         server.grab_x = server.cursor->x - get_scene_tree_node_x(toplevel);
         server.grab_y = server.cursor->y - get_scene_tree_node_y(toplevel);
-    }else{
+        // 这里我们保留grab_x,grab_y作为拖拽位置, 用于拖拽过程中跟随鼠标
+    }else if(mode == tiley::TILEY_CURSOR_RESIZE){
         // 获得窗口的碰撞箱
         struct wlr_box* geo_box = &toplevel->xdg_toplevel->base->geometry;
 
         // wlroots用一个4位二进制数(相当于4个标志位)表示拖拽的边缘, 以便使用位运算简化逻辑(允许同时操作多条边)
         // 0000按顺序代表上,下,左,右
-        
-        // 根据
+
         double border_x = (get_scene_tree_node_x(toplevel) + geo_box->x)
             + ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
         double border_y = (get_scene_tree_node_y(toplevel) + geo_box->y) +
@@ -156,6 +157,8 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, commit);
 
     TileyServer& server = TileyServer::getInstance();
+
+    WindowStateManager& manager = WindowStateManager::getInstance();
     
     // 如果是第一次渲染
     if(toplevel->xdg_toplevel->base->initial_commit){
@@ -166,10 +169,13 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
 
         // 获取鼠标所在的显示器的大小
         wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-        int32_t display_width = output->width;
-        int32_t display_height = output->height;
+        struct wlr_box output_box;
+        wlr_output_layout_get_box(server.output_layout, output, &output_box);
 
-        WindowStateManager& manager = WindowStateManager::getInstance();
+        int32_t display_width = output_box.width;
+        int32_t display_height = output_box.height;
+
+        std::cout << "屏幕尺寸: " << display_width << "x" << display_height << std::endl;
 
         wlr_log(WLR_DEBUG, "获取显示器大小");
 
@@ -200,15 +206,28 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
         wlr_log(WLR_DEBUG, "创建新节点");
 
         // 3. 拿到toplevel的container并插入容器树
-        manager.insert(toplevel->container, old_container, split);
+        int workspace = manager.get_current_workspace();
+        manager.insert(toplevel->container, old_container, split, workspace);
 
         wlr_log(WLR_DEBUG, "插入容器树");
 
         // 5. 重新计算布局
-        manager.reflow(0, {0,0,display_width,display_height});
+        manager.reflow(0, output_box);
 
         wlr_log(WLR_DEBUG, "重新计算布局");
+
+        return;
     }
+
+    if (manager.get_decorating()) {
+        wlr_box display_geometry;
+        wlr_output_layout_get_box(server.output_layout, NULL, &display_geometry);
+
+        // 重新触发布局
+        manager.reflow(0, display_geometry);
+        manager.set_decorating(false);
+    }
+
 }
 
 static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
@@ -225,21 +244,20 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
         manager.remove(toplevel->container);
     }
 
-    // DEBUG: 竞态问题?
     manager.print_container_tree(0);
     // 2. 触发重新计算布局
     
     wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
     //struct output_display* display = wl_container_of(output, display, wlr_output);
-    //int workspace = manager.get_workspace_by_output_display(display);
-    int workspace = 0;  //TODO: 上述代码有问题, 暂时不启用, 默认用workspace0
+    int workspace = manager.get_current_workspace();
     std::cout << "获取workspace完成" << std::endl;
     if(workspace != -1){
         manager.reflow(workspace, {0,0, output->width, output->height});
     }
     std::cout << "重新计算布局完成" << std::endl;
 
-    // 3. TODO: 平铺式常见做法: 移动鼠标到兄弟窗口
+    // 3. 如果窗口是浮动的, 则清除浮动标记
+    destroy_toplevel_decoration(toplevel);
 
     // 执行一系列销毁操作
     wl_list_remove(&toplevel->map.link);
@@ -328,7 +346,6 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     
     wlr_log(WLR_DEBUG, "触发新的窗口打开");
 
-
     TileyServer& server = TileyServer::getInstance();
     WindowStateManager& manager = WindowStateManager::getInstance();
     struct wlr_xdg_toplevel* xdg_toplevel = 
@@ -340,7 +357,7 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
 
     toplevel->xdg_toplevel = xdg_toplevel;
     toplevel->scene_tree = 
-        wlr_scene_xdg_surface_create_(get_wlr_scene_tree(server.scene), xdg_toplevel->base);
+        wlr_scene_xdg_surface_create_(server.tiled_layer, xdg_toplevel->base);
     toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
 
     wlr_log(WLR_DEBUG, "新窗口分配新子树完成");

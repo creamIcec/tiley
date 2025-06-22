@@ -6,7 +6,6 @@
 #include "wlr/util/box.h"
 #include "wlr/util/log.h"
 #include <cassert>
-#include <exception>
 #include <memory>
 #include <mutex>
 #include <iostream>
@@ -40,6 +39,8 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->parent = nullptr;
         this->workspace_roots[i]->toplevel = nullptr;
     }
+    this->moving_container_ = nullptr;
+    this->focused_container_ = nullptr;
 }
 
 WindowStateManager::~WindowStateManager(){}
@@ -48,29 +49,51 @@ WindowStateManager::~WindowStateManager(){}
 void WindowStateManager::reflow(int workspace, wlr_box display_geometry){
     area_container* root = this->workspace_roots[workspace];
     wlr_log(WLR_DEBUG, "获取工作区");
-    // 先处理桌面的情况
-    // 只有桌面
-    if(root->child1 == nullptr && root->child2 == nullptr){
-        std::cout << "只有桌面" << std::endl;
-        return;  // 直接停止
+
+    if (root) {
+        this->_reflow(root, display_geometry);
     }
-    // 桌面 + 1个窗口
-    if(root->child1->split == SPLIT_NONE && root->child2 == nullptr){
-        std::cout << "只有一个窗口" << std::endl;
-        wlr_xdg_toplevel_set_size(root->child1->toplevel->xdg_toplevel,display_geometry.width, display_geometry.height);
-        wlr_scene_node_set_position_(get_wlr_scene_tree_node(root->child1->toplevel->scene_tree), display_geometry.x, display_geometry.y);
-        return;
-    }
-    // 桌面 + >= 2个窗口
-    this->_reflow(root->child1, display_geometry);
 }
 
 // 重新计算窗口布局内部函数(递归)
 void WindowStateManager::_reflow(area_container* container, wlr_box remaining_area){
+    
+    // 安全检查，防止对空指针进行操作
+    if (!container) {
+        return;
+    }
+
+    container->geometry = remaining_area;
 
     // 1. 判断我是叶子还是容器
     if(container->toplevel != nullptr){
-        
+        // 我是叶子节点 (一个窗口)
+
+        struct wlr_xdg_toplevel* toplevel = container->toplevel->xdg_toplevel;
+        struct wlr_xdg_surface* surface = toplevel->base;
+
+        int window_width = toplevel->current.width;
+        int window_height = toplevel->current.height;
+
+        // 解决窗口边界装饰问题
+        // 获取客户端上报的完整窗口几何尺寸
+        struct wlr_box content_geometry = surface->geometry;
+
+        int border_width = (window_width > 0) ? (window_width - content_geometry.width) : 0;
+        int border_height = (window_height > 0) ? (window_height - content_geometry.height) : 0;
+
+        int target_geometry_width = remaining_area.width + border_width;
+        int target_geometry_height = remaining_area.height + border_height;
+
+        // 打印出来进行对比
+        /*
+        std::cout << "--- Geometry Debug ---" << std::endl;
+        std::cout << "Assigned Content Area: " << remaining_area.width << "x" << remaining_area.height << std::endl;
+        std::cout << "Detected Border: " << border_width << "x" << border_height << std::endl;
+        std::cout << "Final Window Geometry to Set: " << target_geometry_width << "x" << target_geometry_height << std::endl;
+        std::cout << "----------------------" << std::endl;
+        */
+
         // 添加心跳检测机制(防止某个窗口被冻结而崩溃整个序列)
         if(container->toplevel->pending_configure){
             // 上次发出的信号对方还杳无音讯
@@ -81,48 +104,70 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         }
         
         //wlr_log(WLR_DEBUG, "是叶子");
-        // 2. 如果我是叶子, 说明我是窗口, 设置大小和位置
+        // 2. 如果我是叶子, 说明我是窗口, 设置大小和位置为分配给我的全部区域
         
-        struct wlr_xdg_surface* surface = container->toplevel->xdg_toplevel->base;
         if(surface->initialized){
-            wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
-            wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
-            wlr_xdg_surface_schedule_configure(container->toplevel->xdg_toplevel->base);
-            //wlr_log(WLR_DEBUG, "设置完成");
+
             std::cout << "toplevel: " << "split= " << container->split << std::endl;
+
             // 如果正常响应了, 则发送一个信号, 用于下次对应
             uint32_t serial = wlr_xdg_surface_schedule_configure(surface);
             if (serial > 0) { // serial > 0 表示真的发送了一个新的 configure
+
+                this->is_decorating = true;
+
+                wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, target_geometry_width, target_geometry_height);
+                wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
+
+                wlr_log(WLR_DEBUG, "设置完成");
+
                 container->toplevel->pending_configure = true;
                 container->toplevel->last_configure_signal = serial;
             }
         }
+
         return;
     }
-    // 3. 如果我是容器, 计算两个子节点的区域
-    struct wlr_box area1, area2;   //分别给child1, child2
-    if(container->split == SPLIT_H){   // 如果是横向分割
-        //wlr_log(WLR_DEBUG, "是容器, 横向分割");
-        int split_point = remaining_area.x + (remaining_area.width * 0.5);  //按照hyprland等的惯例, 对半分
-        // 给child1, 左边
-        area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
-        // 给child2, 右边
-        area2 = {split_point, remaining_area.y, remaining_area.width - (split_point - remaining_area.x), remaining_area.height};
-        std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
-    }else if(container->split == SPLIT_V){  // 纵向分割
-        //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
-        int split_point = remaining_area.y + (remaining_area.height * 0.5);
-        // 给child1, 上边
-        area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
-        // 给child2, 下边
-        area2 = {remaining_area.x, split_point, remaining_area.width, remaining_area.height - (split_point - remaining_area.y)};
-        std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
-    }
 
-    // 递归
-    _reflow(container->child1, area1);
-    _reflow(container->child2, area2);
+    // 我是容器节点, 根据子节点数量决定如何分配区域
+    if (container->child1 && container->child2) {
+        // 情况 A: 我有两个子节点，进行分割。
+        struct wlr_box area1, area2;   //分别给child1, child2
+        if(container->split == SPLIT_H){   // 如果是横向分割
+            //wlr_log(WLR_DEBUG, "是容器, 横向分割");
+            int split_point = remaining_area.x + (remaining_area.width * 0.5);  //按照hyprland等的惯例, 对半分
+            // 给child1, 左边
+            area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
+            // 给child2, 右边
+            area2 = {split_point, remaining_area.y, remaining_area.width - (split_point - remaining_area.x), remaining_area.height};
+            std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
+        }else if(container->split == SPLIT_V){  // 纵向分割
+            //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
+            int split_point = remaining_area.y + (remaining_area.height * 0.5);
+            // 给child1, 上边
+            area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
+            // 给child2, 下边
+            area2 = {remaining_area.x, split_point, remaining_area.width, remaining_area.height - (split_point - remaining_area.y)};
+            std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
+        }
+
+        // 递归
+        _reflow(container->child1, area1);
+        _reflow(container->child2, area2);
+
+    } else if (container->child1) {
+        // 情况 B: 我只有一个子节点(一个窗口)。
+        // 将我拥有的全部区域 (remaining_area) 都分配给这个唯一的子节点。
+        _reflow(container->child1, remaining_area);
+
+    } else {
+        // 情况 C: 我没有子节点(只有桌面)。
+        // 什么都不做，直接返回。
+        return;
+    }
 }
+
+
 
 // 为一个toplevel创建新的container(下称win2), 类型为叶子节点
 // 1. 创建一个新的container
@@ -141,11 +186,8 @@ area_container* WindowStateManager::create_toplevel_container(surface_toplevel* 
 // 2. 判断old_leaf是不是容器, 是则插入失败, 否则进入4;
 // 3. 创建新的容器作为根节点, 并将container作为child1插入, 设置desktop_root为水平分割, 插入成功;
 // 4. 继续create_toplevel_container的第2步。根据传入的分割方式设置分割方式(外部根据鼠标位置计算), 插入成功。
-bool WindowStateManager::insert(area_container* container, area_container* target_leaf, enum split_info split){
+bool WindowStateManager::insert(area_container* container, area_container* target_leaf, enum split_info split, int workspace){
 
-    // FIXME: 暂时用0号显示器
-    int workspace = 0;
-    
     // 1
     if(target_leaf->parent != nullptr){  // 不是桌面
         // 2
@@ -163,9 +205,7 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
     area_container* new_leaf = nullptr;
     
     if(target_leaf->parent != nullptr){  //上一个窗口不是桌面
-        //std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
-
-        // FIX: 解决双向链接不一致的问题(会导致关闭窗口崩溃!)
+        std::cout << "鼠标所在位置上一个窗口不是桌面" << std::endl;
 
         // 获取要被移动的 toplevel
         surface_toplevel* toplevel_to_move = target_leaf->toplevel;
@@ -281,6 +321,132 @@ bool WindowStateManager::remove(area_container* container_to_remove){
     return true;  //操作成功
 }
 
+// 分离一个container. 用于移动窗口或者将一个窗口变成堆叠模式. 和remove的逻辑接近, 可以考虑复用代码
+bool WindowStateManager::detach(area_container* container, floating_reason reason){
+    
+    if(container == nullptr){
+        return false;
+    }
+    if(reason == NONE){
+        return false;
+    }
+    // 如果已经是相应状态, 则不修改, 操作结束
+    if(container->floating == reason){
+        return false;
+    }
+
+    // 1. 将container的floating_reason设置成reason
+    container->floating = reason;
+
+    bool flag = false;
+
+    // 2. 从容器树中移除这个container但不删除
+    std::cout << "开始分离"<< std::endl;
+    
+    // 2.1 处理特殊情况
+    // 2.1.1 如果传入的是一个容器或者桌面, 不允许移除, 因为必须是叶子节点，并且在树中(有父节点)
+    if (container->toplevel == nullptr || container->parent == nullptr) {
+        return false;
+    }
+
+    assert(container->toplevel != nullptr);  //再次确保必须是叶子节点
+
+    std::cout << "2.1.1" << std::endl;
+
+    // 取得父节点的指针
+    area_container* parent = container->parent;
+
+    // 2.1.2 特殊情况: 分离的是唯一的窗口, 剩下的是桌面
+    if(parent != nullptr && parent->parent == nullptr){
+        // 恢复初始状态
+        parent->toplevel = nullptr;
+        parent->split = SPLIT_NONE;
+        parent->child1 = nullptr;
+        parent->child2 = nullptr;
+         
+        std::cout << "2.1.2" << std::endl;
+        flag = true;
+    }
+
+    // ***如果父节点是根，但要移除的窗口不是唯一的窗口，这种情况正确的树结构中不应该发生***
+    // ***但为了安全起见，我们还是处理一下***
+    if (parent == nullptr) {
+        // 一个独立的窗口，没有父节点? 不应该发生，但是还是分离
+        flag = true;
+    }
+
+    // 2.2 移除叶子节点
+    // 2.2.1 移除父节点->子节点的连接
+    // 由于不知道是child1还是child2, 需要先判断并保存备用
+    if(!flag){
+        area_container* sibling = nullptr;  //兄弟树
+        if(container->parent->child1 == container){
+            container->parent->child1 = nullptr;
+            sibling = container->parent->child2;
+        } else if (container->parent->child2 == container){
+            container->parent->child2 = nullptr;
+            sibling = container->parent->child1;
+        }
+
+        std::cout << "2.2.1" << std::endl;
+
+        assert(sibling != nullptr);  //保证兄弟不是空节点
+        
+        // 2.2.2 移除子节点->父节点的连接
+        container->parent = nullptr;
+        std::cout << "2.2.2" << std::endl;
+        std::cout << "2.3" << std::endl;
+
+        // 2.3 将父节点的另一个子树提升到父节点(注意, 以下的"父节点"都是以被分离的container为主语)
+        // 2.3.1 找到父节点的父节点(曾父节点)
+        area_container* grand_parent = parent->parent;
+        std::cout << "2.3.1" << std::endl;
+        // 2.3.2 将曾父节点的子节点设置为父节点的另一个子树根节点
+        // 同理, 由于不知道是child1还是child2, 需要分情况
+        if(grand_parent->child1 == parent){   //父节点是曾父节点的child1
+            grand_parent->child1 = sibling;    
+        }else if(grand_parent->child2 == parent){ //父节点是曾父节点的child2
+            grand_parent->child2 = sibling;
+        }
+
+        if(sibling){
+            sibling->parent = grand_parent;  // 更新双向指针
+        }
+
+        std::cout << "2.3.3" << std::endl;
+        // 2.3.3 只清除parent的内存, 因为其中的一个子节点已经移动到parent的位置, 另一个已经分离, 不会内存泄漏
+        delete parent;
+        parent = nullptr;
+
+        flag = true;
+    }
+
+    if(flag && reason == MOVING){
+        this->moving_container_ = container;
+    }
+
+    return flag;
+}
+
+// 合并一个之前处于移动或者堆叠模式的container. 
+// 直接insert.
+bool WindowStateManager::attach(area_container* container, area_container* target, enum split_info split, int workspace){
+    bool result = this->insert(container, target, split, workspace);
+    if(result){
+        if(this->moving_container_ != nullptr){
+            // 重置移动状态
+            this->stop_moving();
+        }
+        if(container->floating == STACKING){
+            // 重置堆叠状态
+            container->floating = NONE;
+        }
+    }
+
+    std::cout << "合并窗口完成" << std::endl;
+
+    return result;
+}
 
 static bool pos_in_range(int lx, int ly, int sx, int sy, int width, int height){
     return lx >= sx && lx <= sx + width && ly >= sy && ly <= sy + height;

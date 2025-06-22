@@ -37,6 +37,12 @@ namespace tiley{
             wlr_renderer *renderer;
             wlr_allocator *allocator;
             wlr_scene *scene;
+
+            // 场景树图层顺序:  floating_layer > tiled_layer > background_layer
+            wlr_scene_tree *floating_layer;     //浮动场景树. 当窗口浮动时, 移动到该场景树反之移回scene的场景树;
+            wlr_scene_tree *tiled_layer;        //正常情况下的平铺场景树;
+            wlr_scene_tree *background_layer;   //背景场景树, 为加入壁纸显示做准备
+
             wlr_scene_output_layout *scene_layout;
 
             wlr_xdg_shell *xdg_shell;

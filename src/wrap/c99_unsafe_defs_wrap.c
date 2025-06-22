@@ -91,6 +91,10 @@ struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree){
         return &tree->node;
 }
 
+struct wlr_scene_node* get_wlr_scene_rect_node(struct wlr_scene_rect* rect){
+        return &rect->node;
+}
+
 // 获得根节点的x坐标
 int get_scene_tree_node_x(struct surface_toplevel* toplevel){
         return toplevel->scene_tree->node.x;
@@ -105,6 +109,15 @@ void wlr_scene_node_set_position_(struct wlr_scene_node* node, int x, int y){
         wlr_scene_node_set_position(node, x, y);
 }
 
+// 移动到一个场景树
+void wlr_scene_node_reparent_(struct wlr_scene_node *node, struct wlr_scene_tree *new_parent){
+        wlr_scene_node_reparent(node, new_parent);
+}
+
+// 创建场景树(可以理解成Photoshop中的图层)
+struct wlr_scene_tree* wlr_scene_tree_create_(struct wlr_scene_tree *parent){
+        return wlr_scene_tree_create(parent);
+}
 
 // 获取一个窗口在场景中的节点
 struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
@@ -114,6 +127,16 @@ struct wlr_scene_node* get_toplevel_node(struct surface_toplevel* toplevel){
 // 获取节点类型信息
 enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node){
         return (enum wlr_scene_node_type_)(node->type);
+}
+
+// 设置节点启用状态
+void wlr_scene_node_set_enabled_(struct wlr_scene_node *node, bool enabled){
+        wlr_scene_node_set_enabled(node, enabled);
+}
+
+// 设置矩形大小
+void wlr_scene_rect_set_size_(struct wlr_scene_rect *rect, int width, int height){
+        wlr_scene_rect_set_size(rect, width, height);
 }
 
 // 设置窗口对象的逻辑数据
