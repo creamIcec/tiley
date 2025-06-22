@@ -24,8 +24,6 @@ static bool handle_keybinding(TileyServer& server, WindowStateManager& manager, 
 		    wl_display_terminate(server.wl_display_);   // Alt+ESC 退出Compositor
 		    break;
         case XKB_KEY_space:{
-            //仍然是默认0号工作区
-            const int workspace = 0;
             //1. 获取聚焦的窗口
             area_container* focused_container = manager.get_focused_container();
             //2. 没有聚焦的或者不是窗口则跳过
@@ -34,7 +32,8 @@ static bool handle_keybinding(TileyServer& server, WindowStateManager& manager, 
             }
             //3. 切换聚焦窗口的堆叠状态
             std::cout << "窗口状态: " << focused_container->floating << std::endl;
-            toggle_overhang_toplevel(focused_container, manager, server, workspace);
+            int current_workspace = manager.get_current_workspace();
+            toggle_overhang_toplevel(focused_container, manager, server, current_workspace);
             break;
         }
 	    default:

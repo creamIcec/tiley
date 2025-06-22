@@ -131,7 +131,7 @@ void toggle_overhang_toplevel(struct area_container *container, tiley::WindowSta
         std::cout<< "移回tiled" << std::endl;
 
         // 3.2 合并容器
-        manager.attach(container, target_container, split);
+        manager.attach(container, target_container, split, workspace);
     }
 
     surface_toplevel* toplevel = container->toplevel;

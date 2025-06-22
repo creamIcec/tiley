@@ -315,7 +315,8 @@ void server_cursor_button(struct wl_listener* _, void* data){
             split_info split = width > height ? SPLIT_H : SPLIT_V;
 
             // 4. 重新挂载节点
-            manager.attach(moving_container, target_container, split);
+            int workspace = manager.get_current_workspace();
+            manager.attach(moving_container, target_container, split, workspace);
             
             // 5. 通知布局更新
             manager.reflow(0, {0,0, display_width, display_height});

@@ -206,7 +206,8 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
         wlr_log(WLR_DEBUG, "创建新节点");
 
         // 3. 拿到toplevel的container并插入容器树
-        manager.insert(toplevel->container, old_container, split);
+        int workspace = manager.get_current_workspace();
+        manager.insert(toplevel->container, old_container, split, workspace);
 
         wlr_log(WLR_DEBUG, "插入容器树");
 
@@ -248,8 +249,7 @@ static void xdg_toplevel_destory(struct wl_listener* listener, void* data){
     
     wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
     //struct output_display* display = wl_container_of(output, display, wlr_output);
-    //int workspace = manager.get_workspace_by_output_display(display);
-    int workspace = 0;  //TODO: 上述代码有问题, 暂时不启用, 默认用workspace0
+    int workspace = manager.get_current_workspace();
     std::cout << "获取workspace完成" << std::endl;
     if(workspace != -1){
         manager.reflow(workspace, {0,0, output->width, output->height});

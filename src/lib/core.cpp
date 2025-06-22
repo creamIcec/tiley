@@ -186,11 +186,8 @@ area_container* WindowStateManager::create_toplevel_container(surface_toplevel* 
 // 2. 判断old_leaf是不是容器, 是则插入失败, 否则进入4;
 // 3. 创建新的容器作为根节点, 并将container作为child1插入, 设置desktop_root为水平分割, 插入成功;
 // 4. 继续create_toplevel_container的第2步。根据传入的分割方式设置分割方式(外部根据鼠标位置计算), 插入成功。
-bool WindowStateManager::insert(area_container* container, area_container* target_leaf, enum split_info split){
+bool WindowStateManager::insert(area_container* container, area_container* target_leaf, enum split_info split, int workspace){
 
-    // FIXME: 暂时用0号显示器
-    int workspace = 0;
-    
     // 1
     if(target_leaf->parent != nullptr){  // 不是桌面
         // 2
@@ -433,8 +430,8 @@ bool WindowStateManager::detach(area_container* container, floating_reason reaso
 
 // 合并一个之前处于移动或者堆叠模式的container. 
 // 直接insert.
-bool WindowStateManager::attach(area_container* container, area_container* target, enum split_info split){
-    bool result = this->insert(container, target, split);
+bool WindowStateManager::attach(area_container* container, area_container* target, enum split_info split, int workspace){
+    bool result = this->insert(container, target, split, workspace);
     if(result){
         if(this->moving_container_ != nullptr){
             // 重置移动状态
