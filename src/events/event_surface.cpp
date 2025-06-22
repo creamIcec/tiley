@@ -219,15 +219,6 @@ static void xdg_toplevel_commit(struct wl_listener* listener, void* data){
         return;
     }
 
-    if (manager.get_decorating()) {
-        wlr_box display_geometry;
-        wlr_output_layout_get_box(server.output_layout, NULL, &display_geometry);
-
-        // 重新触发布局
-        manager.reflow(0, display_geometry);
-        manager.set_decorating(false);
-    }
-
 }
 
 static void xdg_toplevel_destory(struct wl_listener* listener, void* data){

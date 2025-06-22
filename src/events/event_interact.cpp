@@ -6,6 +6,7 @@
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "window_util.hpp"
 #include "wlr/util/edges.h"
 #include "wlr/util/log.h"
 #include <cstdint>
@@ -297,29 +298,14 @@ void server_cursor_button(struct wl_listener* _, void* data){
         if(moving_container != nullptr){
             // 3. 获取目标分割模式(仍然是长边分割)
             std::cout << "尝试合并回正在移动的窗口" << std::endl;
-            wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-            int32_t display_width = output->width;
-            int32_t display_height = output->height;
-
-            int width, height;
-            if(target_container->parent == nullptr){   // 为空说明只有桌面容器
-                wlr_log(WLR_DEBUG, "合并窗口到桌面根节点");
-                width = display_width;
-                height = display_height; // 设置为桌面参数    
-            } else {  //否则拿到窗口参数
-                wlr_box bb = target_container->toplevel->xdg_toplevel->base->geometry;
-                width = bb.width;
-                height = bb.height;
-            }
-
-            split_info split = width > height ? SPLIT_H : SPLIT_V;
-
+            wlr_box output_box = get_display_geometry_box(server);
+            wlr_box target_box = get_target_geometry_box(target_container, output_box.width, output_box.height);
+            split_info split = target_box.width > target_box.height ? SPLIT_H : SPLIT_V;
             // 4. 重新挂载节点
             int workspace = manager.get_current_workspace();
             manager.attach(moving_container, target_container, split, workspace);
-            
             // 5. 通知布局更新
-            manager.reflow(0, {0,0, display_width, display_height});
+            manager.reflow(0, output_box);
             std::cout << "更新布局" << std::endl;
         }
         reset_cursor_mode(server);
@@ -345,11 +331,12 @@ void server_cursor_button(struct wl_listener* _, void* data){
             
             // 3. 通知布局更新
             wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-            int32_t display_width = output->width;
-            int32_t display_height = output->height;
+            struct wlr_box output_box;
+            wlr_output_layout_get_box(server.output_layout, output, &output_box);
 
-            // TODO: 仍然是默认0号工作区
-            manager.reflow(0, {0,0,display_width,display_height});
+            // 拿到工作区
+            int workspace = manager.get_current_workspace();
+            manager.reflow(workspace, output_box);
         }
     }
 
