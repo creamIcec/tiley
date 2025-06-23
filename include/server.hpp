@@ -72,6 +72,11 @@ namespace tiley{
             wlr_output_layout *output_layout;
             wl_list outputs;
             wl_listener new_output;
+
+            wlr_texture* wallpaper_texture;   //壁纸纹理
+            wl_list output_wallpapers;    //每个显示器单独的壁纸节点(便于资源管理和销毁, 以后也可以借此加入不同显示器不同壁纸的功能)
+
+            bool load_wallpaper(const char* path);
             
             static TileyServer& getInstance();
 

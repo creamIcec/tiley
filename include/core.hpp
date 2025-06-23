@@ -74,12 +74,6 @@ namespace tiley{
                 this->moving_container_->floating = NONE;
                 this->moving_container_ = nullptr;
             }
-            inline void set_decorating(bool decorating){
-                this->is_decorating = decorating;
-            }
-            inline bool get_decorating(){
-                return this->is_decorating;
-            }
             inline area_container* get_focused_container(){
                 return this->focused_container_;
             }
@@ -106,9 +100,6 @@ namespace tiley{
 
             // 目前聚焦的容器
             area_container* focused_container_;
-
-            // 是否协商边框处理
-            bool is_decorating = false;
 
             struct WindowStateManagerDeleter{
                 

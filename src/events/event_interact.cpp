@@ -6,8 +6,11 @@
 #include "server.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "window_util.hpp"
 #include "wlr/util/edges.h"
 #include "wlr/util/log.h"
+#include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
@@ -39,134 +42,98 @@ static void process_cursor_move(TileyServer& server){
 }
 
 
-/*********重要: 处理鼠标调整窗口大小的函数*************/
-static void process_cursor_resize(TileyServer& server){
+static void process_cursor_resize(TileyServer& server, WindowStateManager& manager){
     struct surface_toplevel* toplevel = server.grabbed_toplevel;
 
-    // 需要分情况。在计算机显示坐标系中, 坐标轴从左上角开始向右向下:
-    // · 如果调整左边界: 移动左上角位置 + 更改大小
-    // · 如果调整上边界: 移动左上角位置 + 更改大小
-    // · 如果是其他两个边界: 仅更改大小
-    
-    // 1. 同移动的逻辑, 得到目标的绝对坐标
-    double border_x = server.cursor->x - server.grab_x;
-    double border_y = server.cursor->y - server.grab_y;
+    // 计算机坐标系从屏幕左上角开始向右为x正方向, 向下为y正方向。在平铺式管理器中, 我们遵循一条法则:
+    // 调整该窗口所在容器A的分割比例和其祖父容器B(A的父容器)的分割比例即可。(Hyprland的行为)
+    // 例如现在有如下容器树(H=horizontal, 横向分割; V=vertical, 纵向分割):
+    //       root
+    //        |
+    //        H
+    //       / \
+    //      1   V
+    //         / \
+    //        2   3
+    // 如果我们调整窗口2的大小, 则会调整V的纵向分割比例和H的横向分割比例; 调整3同理;
+    // 如果我们调整窗口1的大小, 则会调整H的横向分割比例, 但由于其祖父容器为桌面, 就只能调整横向分割比例了。
+    // 此外, 如果有更多层:
+    //       root
+    //        |
+    //        H1
+    //       / \
+    //      1   V
+    //         / \
+    //        2   H2
+    //           /  \
+    //          3    4
+    // 此时调整4的大小, 只会影响到H2和V的比例, 而不会影响H1的比例, 调整3同理。
 
-    // 2. 先存储先前的坐标
-    int new_left = server.grab_geobox.x;
-    int new_right = server.grab_geobox.x + server.grab_geobox.width;
-    int new_top = server.grab_geobox.y;
-    int new_bottom = server.grab_geobox.y + server.grab_geobox.height;
 
-    // 3 调整大小
-    if(server.resize_edges & WLR_EDGE_TOP){
-        new_top = border_y;  //将窗口上边界设为目标y
-        if(new_top >= new_bottom){
-            new_top = new_bottom - 1;  //如果鼠标在往下面拖动上边界并且超过了下边界, 则锁死在离下边缘1像素的地方, 防止变成负数
-        }
-    } else if (server.resize_edges & WLR_EDGE_BOTTOM){
-        new_bottom = border_y;
-        if(new_bottom <= new_top){
-            new_bottom = new_top + 1;
-        }
+    // grab_x, grab_y: 鼠标相对于拖动窗口左上角的"拖动位置", 是相对坐标, 不考虑窗口自身左上角的绝对坐标。
+    // 例如(50, 30)不是指拖动位置离屏幕左上角(50,30), 而是离窗口左上角(50, 30)
+
+
+    // 1. 判断窗口类型并取得父容器, 参数检查
+    // 1.1 如果是浮动窗口, 则使用堆叠管理器的调整逻辑
+    // 2. 根据拖动方向确定修改对象。对应关系是: 左右拖动影响H容器, 上下拖动影响V容器, 且优先父容器, 其次祖父容器
+    // 3. 根据拖动位移决定新的分割比例: 被拖动的容器比例 = 鼠标对应方向相对容器边缘距离 / 对应方向容器大小
+    // 3.1 如果被拖动的容器是桌面, 则跳过
+    // 4. 触发重绘
+
+    // 1
+    auto container = toplevel->container;
+
+    // 1.1
+    if(container->floating == STACKING){
+        process_cursor_resize_floating(server);
+        return;
     }
 
-    // 调整上下边界和左右边界之间可以同时发生, 所以这里另起if
+    assert(container->toplevel!=nullptr);  // 拖动的一定是一个窗口, 所以父节点一定是容器并且不是桌面
+    auto parent = container->parent;
+    auto grand_parent = parent->parent;  // 祖父节点有可能是桌面, 下面将判断, 如果是则跳过
 
-    if(server.resize_edges & WLR_EDGE_LEFT){
-        new_left = border_x;
-        if(new_left >= new_right){
-            new_left = new_right - 1;
+    // 2
+    if(server.resize_edges & WLR_EDGE_TOP || server.resize_edges & WLR_EDGE_BOTTOM){   //上下调整
+        auto target = (parent->split == SPLIT_V) ? 
+        parent : (grand_parent->split == SPLIT_V) ? grand_parent : nullptr;   //TODO: 也许可以换成位掩码, 简化一下
+        
+        double new_ratio = 0.0f;
+
+        if(target != nullptr){  //有调整目标(不是桌面)
+            // 3
+            int total_height = target->geometry.height;
+            double offset = server.cursor->y - target->geometry.y;
+            new_ratio = offset / total_height;
+            target->split_ratio = std::min(0.9, std::max(0.1, new_ratio));
         }
-    } else if (server.resize_edges & WLR_EDGE_RIGHT){
-        new_right = border_x;
-        if(new_right <= new_left){
-            new_right = new_left + 1;
+
+    }else if(server.resize_edges & WLR_EDGE_LEFT || server.resize_edges & WLR_EDGE_RIGHT){    //左右调整
+        auto target = (parent->split == SPLIT_H) ?
+        parent : (grand_parent->split == SPLIT_H) ? grand_parent : nullptr;
+
+        double new_ratio = 0.0f;
+
+        if(target != nullptr){
+            // 3
+            int total_width = target->geometry.width;
+            double offset = server.cursor->x - target->geometry.x;
+            new_ratio = offset / total_width;
+            target->split_ratio = std::min(0.9, std::max(0.1, new_ratio));  //限制范围在[0.1, 0.9]之间
         }
+        
     }
 
-    // 4 调整位置
-    struct wlr_box* geo_box = &toplevel->xdg_toplevel->base->geometry;
-    wlr_scene_node_set_position_(get_wlr_scene_tree_node(toplevel->scene_tree), 
-        new_left - geo_box->x, 
-        new_top - geo_box->y
-    );
-
-    // 更新大小
-    int new_width = new_right - new_left;
-    int new_height = new_bottom - new_top;
-
-    wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, new_width, new_height);
+    // 4
+    int workspace = manager.get_current_workspace();
+    wlr_box display_geometry = get_display_geometry_box(server);
+    manager.reflow(workspace, display_geometry);
 
     // 5 如果窗口浮动, 则同步更新边框
     if(toplevel->container->floating == STACKING){
         update_toplevel_decoration(toplevel);
     }
-}
-
-/*********重要: 判断某个鼠标位置对应的窗口函数**********/
-
-static struct surface_toplevel* desktop_toplevel_at(
-    TileyServer& server, double lx, double ly,
-    struct wlr_surface* *surface, double* sx, double* sy
-){
-    // 这个函数非常重要, 它负责从场景图中找到我们现在传入的坐标对应的窗口是谁。
-    // 这和我们自定义的坐标安排逻辑并不冲突, 因为它只负责找, 不负责设置。
-    // 打个比方, 场景图是剧场中的舞台, 每个窗口是台上的演员。
-    // 我们的平铺式布局算法是导演, 负责把每个演员安排到对应的位置(通过
-    // 一个set函数(wlr_scene_node_set_position))告诉场务每个窗口的位置在哪儿; 
-    // 而场景图的wlr_scene_node_at则是场务, 从小本本上根据坐标找到对应窗口。
-
-    // 所以与其说wlr_scene是一个完整的工具类, 不如简单认为他只是一个数据结构,
-    // 只能靠我们去安排, 它不负责安排, 只负责获取。这是职责分离的一个体现, 也是
-    // 对不同布局算法都支持的灵活性体现。场务如何保存位置和我们无关, 不假设我们
-    // 一定是堆叠式管理器, 只负责从我们告诉他的数据中找到对应的东西, 数据都来自于
-    // 我们。
-
-    // lx: 鼠标横坐标; ly: 鼠标纵坐标; &sx,&sy: 作为引用带回, 窗口左上角起始坐标。
-
-    wlr_log(WLR_DEBUG, "开始目标窗口查找");
-
-    struct wlr_scene_node* node = wlr_scene_node_at_(get_wlr_scene_root_node(server.scene), lx, ly, sx, sy);
-    if(node == NULL || get_toplevel_node_type_(node) != WLR_SCENE_NODE_BUFFER_){
-        return NULL;     
-    }
-
-    struct wlr_scene_buffer* scene_buffer = wlr_scene_buffer_from_node_(node);
-    struct wlr_scene_surface* scene_surface = 
-        wlr_scene_surface_try_from_buffer_(scene_buffer);
-
-    wlr_log(WLR_DEBUG, "获取到surface的buffer");
-
-    if(!scene_surface){
-        return NULL;
-    }
-    
-    // 将surface指向获取到的surface
-    // 注意(看形参): 这里的surface是个二重指针
-    *surface = get_surface_from_scene_surface(scene_surface);
-
-    wlr_log(WLR_DEBUG, "获取到surface");
-
-    struct wlr_scene_tree* tree = get_parent(node);
-
-    wlr_log(WLR_DEBUG, "获取到父窗口");
-
-    // C/C++兼容trick太多了...
-    while(tree != NULL && get_tree_node_data(get_wlr_scene_tree_node(tree)) == NULL){
-        wlr_log(WLR_DEBUG, "查找");
-        set_tree(&tree, get_parent(get_wlr_scene_tree_node(tree)));
-    }
-
-    wlr_log(WLR_DEBUG, "已完成目标窗口查找");
-
-    if(tree == NULL){
-        return NULL;
-    }
-
-    return static_cast<surface_toplevel*>(
-        get_tree_node_data(get_wlr_scene_tree_node(tree))
-    );
 }
 
 /*********鼠标处理: 通用的鼠标位置移动后的处理函数**********/
@@ -183,7 +150,7 @@ static void process_cursor_motion(TileyServer& server, WindowStateManager& manag
         return;
     }else if(server.cursor_mode == tiley::TILEY_CURSOR_RESIZE){
         //TODO: 缩放窗口, 同时影响其他窗口
-        process_cursor_resize(server);
+        process_cursor_resize(server, manager);
         return;
     }
 
@@ -297,29 +264,14 @@ void server_cursor_button(struct wl_listener* _, void* data){
         if(moving_container != nullptr){
             // 3. 获取目标分割模式(仍然是长边分割)
             std::cout << "尝试合并回正在移动的窗口" << std::endl;
-            wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-            int32_t display_width = output->width;
-            int32_t display_height = output->height;
-
-            int width, height;
-            if(target_container->parent == nullptr){   // 为空说明只有桌面容器
-                wlr_log(WLR_DEBUG, "合并窗口到桌面根节点");
-                width = display_width;
-                height = display_height; // 设置为桌面参数    
-            } else {  //否则拿到窗口参数
-                wlr_box bb = target_container->toplevel->xdg_toplevel->base->geometry;
-                width = bb.width;
-                height = bb.height;
-            }
-
-            split_info split = width > height ? SPLIT_H : SPLIT_V;
-
+            wlr_box output_box = get_display_geometry_box(server);
+            wlr_box target_box = get_target_geometry_box(target_container, output_box.width, output_box.height);
+            split_info split = target_box.width > target_box.height ? SPLIT_H : SPLIT_V;
             // 4. 重新挂载节点
             int workspace = manager.get_current_workspace();
             manager.attach(moving_container, target_container, split, workspace);
-            
             // 5. 通知布局更新
-            manager.reflow(0, {0,0, display_width, display_height});
+            manager.reflow(0, output_box);
             std::cout << "更新布局" << std::endl;
         }
         reset_cursor_mode(server);
@@ -345,11 +297,12 @@ void server_cursor_button(struct wl_listener* _, void* data){
             
             // 3. 通知布局更新
             wlr_output* output = wlr_output_layout_output_at(server.output_layout, server.cursor->x, server.cursor->y);
-            int32_t display_width = output->width;
-            int32_t display_height = output->height;
+            struct wlr_box output_box;
+            wlr_output_layout_get_box(server.output_layout, output, &output_box);
 
-            // TODO: 仍然是默认0号工作区
-            manager.reflow(0, {0,0,display_width,display_height});
+            // 拿到工作区
+            int workspace = manager.get_current_workspace();
+            manager.reflow(workspace, output_box);
         }
     }
 

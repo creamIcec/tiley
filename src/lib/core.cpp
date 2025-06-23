@@ -38,6 +38,7 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->child2 = nullptr;
         this->workspace_roots[i]->parent = nullptr;
         this->workspace_roots[i]->toplevel = nullptr;
+        this->workspace_roots[i]->split_ratio = 0.5;
     }
     this->moving_container_ = nullptr;
     this->focused_container_ = nullptr;
@@ -72,28 +73,6 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         struct wlr_xdg_toplevel* toplevel = container->toplevel->xdg_toplevel;
         struct wlr_xdg_surface* surface = toplevel->base;
 
-        int window_width = toplevel->current.width;
-        int window_height = toplevel->current.height;
-
-        // 解决窗口边界装饰问题
-        // 获取客户端上报的完整窗口几何尺寸
-        struct wlr_box content_geometry = surface->geometry;
-
-        int border_width = (window_width > 0) ? (window_width - content_geometry.width) : 0;
-        int border_height = (window_height > 0) ? (window_height - content_geometry.height) : 0;
-
-        int target_geometry_width = remaining_area.width + border_width;
-        int target_geometry_height = remaining_area.height + border_height;
-
-        // 打印出来进行对比
-        /*
-        std::cout << "--- Geometry Debug ---" << std::endl;
-        std::cout << "Assigned Content Area: " << remaining_area.width << "x" << remaining_area.height << std::endl;
-        std::cout << "Detected Border: " << border_width << "x" << border_height << std::endl;
-        std::cout << "Final Window Geometry to Set: " << target_geometry_width << "x" << target_geometry_height << std::endl;
-        std::cout << "----------------------" << std::endl;
-        */
-
         // 添加心跳检测机制(防止某个窗口被冻结而崩溃整个序列)
         if(container->toplevel->pending_configure){
             // 上次发出的信号对方还杳无音讯
@@ -114,9 +93,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
             uint32_t serial = wlr_xdg_surface_schedule_configure(surface);
             if (serial > 0) { // serial > 0 表示真的发送了一个新的 configure
 
-                this->is_decorating = true;
-
-                wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, target_geometry_width, target_geometry_height);
+                wlr_xdg_toplevel_set_size(container->toplevel->xdg_toplevel, remaining_area.width, remaining_area.height);
                 wlr_scene_node_set_position_(get_wlr_scene_tree_node(container->toplevel->scene_tree), remaining_area.x, remaining_area.y);
 
                 wlr_log(WLR_DEBUG, "设置完成");
@@ -135,7 +112,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         struct wlr_box area1, area2;   //分别给child1, child2
         if(container->split == SPLIT_H){   // 如果是横向分割
             //wlr_log(WLR_DEBUG, "是容器, 横向分割");
-            int split_point = remaining_area.x + (remaining_area.width * 0.5);  //按照hyprland等的惯例, 对半分
+            int split_point = remaining_area.x + (remaining_area.width * container->split_ratio);
             // 给child1, 左边
             area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
             // 给child2, 右边
@@ -143,7 +120,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
             std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
         }else if(container->split == SPLIT_V){  // 纵向分割
             //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
-            int split_point = remaining_area.y + (remaining_area.height * 0.5);
+            int split_point = remaining_area.y + (remaining_area.height * container->split_ratio);
             // 给child1, 上边
             area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
             // 给child2, 下边
@@ -218,6 +195,7 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
         // 改变以前的类型
         target_leaf->toplevel = nullptr;
         target_leaf->split = split;
+        target_leaf->split_ratio = 0.5;
 
         // 插入到新的容器的子节点中
         target_leaf->child1 = new_leaf;

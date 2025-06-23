@@ -1,7 +1,6 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
-
 #include "wlr/util/box.h"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
@@ -67,6 +66,7 @@ struct area_container{
 
     struct surface_toplevel* toplevel;   //当是叶子节点时, 指向一个真正的窗口
     struct wlr_box geometry;
+    float split_ratio;    //容器分割比例。仅在toplevel!=None(是容器)时有效
 };
 
 // 定义一个窗口管理对象
