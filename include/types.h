@@ -24,6 +24,9 @@ struct output_display {
     struct wl_listener request_state;
     // 当显示屏被拔出(不再可用)时触发
     struct wl_listener destroy;
+
+    struct wlr_scene_output* scene_output; // 保存与场景的连接
+    struct wlr_scene_buffer* wallpaper_node; // 此 output 专属的壁纸节点
 };
 
 
@@ -113,9 +116,6 @@ struct launch_args{
     bool enable_debug;
     char* startup_cmd;
 };
-
-
-
 
 
 #endif

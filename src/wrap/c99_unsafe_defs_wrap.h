@@ -87,6 +87,10 @@ void wlr_scene_node_set_position_(struct wlr_scene_node* node, int x, int y);
 
 void wlr_scene_node_set_enabled_(struct wlr_scene_node *node, bool enabled);
 
+struct wlr_scene_node* get_scene_buffer_node(struct wlr_scene_buffer* buffer);
+
+struct wlr_scene_buffer* wlr_scene_buffer_create_(struct wlr_scene_tree *parent, struct wlr_buffer *buffer);
+
 //trick: 绕开C++中的enum限制
 enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node);
 
