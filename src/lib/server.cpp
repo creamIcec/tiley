@@ -1,6 +1,7 @@
 #include "include/server.hpp"
 #include <memory>
 #include <mutex>
+#include <wayland-util.h>
 
 using namespace tiley;
 
@@ -8,7 +9,10 @@ using namespace tiley;
 std::unique_ptr<TileyServer, TileyServer::ServerDeleter> TileyServer::INSTANCE = nullptr;
 std::once_flag TileyServer::onceFlag;
 
-TileyServer::TileyServer(){}
+TileyServer::TileyServer(){
+    wallpaper_texture = nullptr;
+    wl_list_init(&this->output_wallpapers);
+}
 
 TileyServer::~TileyServer(){}
 

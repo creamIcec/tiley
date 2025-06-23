@@ -38,6 +38,7 @@ WindowStateManager::WindowStateManager(){
         this->workspace_roots[i]->child2 = nullptr;
         this->workspace_roots[i]->parent = nullptr;
         this->workspace_roots[i]->toplevel = nullptr;
+        this->workspace_roots[i]->split_ratio = 0.5;
     }
     this->moving_container_ = nullptr;
     this->focused_container_ = nullptr;
@@ -111,7 +112,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
         struct wlr_box area1, area2;   //分别给child1, child2
         if(container->split == SPLIT_H){   // 如果是横向分割
             //wlr_log(WLR_DEBUG, "是容器, 横向分割");
-            int split_point = remaining_area.x + (remaining_area.width * 0.5);  //按照hyprland等的惯例, 对半分
+            int split_point = remaining_area.x + (remaining_area.width * container->split_ratio);
             // 给child1, 左边
             area1 = {remaining_area.x, remaining_area.y, split_point - remaining_area.x, remaining_area.height};
             // 给child2, 右边
@@ -119,7 +120,7 @@ void WindowStateManager::_reflow(area_container* container, wlr_box remaining_ar
             std::cout << "container: " << " address= " << container << " split= " << container->split << " child1= " << container->child1  << " child2= " << container->child2 << std::endl;
         }else if(container->split == SPLIT_V){  // 纵向分割
             //wlr_log(WLR_DEBUG, "是容器, 纵向分割");
-            int split_point = remaining_area.y + (remaining_area.height * 0.5);
+            int split_point = remaining_area.y + (remaining_area.height * container->split_ratio);
             // 给child1, 上边
             area1 = {remaining_area.x, remaining_area.y, remaining_area.width, split_point - remaining_area.y};
             // 给child2, 下边
@@ -194,6 +195,7 @@ bool WindowStateManager::insert(area_container* container, area_container* targe
         // 改变以前的类型
         target_leaf->toplevel = nullptr;
         target_leaf->split = split;
+        target_leaf->split_ratio = 0.5;
 
         // 插入到新的容器的子节点中
         target_leaf->child1 = new_leaf;
