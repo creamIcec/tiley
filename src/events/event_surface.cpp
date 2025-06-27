@@ -105,10 +105,7 @@ static void xdg_toplevel_map(struct wl_listener* listener, void* _){
     struct surface_toplevel* toplevel = wl_container_of(listener, toplevel, map);
 
     TileyServer& server = TileyServer::getInstance();
-
-    // 1. 将这个窗口插入到服务器管理列表中
-    wl_list_insert(&TileyServer::getInstance().toplevels, &toplevel->link);
-
+    
     // 2. 执行操作: 使用户聚焦到这个窗口
     focus_toplevel(toplevel);
 
@@ -347,19 +344,32 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
         static_cast<surface_toplevel*>(calloc(1, sizeof(surface_toplevel)));
 
     toplevel->xdg_toplevel = xdg_toplevel;
-    toplevel->scene_tree = 
-        wlr_scene_xdg_surface_create_(server.tiled_layer, xdg_toplevel->base);
-    toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
 
-    wlr_log(WLR_DEBUG, "新窗口分配新子树完成");
-    
+
     // 2
 
-    // 这里我们需要绕开C/C++的隔离限制
+    toplevel->scene_tree = wlr_scene_xdg_surface_create_(server.tiled_layer, xdg_toplevel->base);
+
+
+     if (!toplevel->scene_tree) {
+        wlr_log(WLR_ERROR, "Failed to create scene node for toplevel");
+        free(toplevel);
+        return;
+    }
+
+    wlr_log(WLR_DEBUG, "新窗口分配新子树完成");
+
     set_tree_node_data(toplevel);
-    xdg_toplevel->base->data = toplevel->scene_tree;
+    xdg_toplevel->base->data = toplevel;
+
+
+    // 3
+
+    toplevel->container = manager.create_toplevel_container(toplevel);  //为toplevel分配一个container
+
 
     wlr_log(WLR_DEBUG, "完成节点逻辑数据挂载");
+
 
     // 3
     // 3.1 注册开始渲染/停止渲染事件
@@ -394,6 +404,8 @@ void server_new_xdg_toplevel(struct wl_listener* _, void* data){
     wl_signal_add(&toplevel->xdg_toplevel->base->events.ack_configure, &toplevel->ack_configure);
 
     wlr_log(WLR_DEBUG, "完成新窗口事件注册");
+
+    wl_list_insert(&TileyServer::getInstance().toplevels, &toplevel->link);
 
 }
 

@@ -2,6 +2,7 @@
 #include <wlr/types/wlr_output.h>
 #include "c99_unsafe_defs_wrap.h"
 #include "types.h"
+#include "src/utils/matrix.h"
 
 struct wlr_scene_rect* wlr_scene_rect_create_(struct wlr_scene_tree *parent,
     int width, int height, const float* color){
@@ -100,6 +101,16 @@ int get_scene_tree_node_x(struct surface_toplevel* toplevel){
         return toplevel->scene_tree->node.x;
 }
 
+// 获得scene buffer的x坐标
+int get_scene_buffer_x(struct wlr_scene_buffer* buffer){
+        return buffer->node.x;
+}
+
+// 获得scene buffer的y坐标
+int get_scene_buffer_y(struct wlr_scene_buffer* buffer){
+        return buffer->node.y;
+}
+
 // 获得根节点的y坐标
 int get_scene_tree_node_y(struct surface_toplevel* toplevel){
         return toplevel->scene_tree->node.y;
@@ -143,14 +154,24 @@ struct wlr_scene_node* get_scene_buffer_node(struct wlr_scene_buffer* buffer){
         return &buffer->node;
 }
 
+struct wlr_buffer* get_buffer(struct wlr_scene_buffer* scene_buffer){
+        return scene_buffer->buffer;
+}
+
+bool get_scene_buffer_node_enabled(struct wlr_scene_node* node){
+        return node->enabled;
+}
+
+void set_scene_buffer_node_data(struct wlr_scene_node* node, void* data){
+        node->data = data;
+}
+
 struct wlr_scene_buffer* wlr_scene_buffer_create_(struct wlr_scene_tree *parent, struct wlr_buffer *buffer){
         return wlr_scene_buffer_create(parent, buffer);
 }
 
 // 设置窗口对象的逻辑数据
 // 这个数据非常关键, 是我们保存平铺式管理的特殊数据的地方.
-// 例如, 我们使用KD树进行窗口的坐标分配和插入, 那么元素的KD树相关信息就应该
-// 保存在data中.
 void set_tree_node_data(struct surface_toplevel* toplevel){
         toplevel->scene_tree->node.data = toplevel;
 }
@@ -161,4 +182,23 @@ void* get_tree_node_data(struct wlr_scene_node* node){
 
 void set_tree(struct wlr_scene_tree* *tree, struct wlr_scene_tree* target){
         *tree = target;
+}
+
+int get_scene_output_x(struct wlr_scene_output* scene_output){
+        return scene_output->x;
+}
+
+int get_scene_output_y(struct wlr_scene_output* scene_output){
+        return scene_output->y;
+}
+
+
+// matrix相关操作包装函数
+
+void matrix_projection_(float *mat, int width, int height, enum wl_output_transform transform){
+        matrix_projection(mat, width, height, transform);
+}
+
+void wlr_matrix_project_box_(float *mat, const struct wlr_box *box, enum wl_output_transform transform, const float *projection){
+        wlr_matrix_project_box(mat, box, transform, projection);
 }

@@ -2,14 +2,20 @@
 #define __C99_UNSAFE_DEFS_WRAP__
 
 #include "types.h"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct wlr_scene;
 struct wlr_scene_output_layout;
+struct wlr_scene_output;
 struct wlr_scene_rect;
+struct wlr_scene_node;
 struct surface_toplevel;
+struct wlr_scene_node_vtable;
+
 
 struct wlr_scene_rect* wlr_scene_rect_create_(struct wlr_scene_tree *parent,
     int width, int height, const float* color);
@@ -42,6 +48,8 @@ void wlr_scene_output_send_frame_done(struct wlr_scene_output *scene_output,
 struct wlr_scene_node *wlr_scene_node_at_(struct wlr_scene_node *node,
 		double lx, double ly, double *nx, double *ny);
 
+struct wlr_buffer* get_buffer(struct wlr_scene_buffer* scene_buffer);
+
 struct wlr_scene_buffer *wlr_scene_buffer_from_node_(
 		struct wlr_scene_node *node);
 
@@ -59,6 +67,8 @@ struct wlr_scene_tree* get_wlr_scene_tree(struct wlr_scene* scene);
 struct wlr_scene_node* get_wlr_scene_tree_node(struct wlr_scene_tree* tree);
 
 struct wlr_scene_node* get_wlr_scene_rect_node(struct wlr_scene_rect* rect);
+
+struct wlr_scene_node* get_wlr_scene_surface_node(struct wlr_scene_surface* surface);
 
 void wlr_scene_rect_set_size_(struct wlr_scene_rect *rect, int width, int height);
 
@@ -91,8 +101,27 @@ struct wlr_scene_node* get_scene_buffer_node(struct wlr_scene_buffer* buffer);
 
 struct wlr_scene_buffer* wlr_scene_buffer_create_(struct wlr_scene_tree *parent, struct wlr_buffer *buffer);
 
+void set_scene_buffer_node_data(struct wlr_scene_node* node, void* data);
+
+bool get_scene_buffer_node_enabled(struct wlr_scene_node* node);
+
+
+int get_scene_buffer_x(struct wlr_scene_buffer* buffer);
+
+int get_scene_buffer_y(struct wlr_scene_buffer* buffer);
+
 //trick: 绕开C++中的enum限制
 enum wlr_scene_node_type_ get_toplevel_node_type_(struct wlr_scene_node* node);
+
+// 和矩阵相关的操作包装函数
+
+void matrix_projection_(float *mat, int width, int height, enum wl_output_transform transform);
+
+void wlr_matrix_project_box_(float *mat, const struct wlr_box *box, enum wl_output_transform transform, const float *projection);
+
+int get_scene_output_x(struct wlr_scene_output* scene_output);
+
+int get_scene_output_y(struct wlr_scene_output* scene_output);
 
 #ifdef __cplusplus
 }

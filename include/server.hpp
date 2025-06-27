@@ -3,11 +3,11 @@
 
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 
+#include <GLES2/gl2.h>
 #include <memory>
 #include <mutex>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
-
 
 extern "C"{
     #include <wlr/util/log.h>
@@ -17,10 +17,12 @@ extern "C"{
     #include <wlr/types/wlr_subcompositor.h>
     #include <wlr/types/wlr_data_device.h>
     #include <wlr/types/wlr_output_layout.h>
+    #include <wlr/types/wlr_output.h>
     #include <wlr/types/wlr_xdg_shell.h>
     #include <wlr/types/wlr_cursor.h>
     #include <wlr/types/wlr_xcursor_manager.h>
     #include <wlr/render/drm_format_set.h>
+    #include <wlr/render/gles2.h>
     #include <wlr/types/wlr_buffer.h>
     #include <render/allocator/shm.h>
 }
@@ -31,6 +33,19 @@ namespace tiley{
         TILEY_CURSOR_PASSTHROUGH,
         TILEY_CURSOR_MOVE,
         TILEY_CURSOR_RESIZE,
+    };
+
+    struct TileyView;
+
+    // 用于管理原生 GLES2 着色器程序
+    struct TileyShader {
+        GLuint program = 0;
+        GLint proj = -1;
+        GLint tex = -1;
+        GLint alpha = -1;
+        // 为将来的圆角做准备
+        GLint size = -1;
+        GLint radius = -1;
     };
 
     class TileyServer{
@@ -77,6 +92,7 @@ namespace tiley{
             wl_listener new_output;
 
             struct wlr_scene_buffer *wallpaper_node;
+            TileyShader tint_shader;
             
             static TileyServer& getInstance();
 
@@ -97,6 +113,16 @@ namespace tiley{
             TileyServer(const TileyServer&) = delete;
             TileyServer& operator=(const TileyServer&) = delete;
     };
+
+    // 我们的自定义场景节点，用于渲染窗口
+    struct TileyViewNode {
+        struct wlr_scene_node* node; // 必须是第一个成员
+        TileyServer& server;
+        struct TileyView* view; // 指向所属的 view
+    };
+
+    // 声明着色器初始化函数
+    bool init_shader(TileyShader& shader, const std::string& vert_path, const std::string& frag_path);
     
 }
 

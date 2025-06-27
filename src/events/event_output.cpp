@@ -9,10 +9,13 @@
 #include "include/server.hpp"
 #include "include/core.hpp"
 #include "include/image_util.hpp"
+#include "include/renderer.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "wlr/util/log.h"
 
+
 using namespace tiley;
+
 
 static void output_frame(struct wl_listener* listener, void* data){
 
@@ -21,22 +24,109 @@ static void output_frame(struct wl_listener* listener, void* data){
     // 客户端函数
 
     // 干下面的事:
-    // 1. 获取到场景输出(画布)
-    // 2. 渲染并提交帧
+    // 1. 手动渲染(非常重要, 从普通wlroots使用到高级wlroots使用的一个重大转变!)
+    // 2. 清屏, 绘制壁纸
     // 3. 为了同步, 更新时钟(指示此时渲染一帧成功完成)
 
-    struct output_display* output = wl_container_of(listener, output, frame);
-    
-    // 直接使用保存在 output 结构体中的 scene_output
-    if (output->scene_output) {
-        wlr_scene_output_commit_(output->scene_output, NULL);
+    TileyServer& server = TileyServer::getInstance();
 
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        wlr_scene_output_send_frame_done(output->scene_output, &now);
+    // 1
+    struct output_display* output = wl_container_of(listener, output, frame);
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    struct wlr_render_pass* pass = wlr_output_begin_render_pass(output->wlr_output, &state, nullptr);
+
+    if(pass == nullptr){
+        wlr_log(WLR_ERROR, "错误: 无法开始手动渲染, 停止渲染帧。程序现在可以直接退出, 因为不会有任何对象再被渲染了。注意: 这个错误只应该在调试时出现。如果运行时出现, 说明程序发生错误。");
+        return;
     }
 
+    // 2
+    int output_width, output_height;
+    wlr_output_effective_resolution(output->wlr_output, &output_width, &output_height);
+
+    struct wlr_scene_output* scene_output = wlr_scene_get_scene_output_(server.scene, output->wlr_output);
+    if(!scene_output){
+        return;
+    }
+    
+    // 清屏
+    struct wlr_render_rect_options clear_rect_options = {
+        {
+            0, 0,
+            output_width,
+            output_height,
+        },
+        { 0.1f, 0.1f, 0.1f, 1.0f },
+        NULL,
+        WLR_RENDER_BLEND_MODE_NONE, // 使用 NONE 确保它完全覆盖旧内容
+    };
+    wlr_render_pass_add_rect(pass, &clear_rect_options);
+    
+
+    if(server.background_layer && output->wallpaper_node){
+
+        wlr_renderer* renderer = server.renderer;
+        
+        // 从场景节点获取公开的 wlr_buffer
+        struct wlr_buffer *wallpaper_wlr_buffer = get_buffer(output->wallpaper_node);
+        
+        // 从 wlr_buffer 为本帧临时创建一个 wlr_texture
+        struct wlr_texture *wallpaper_texture = wlr_texture_from_buffer(renderer, wallpaper_wlr_buffer);
+
+        if(wallpaper_texture){
+            struct wlr_render_texture_options wallpaper_options = {
+                wallpaper_texture,
+                {
+                    static_cast<double>(get_scene_buffer_x(output->wallpaper_node)),
+                    static_cast<double>(get_scene_buffer_y(output->wallpaper_node)),
+                    static_cast<double>(wallpaper_texture->width),
+                    static_cast<double>(wallpaper_texture->height)
+                }
+            };
+            wlr_render_pass_add_texture(pass, &wallpaper_options);
+            // 立即清理资源
+            wlr_texture_destroy(wallpaper_texture);
+        }
+    }
+
+    struct surface_toplevel* toplevel;
+    wl_list_for_each_reverse(toplevel, &server.toplevels, link){
+        if(get_scene_buffer_node_enabled(get_wlr_scene_tree_node(toplevel->scene_tree))){
+            double scene_x = get_scene_tree_node_x(toplevel);
+            double scene_y = get_scene_tree_node_y(toplevel);
+            
+            double render_x = scene_x - get_scene_output_x(scene_output);
+            double render_y = scene_y - get_scene_output_y(scene_output);
+
+            render_toplevel_with_tint(toplevel, render_x, render_y, pass);
+        }
+    }
+
+
+    wlr_output_add_software_cursors_to_render_pass(output->wlr_output, pass, nullptr);
+
+    if (!wlr_render_pass_submit(pass)) {
+        wlr_log(WLR_ERROR, "Failed to submit render pass on output '%s'", output->wlr_output->name);
+    }
+
+    // 7. 发送 frame_done 事件
+    // 注意: 在新的 API 中，这一步由 wlr_output_commit_state() 隐式处理
+    // 我们需要提交一个空的 state 来触发 buffer交换 和 frame_done
+    if (!wlr_output_commit_state(output->wlr_output, &state)) {
+        wlr_log(WLR_ERROR, "Failed to commit output state on '%s'", output->wlr_output->name);
+    }
+    wlr_output_state_finish(&state);
+
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    wlr_scene_output_send_frame_done(scene_output, &now);
+
 }
+
 
 static void output_request_state(struct wl_listener *listener, void *data) {
 	// TODO: 当屏幕状态改变时触发的函数
@@ -149,6 +239,7 @@ void server_new_output(struct wl_listener* _, void* data){
     //7
     struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
 
+    //如切换到手动渲染: 删除
     output->scene_output = wlr_scene_output_create_(server.scene, wlr_output);
     wlr_scene_output_layout_add_output_(server.scene_layout, l_output, output->scene_output);
 
@@ -156,6 +247,7 @@ void server_new_output(struct wl_listener* _, void* data){
     wlr_box output_box;
     wlr_output_layout_get_box(server.output_layout, output->wlr_output, &output_box);
     struct wlr_buffer* wall_buffer = create_wallpaper_buffer_scaled(wallpaper_path, output_box.width, output_box.height); 
+
 
     if (wall_buffer) {
         // 将壁纸节点创建在 background_layer 中，并保存在 output 里
@@ -166,9 +258,8 @@ void server_new_output(struct wl_listener* _, void* data){
             // 壁纸的位置就是这个 output 在全局布局中的位置
             wlr_scene_node_set_position_(get_scene_buffer_node(output->wallpaper_node), l_output->x, l_output->y);
             
-            // (可选，但推荐) 您可以修改 create_buffer_from_path_manual
+            // 可以修改 create_buffer_from_path_manual
             // 让它能把图片拉伸到 output 的大小 (wlr_output->width, wlr_output->height)
-            // 但即使不拉伸，现在它也应该能正确显示在左上角了。
         }
     }
     
