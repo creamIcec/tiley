@@ -1,4 +1,5 @@
 #include "include/events.h"
+#include "include/interact.hpp"
 #include "server.hpp"
 #include "include/types.h"
 #include "wlr/util/log.h"
@@ -11,6 +12,7 @@
 #include <wayland-util.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
+#include <iostream>//别忘了删
 using namespace tiley;
 
 /*********键盘事件***********/
@@ -72,26 +74,44 @@ static void keyboard_handle_key(struct wl_listener* listener, void* data){
 		}
 	}
     */
-    std::string combo = keycombo_to_string(keycode, modifiers);
+std::string combo = keycombo_to_string(keycode, modifiers, keyboard->wlr_keyboard->xkb_state);
+
+/*
       if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED
         && (modifiers & WLR_MODIFIER_CTRL)) {
         for (int i = 0; i < nsyms; ++i) {
             if (syms[i] == XKB_KEY_Right) {
+                wlr_log(WLR_DEBUG, "通过硬编码实现");
                 // 调用切换下一个窗口功能
                 focus_next_window();
                 return;  // 拦截后不再传给客户端
             }
         }
     }
+        
+        */
+       std::cerr << "当前组合键: " << combo << std::endl;
+        for (const auto& [key, action] : g_hotkey_map) {
+        std::cerr << "  " << key << " -> " << action << std::endl;
+    }
     // 查表
-    {
-        std::lock_guard _(g_hotkey_mutex);
+       // std::lock_guard _(g_hotkey_mutex);
         auto it = g_hotkey_map.find(combo);
+        //std::cerr<<it.key<<
+        if(it != g_hotkey_map.end()){
+        std::cerr<<"当前it"<<it->second<<it->first<<std::endl;
+        }
+        else{
+        std::cerr<<"当前为空"<<std::endl;
+        }
+
         if (it != g_hotkey_map.end() && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        std::cerr << "当前组合键: " << combo << std::endl;
+
+         wlr_log(WLR_DEBUG, "通过json文件实现");
             execute_hotkey_action(it->second);
             return;  // 拦截，不再传给客户端
         }
-    }
 
     // 如果事件没有被处理, 交给下一个层级(说明不是合成器的快捷键)
     if(!handled){
