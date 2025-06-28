@@ -139,6 +139,14 @@ void wlr_scene_rect_set_size_(struct wlr_scene_rect *rect, int width, int height
         wlr_scene_rect_set_size(rect, width, height);
 }
 
+struct wlr_scene_node* get_scene_buffer_node(struct wlr_scene_buffer* buffer){
+        return &buffer->node;
+}
+
+struct wlr_scene_buffer* wlr_scene_buffer_create_(struct wlr_scene_tree *parent, struct wlr_buffer *buffer){
+        return wlr_scene_buffer_create(parent, buffer);
+}
+
 // 设置窗口对象的逻辑数据
 // 这个数据非常关键, 是我们保存平铺式管理的特殊数据的地方.
 // 例如, 我们使用KD树进行窗口的坐标分配和插入, 那么元素的KD树相关信息就应该

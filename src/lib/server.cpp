@@ -1,4 +1,5 @@
 #include "include/server.hpp"
+#include "include/image_util.hpp"
 #include <memory>
 #include <mutex>
 #include <wayland-util.h>
@@ -10,12 +11,12 @@ std::unique_ptr<TileyServer, TileyServer::ServerDeleter> TileyServer::INSTANCE =
 std::once_flag TileyServer::onceFlag;
 
 TileyServer::TileyServer(){
-    wallpaper_texture = nullptr;
-    wl_list_init(&this->output_wallpapers);
+
 }
 
-TileyServer::~TileyServer(){}
-
+TileyServer::~TileyServer(){
+    
+}
 
 TileyServer& TileyServer::getInstance(){
     std::call_once(onceFlag, [](){

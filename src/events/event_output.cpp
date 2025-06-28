@@ -8,6 +8,7 @@
 #include "include/types.h"
 #include "include/server.hpp"
 #include "include/core.hpp"
+#include "include/image_util.hpp"
 #include "src/wrap/c99_unsafe_defs_wrap.h"
 #include "wlr/util/log.h"
 
@@ -26,17 +27,14 @@ static void output_frame(struct wl_listener* listener, void* data){
 
     struct output_display* output = wl_container_of(listener, output, frame);
     
-    // 1
-    struct wlr_scene* scene = TileyServer::getInstance().scene;
-    struct wlr_scene_output* scene_output = wlr_scene_get_scene_output_(scene, output->wlr_output);
+    // 直接使用保存在 output 结构体中的 scene_output
+    if (output->scene_output) {
+        wlr_scene_output_commit_(output->scene_output, NULL);
 
-    // 2
-    wlr_scene_output_commit_(scene_output, NULL);
-
-    // 3
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    wlr_scene_output_send_frame_done(scene_output, &now);
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        wlr_scene_output_send_frame_done(output->scene_output, &now);
+    }
 
 }
 
@@ -150,8 +148,29 @@ void server_new_output(struct wl_listener* _, void* data){
 
     //7
     struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
-    struct wlr_scene_output* scene_output = wlr_scene_output_create_(server.scene, wlr_output);
-    wlr_scene_output_layout_add_output_(server.scene_layout, l_output, scene_output);
+
+    output->scene_output = wlr_scene_output_create_(server.scene, wlr_output);
+    wlr_scene_output_layout_add_output_(server.scene_layout, l_output, output->scene_output);
+
+    const char* wallpaper_path = "/home/iriseplos/tiley_test_wallpaper/sunset-girl.png";  //现在先写死
+    wlr_box output_box;
+    wlr_output_layout_get_box(server.output_layout, output->wlr_output, &output_box);
+    struct wlr_buffer* wall_buffer = create_wallpaper_buffer_scaled(wallpaper_path, output_box.width, output_box.height); 
+
+    if (wall_buffer) {
+        // 将壁纸节点创建在 background_layer 中，并保存在 output 里
+        output->wallpaper_node = wlr_scene_buffer_create_(server.background_layer, wall_buffer);
+        wlr_buffer_drop(wall_buffer); // 场景已接管，释放本地引用
+
+        if (output->wallpaper_node) {
+            // 壁纸的位置就是这个 output 在全局布局中的位置
+            wlr_scene_node_set_position_(get_scene_buffer_node(output->wallpaper_node), l_output->x, l_output->y);
+            
+            // (可选，但推荐) 您可以修改 create_buffer_from_path_manual
+            // 让它能把图片拉伸到 output 的大小 (wlr_output->width, wlr_output->height)
+            // 但即使不拉伸，现在它也应该能正确显示在左上角了。
+        }
+    }
     
     //8
     manager.insert_display(output);
