@@ -16,3 +16,7 @@ builddir
 
 bin/tinywl
 bin/*.so
+
+# editor configurations
+
+.vscode

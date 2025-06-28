@@ -1,0 +1,178 @@
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <wayland-server-core.h>
+#include <wayland-util.h>
+
+#include "include/events.h"
+#include "include/types.h"
+#include "include/server.hpp"
+#include "include/core.hpp"
+#include "include/image_util.hpp"
+#include "src/wrap/c99_unsafe_defs_wrap.h"
+#include "wlr/util/log.h"
+
+using namespace tiley;
+
+static void output_frame(struct wl_listener* listener, void* data){
+
+    //TODO: 当有新的帧要输出时触发的函数
+
+    // 客户端函数
+
+    // 干下面的事:
+    // 1. 获取到场景输出(画布)
+    // 2. 渲染并提交帧
+    // 3. 为了同步, 更新时钟(指示此时渲染一帧成功完成)
+
+    struct output_display* output = wl_container_of(listener, output, frame);
+    
+    // 直接使用保存在 output 结构体中的 scene_output
+    if (output->scene_output) {
+        wlr_scene_output_commit_(output->scene_output, NULL);
+
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        wlr_scene_output_send_frame_done(output->scene_output, &now);
+    }
+
+}
+
+static void output_request_state(struct wl_listener *listener, void *data) {
+	// TODO: 当屏幕状态改变时触发的函数
+    // 第一次, 初始化屏幕时也会触发
+    wlr_log(WLR_DEBUG, "屏幕状态发生改变");
+
+    struct output_display* output = wl_container_of(listener, output, request_state);
+    const struct wlr_output_event_request_state* event = 
+        static_cast<wlr_output_event_request_state*>(data);
+
+    // 如下几乎只会在嵌套模式下输出(除非外部屏幕也发生了改变)
+    wlr_log(WLR_INFO, "接收到来自宿主对 %s 的状态变更请求", output->wlr_output->name);
+    if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
+        wlr_log(WLR_INFO, "接收到对 %s 的状态请求，包含新的缩放值: %f", 
+                output->wlr_output->name, event->state->scale);
+    }
+    if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
+        wlr_log(WLR_INFO, "接收到对 %s 的状态请求，包含新的模式", output->wlr_output->name);
+    }
+    
+    // 使用屏幕状态提交新的状态
+    wlr_output_commit_state(output->wlr_output, event->state);
+}
+
+static void output_destroy(struct wl_listener *listener, void *data) {
+    //TODO: 当屏幕被拔出时(变得不可用时)触发的函数
+    struct output_display* output = wl_container_of(listener, output, destroy);
+
+    wl_list_remove(&output->frame.link);
+    wl_list_remove(&output->request_state.link);
+    wl_list_remove(&output->destroy.link);
+    wl_list_remove(&output->link);
+
+    free(output);
+}
+
+void server_new_output(struct wl_listener* _, void* data){
+    //TODO: 这里写当新的显示屏接入时的处理逻辑
+
+    //客户端函数
+
+    //大致来讲干下面的事情:
+    // 1. 指定新的显示屏使用我们的buffer allocator和renderer
+    // 2. 打开新的显示屏的输出状态
+    // 3. 判断是否是嵌套运行。如果是嵌套运行, 则设置自定义显示参数, 防止变糊
+    // 4. 物理模式指定显示参数: (长度, 宽度, 刷新率)
+    // 5. 提交渲染更新状态, 包括自定义的缩放
+    // 6. 为新的显示屏注册客户端事件处理器: 刷新屏幕事件, 刷新屏幕状态事件和屏幕拔出事件
+    // 7. 添加屏幕到输出布局中, 同时也告知客户端可以查询关于该屏幕的信息: 分辨率, 缩放比例, 名称, 制造商等等
+    // 8. 添加屏幕到窗口管理中, 便于后期查找
+
+    tiley::TileyServer& server = tiley::TileyServer::getInstance();
+    tiley::WindowStateManager& manager = tiley::WindowStateManager::getInstance();
+
+    wlr_output* wlr_output = static_cast<struct wlr_output*>(data);
+
+    //1
+    wlr_output_init_render(wlr_output, server.allocator, server.renderer);
+
+    //2
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    //3,4
+    struct wlr_output_mode* mode = wlr_output_preferred_mode(wlr_output);
+    if (mode != NULL) {
+        wlr_output_state_set_mode(&state, mode);
+    }
+
+    wlr_output_state_set_enabled(&state, true);
+
+    //5
+    if (!wlr_output_commit_state(wlr_output, &state)) {
+        wlr_log(WLR_ERROR, "无法提交输出 %s 的初始状态", wlr_output->name);
+        wlr_output_state_finish(&state);
+        return;
+    }
+
+    wlr_output_state_finish(&state);
+
+    struct wlr_output_state scale_state;
+    wlr_output_state_init(&scale_state);
+    float scale = 1.0f;
+    wlr_log(WLR_INFO, "为输出 %s 主动设置内部缩放为 %f", wlr_output->name, scale);
+    wlr_output_state_set_scale(&scale_state, scale);
+    if (!wlr_output_commit_state(wlr_output, &scale_state)) {
+        wlr_log(WLR_ERROR, "无法为输出 %s 提交缩放状态", wlr_output->name);
+    }
+    wlr_output_state_finish(&scale_state);
+
+    //拿到显示屏对象
+    struct output_display* output = static_cast<output_display*>(calloc(1, sizeof(*output)));
+    output->wlr_output = wlr_output;
+
+    //6
+    //刷新屏幕事件
+    output->frame.notify = output_frame;
+    wl_signal_add(&wlr_output->events.frame, &output->frame);
+
+    //刷新屏幕状态事件
+    output->request_state.notify = output_request_state;
+    wl_signal_add(&wlr_output->events.request_state, &output->request_state);
+
+    //屏幕拔出事件
+    output->destroy.notify = output_destroy;
+	wl_signal_add(&wlr_output->events.destroy, &output->destroy);
+    
+    wl_list_insert(&server.outputs, &output->link);
+
+    //7
+    struct wlr_output_layout_output* l_output = wlr_output_layout_add_auto(server.output_layout, wlr_output);
+
+    output->scene_output = wlr_scene_output_create_(server.scene, wlr_output);
+    wlr_scene_output_layout_add_output_(server.scene_layout, l_output, output->scene_output);
+
+    const char* wallpaper_path = "/home/iriseplos/tiley_test_wallpaper/sunset-girl.png";  //现在先写死
+    wlr_box output_box;
+    wlr_output_layout_get_box(server.output_layout, output->wlr_output, &output_box);
+    struct wlr_buffer* wall_buffer = create_wallpaper_buffer_scaled(wallpaper_path, output_box.width, output_box.height); 
+
+    if (wall_buffer) {
+        // 将壁纸节点创建在 background_layer 中，并保存在 output 里
+        output->wallpaper_node = wlr_scene_buffer_create_(server.background_layer, wall_buffer);
+        wlr_buffer_drop(wall_buffer); // 场景已接管，释放本地引用
+
+        if (output->wallpaper_node) {
+            // 壁纸的位置就是这个 output 在全局布局中的位置
+            wlr_scene_node_set_position_(get_scene_buffer_node(output->wallpaper_node), l_output->x, l_output->y);
+            
+            // (可选，但推荐) 您可以修改 create_buffer_from_path_manual
+            // 让它能把图片拉伸到 output 的大小 (wlr_output->width, wlr_output->height)
+            // 但即使不拉伸，现在它也应该能正确显示在左上角了。
+        }
+    }
+    
+    //8
+    manager.insert_display(output);
+
+}
