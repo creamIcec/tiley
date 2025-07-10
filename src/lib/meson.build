@@ -1,6 +1,8 @@
 lib_sources = files(
-    'server.cpp',
-    'interact.cpp',
-    'core.cpp',
-    'decoration.cpp'
+    'TileyCompositor.cpp',
+    'TileyServer.cpp',
+    'input/Seat.cpp',
+    'output/Output.cpp',
+    'scene/LayerView.cpp',
+    'scene/Scene.cpp'
 )

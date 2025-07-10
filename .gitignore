@@ -20,3 +20,10 @@ bin/*.so
 # editor configurations
 
 .vscode
+
+# animation presentations & scripts
+
+*.mp4
+*.py
+*.pyc
+presentation/
