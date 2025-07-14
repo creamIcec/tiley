@@ -12,7 +12,7 @@ using namespace Louvre;
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
 
-    TileyServer& server = TileyServer::getInstance();
+    _TileyServer& server = _TileyServer::getInstance();
 
     // 配置输入设备
     server.seat()->configureInputDevices();

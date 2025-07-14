@@ -33,7 +33,7 @@ namespace tiley{
         TILEY_CURSOR_RESIZE,
     };
 
-    class TileyServer{
+    class _TileyServer{
         public:
             wl_display *wl_display_;
             wlr_backend *backend;
@@ -78,24 +78,24 @@ namespace tiley{
 
             struct wlr_scene_buffer *wallpaper_node;
             
-            static TileyServer& getInstance();
+            static _TileyServer& getInstance();
 
         private:
 
             struct ServerDeleter {
-                void operator()(TileyServer* p) const {
+                void operator()(_TileyServer* p) const {
                     delete p;
                 }
             };
 
             friend struct ServerDeleter;
 
-            TileyServer();
-            ~TileyServer();
-            static std::unique_ptr<TileyServer, ServerDeleter> INSTANCE;
+            _TileyServer();
+            ~_TileyServer();
+            static std::unique_ptr<_TileyServer, ServerDeleter> INSTANCE;
             static std::once_flag onceFlag;
-            TileyServer(const TileyServer&) = delete;
-            TileyServer& operator=(const TileyServer&) = delete;
+            _TileyServer(const _TileyServer&) = delete;
+            _TileyServer& operator=(const _TileyServer&) = delete;
     };
     
 }

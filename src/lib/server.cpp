@@ -7,20 +7,20 @@
 using namespace tiley;
 
 // 静态成员初始化
-std::unique_ptr<TileyServer, TileyServer::ServerDeleter> TileyServer::INSTANCE = nullptr;
-std::once_flag TileyServer::onceFlag;
+std::unique_ptr<_TileyServer, _TileyServer::ServerDeleter> _TileyServer::INSTANCE = nullptr;
+std::once_flag _TileyServer::onceFlag;
 
-TileyServer::TileyServer(){
+_TileyServer::_TileyServer(){
 
 }
 
-TileyServer::~TileyServer(){
+_TileyServer::~_TileyServer(){
     
 }
 
-TileyServer& TileyServer::getInstance(){
+_TileyServer& _TileyServer::getInstance(){
     std::call_once(onceFlag, [](){
-        INSTANCE.reset(new TileyServer());
+        INSTANCE.reset(new _TileyServer());
     });
     return *INSTANCE;
 }
