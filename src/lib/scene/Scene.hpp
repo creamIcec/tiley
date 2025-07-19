@@ -7,11 +7,26 @@
 using namespace Louvre;
 
 namespace tiley{
-    class Scene final : public Louvre::LScene{
+    class Scene final : public LScene{
         public:
-            // 暂时使用官方示例中的5层(背景, 底层, 中层, 顶层和覆盖层)
-            // 需要改成我们的平铺分层(最终4层: 背景(壁纸), 平铺层, 浮动层, 覆盖层(顶栏/锁屏等))
-            LayerView layers[5];
+
+            Scene() noexcept;
+
+            /*
+                场景树图层顺序:  floatingLayer > tiledLayer > backgroundLayer
+                lockscreenView;    //锁屏层.
+                floatingLayer;     //浮动层. 当窗口浮动时, 移动到该层反之移回正常层次.
+                tiledLayer;        //正常层.
+                backgroundLayer;   //背景层, 显示壁纸.
+            */
+
+            LayerView overlayLayer;
+            LayerView lockscreenLayer;
+            LayerView floatingLayer;
+            LayerView tiledLayer;
+            LayerView backgroundLayer;
+
+            LayerView layers[5]{&overlayLayer, &lockscreenLayer, &floatingLayer, &tiledLayer, &backgroundLayer};
     };
 }
 

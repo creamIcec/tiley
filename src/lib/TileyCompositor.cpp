@@ -1,8 +1,12 @@
 #include "TileyCompositor.hpp"
-#include "LNamespaces.h"
-#include "LTransform.h"
 #include "TileyServer.hpp"
+#include "src/lib/client/Client.hpp"
+#include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/output/Output.hpp"
+#include "src/lib/surface/Surface.hpp"
+
+#include <LTransform.h>
+
 #include <cstdint>
 #include <cstdlib>
 
@@ -12,7 +16,7 @@ using namespace Louvre;
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
 
-    _TileyServer& server = _TileyServer::getInstance();
+    TileyServer& server = TileyServer::getInstance();
 
     // 配置输入设备
     server.seat()->configureInputDevices();
@@ -37,8 +41,6 @@ void TileyCompositor::initialized(){
         output->repaint();
     }
 
-    //TOPO: 设置壁纸
-
     //TODO: 启动顶栏
 
 }
@@ -48,15 +50,18 @@ void TileyCompositor::uninitialized(){
     // 该方法在销毁之前调用, 在这里销毁所有相关资源。
 }
 
+
 LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type objectType, const void* params){
     if (objectType == LFactoryObject::Type::LOutput){
         return new Output(params);
     }
     if (objectType == LFactoryObject::Type::LClient){
         // TODO: 实现客户端对象(原来的toplevel结构体)
+        return new Client(params);
     }
     if (objectType == LFactoryObject::Type::LSurface){
         // TODO: 实现Surface对象
+        return new Surface(params);
     }
     // 以下的"角色"指代的就是不同surface的功能了。
     // 单纯的surface只是一块表面, 对于后端而言没有功能, 需要分配一个角色(是窗口? 是锁屏? 是弹出界面? 是光标的图标?), 后端才知道如何操作它
@@ -64,6 +69,7 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
     // 用于控制类型为"窗口"的surface
     if (objectType == LFactoryObject::Type::LToplevelRole){
         // TODO: 实现toplevel角色(注意: 和以前的"toplevel"结构体不是一个东西, 之前的应该概念有误, toplevel不是"窗口", 而是一个surface的角色)
+        return new ToplevelRole(params);
     }
     if (objectType == LFactoryObject::Type::LSubsurfaceRole){
         // TODO: 实现subsurface角色

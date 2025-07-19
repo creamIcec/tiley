@@ -2,6 +2,7 @@
 #define __TILEY_COMPOSITOR_H__
 
 #include "LFactoryObject.h"
+#include <LLayerView.h>
 #include "LNamespaces.h"
 #include <LCompositor.h>
 #include "src/lib/scene/Scene.hpp"

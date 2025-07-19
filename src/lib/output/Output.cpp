@@ -7,21 +7,37 @@
 #include <LSessionLockRole.h>
 #include <LScreenshotRequest.h>
 #include <LOutputMode.h>
-#include <cmath>
+#include <LPainter.h>
+#include <LRegion.h>
+#include <LOpenGL.h>
 
 #include "LContentType.h"
 #include "LLog.h"
+
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/surface/Surface.hpp"
+#include "src/lib/types.h"
 
 using namespace Louvre;
 using namespace tiley;
 
+Output::Output(const void* params) noexcept : LOutput(params){
+
+    // 初始化一个显示屏时, 干下面的事:
+    // 1. 初始化壁纸
+
+    // LRegion是一个工具类, 用于提供一块"画布区域", 在这个区域中可以添加很多个矩形, 并可对它们进行布尔运算。
+    const LRegion region;  //为壁纸分配一块区域, 使得壁纸在渲染中被考虑进去
+    this->wallpaperView.setTranslucentRegion(&region);
+} 
+
 void Output::initializeGL(){
 
-    LLog::log("新的屏幕插入。"); 
+    LLog::log("新的屏幕插入, id: %u 。", this->id());
 
     TileyServer& server = TileyServer::getInstance();
+
+    LLog::log("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
 
     // 1. 交给scene, 计算需要显示在这块显示屏上的部分
     server.scene().handleInitializeGL(this);
@@ -34,7 +50,7 @@ void Output::initializeGL(){
 
     // 3. 来自官方: 淡入示例
     LWeak<Output> weakRef {this};
-    fadeInView.insertAfter(&server.layers()[LLayerOverlay]);
+    fadeInView.insertAfter(&server.layers()[OVERLAY_LAYER]);
     fadeInView.setOpacity(0.f);
 
     // 渲染一个长度为1s的动画, 每帧调用onUpdate这个Lambda
@@ -57,8 +73,7 @@ void Output::initializeGL(){
         }
     });
 
-
-    //TODO: 4.5.缩放, 壁纸
+    //TODO: 5.缩放
 
 }
 
@@ -97,13 +112,32 @@ void Output::moveGL(){
    server.scene().handleMoveGL(this);
 };
 
+// resizeGL被设计成会在屏幕刚插入的时候也调用一次。
+// 因此, 真实尺寸只能从这里面获取, 而不是initializeGL中.
 void Output::resizeGL(){
-    LLog::debug("屏幕状态发生改变, id: %u", this->id());
-    // 如下几乎只会在嵌套模式下输出(除非外部屏幕也发生了改变)
-    LLog::debug("接收到对屏幕(id: %u)的状态修改指令，包含新的尺寸: %f", 
-                this->id(), this->scale());
+    LLog::log("[屏幕id: %u]屏幕状态发生改变", this->id());
+    LLog::log("[屏幕id: %u]接收到状态修改指令, 包含新的缩放: %f, 新的尺寸: %dx%d", 
+                this->id(), this->scale(), this->size().w(), this->size().h());
+
     TileyServer& server = TileyServer::getInstance();
+
+    /*
+    auto layers = server.layers();    
+    
+    LLog::log("[屏幕id: %u]更新")
+
+    // TODO: 暂时假设只有一个屏幕, 所以这么设置, 之后需要改成所有屏幕加起来的大小。
+    for(int i = 0; i <= BACKGROUND_LAYER; i++){
+        layers[i].setSize(size());
+        LLog::log("层[%d]的尺寸: %dx%d", i, layers[i].size().w(), layers[i].size().h());
+    }
+    */
+    
     server.scene().handleResizeGL(this);
+
+    LLog::log("[屏幕id: %u] 更新壁纸。", this->id());
+
+    updateWallpaper();
 };
 
 void Output::uninitializeGL(){
@@ -119,6 +153,11 @@ void Output::setGammaRequest(LClient* client, const LGammaTable* gamma){
 void Output::availableGeometryChanged(){
     LOutput::availableGeometryChanged();
 };
+
+
+bool Output::tryDirectScanout(Surface* surface) noexcept{
+    return false;  //TODO
+}
 
 // 查找全屏的surface是否存在
 Surface* Output::searchFullscreenSurface() const noexcept{
@@ -139,4 +178,76 @@ Surface* Output::searchFullscreenSurface() const noexcept{
     }
 
     return nullptr;
+}
+
+
+void Output::updateWallpaper(){
+    // 如果已经加载了纹理...
+    if(wallpaperView.texture()){
+        if(wallpaperView.texture()->sizeB() == this->sizeB()){  //..并且纹理绝对尺寸和屏幕尺寸一样...
+            wallpaperView.setBufferScale(scale()); //...则设置相对尺寸缩放为屏幕缩放...
+            wallpaperView.setPos(pos());  //...并且和屏幕左上角对齐.
+            return;  //就结束了。
+        }
+
+        delete wallpaperView.texture();  //到了这里, 说明没有复用之前的纹理, 说明需要重新配置, 先释放内存。
+    }
+    // 假设尺寸等不一样, 就需要先将绝对尺寸转换成屏幕尺寸, 再设置缩放。而转换的算法有很多种, 是我们平时在裁剪图像(例如photoshop)时经常遇到的, 例如:
+    // 平铺, 拉伸, 填充等等
+
+    using std::filesystem::path;
+
+    path wallpaperRootPath("/home/iriseplos/tiley-data/wallpaper");
+    path wallpaperPath = wallpaperRootPath / "visualbg_station.png";
+
+    LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
+
+    if(!originalWallpaper){
+        LLog::error("[屏幕id: %u]无法加载壁纸。请检查路径是否存在。", this->id());
+        return;
+    }
+
+    // 下面就是具体的计算逻辑
+    // 注意: 所有计算都在buffer绝对坐标下, 最终再缩放到屏幕缩放大小。
+    const LSize& originalSizeB {originalWallpaper->sizeB()};
+    const LSize& outputSizeB {sizeB()};
+
+    // 一块矩形"蒙版", 就是我们最后采用的区域
+    LRect srcRect {0};
+
+    // 优先满足屏幕高度, 然后计算在将图片高度拉伸到屏幕高度、并且保持比例的前提下, 对应的宽度是多少。
+    const Float32 ratio = outputSizeB.h() / (Float32)originalSizeB.h();
+    const Float32 scaledWidth = originalSizeB.w() * ratio;
+
+    // 根据是否比原来的尺寸大决定
+    // 如果高度适应后, 宽度比原来大, 说明图片在左右两侧会留下黑边, 则我们需要裁剪图片的上下部分, 让图片得以继续放大, 适应屏幕
+    if(scaledWidth >= originalSizeB.w()){
+        srcRect.setW(originalSizeB.w());  //满足宽度, 裁剪上下: 取中间的区域, 分为两步:
+        // 第一步: 将蒙版框的高度按照宽度比例缩放
+        srcRect.setH(outputSizeB.h() * originalSizeB.w() / (Float32)outputSizeB.w());
+        // 第二步: 将蒙版框在图片中居中
+        srcRect.setY((originalSizeB.h() - srcRect.h()) / 2.0f);
+    }else{
+        // 反之, 则说明会在上下留下黑边, 需裁剪左右部分。
+        srcRect.setH(originalSizeB.h());
+        srcRect.setW(outputSizeB.w() * originalSizeB.h()  / (Float32)outputSizeB.h());
+        srcRect.setX((originalSizeB.w() - srcRect.w()) / 2.0f);
+    }
+
+    // 得到需要的区域之后, 设置buffer绝对大小
+    wallpaperView.setTexture(originalWallpaper->copy(sizeB(), srcRect));  
+    wallpaperView.setBufferScale(scale()); //按照屏幕缩放比例进行缩放
+
+    delete originalWallpaper; // 由于copy创建了一个新的对象, 之前的可以释放
+    wallpaperView.setPos(pos());  //和屏幕左上角位置对齐
+    wallpaperView.setDstSize(outputSizeB);
+
+    LLog::log("壁纸view的尺寸: %dx%d", wallpaperView.size().w(), wallpaperView.size().h());
+    LLog::log("壁纸view的本地尺寸: %dx%d", wallpaperView.nativeSize().w(), wallpaperView.nativeSize().h());
+    LLog::log("壁纸view的父View(BackgroundLayerView)尺寸: %dx%d",wallpaperView.parent()->size().w(), wallpaperView.parent()->size().h());
+    LLog::log("壁纸view的父View(BackgroundLayerView)本地尺寸: %dx%d",wallpaperView.parent()->nativeSize().w(), wallpaperView.parent()->nativeSize().h());
+
+
+    //到这里我们就完成了壁纸的加载
+
 }

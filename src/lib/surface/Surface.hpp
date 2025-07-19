@@ -2,9 +2,9 @@
 #define __SURFACE_H__
 
 #include <LSurface.h>
-#include "LBaseSurfaceRole.h"
+#include <LBaseSurfaceRole.h>
 #include "SurfaceView.hpp"
-#include "src/lib/toplevel/ToplevelRole.hpp"
+#include "src/lib/client/ToplevelRole.hpp"
 
 using namespace Louvre;
 
@@ -22,6 +22,7 @@ class Surface final : public LSurface{
         void roleChanged(LBaseSurfaceRole *prevRole) override;
         void layerChanged() override;
         void orderChanged() override;
+        // 对应迁移wlroots: xdg_toplevel_map(不止toplevel, 任何一个surface的map状态改变都会触发该函数)
         void mappingChanged() override;
         void minimizedChanged() override;
 };

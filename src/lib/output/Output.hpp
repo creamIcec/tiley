@@ -3,10 +3,15 @@
 
 #include "LNamespaces.h"
 #include "src/lib/surface/Surface.hpp"
+#include "src/lib/TileyServer.hpp"
+#include "src/lib/types.h"
+
 #include <LOutput.h>
 #include <LSolidColorView.h>
+#include <LTextureView.h>
 
 using namespace Louvre;
+using namespace tiley;
 
 namespace tiley{
     class Output final : public LOutput{
@@ -14,17 +19,22 @@ namespace tiley{
 
             using LOutput::LOutput;
 
+            Output(const void* params) noexcept;
+
+            // 屏幕插入
             void initializeGL() override;
 
             // 类似wlroots中的output_frame
             void paintGL() override;
 
             // moveGL, resizeGL类似wlroots中的request_state事件, 这里分成了两个
+            // 移动屏幕的index
             void moveGL() override;
 
+            // 屏幕缩放变化，尺寸变化(物理上不太可能)
             void resizeGL() override;
 
-            // 类似wlroots中的output_destroy
+            // 类似wlroots中的output_destroy, 屏幕拔出
             void uninitializeGL() override;
 
             // Louvre实现了gamma-control-v1 wayland协议, 因此我们可以接受客户端传入的Gamma表, 来动态调整屏幕的亮度管理
@@ -40,11 +50,14 @@ namespace tiley{
             void availableGeometryChanged() override;
 
             // 一个非常好的参考shader案例: 淡入
-            LSolidColorView fadeInView{{0.f, 0.f, 0.f}};
+            LSolidColorView fadeInView{{1.f, 1.f, 1.f}};
 
             Surface *searchFullscreenSurface() const noexcept;
             bool tryDirectScanout(Surface *surface) noexcept;
 
+            // 壁纸
+            void updateWallpaper();
+            LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
     };
 }
 
