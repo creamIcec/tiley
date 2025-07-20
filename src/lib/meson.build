@@ -1,6 +1,7 @@
 lib_sources = files(
     'TileyCompositor.cpp',
     'TileyServer.cpp',
+    'TileyWindowStateManager.cpp',
     'input/Seat.cpp',
     'output/Output.cpp',
     'scene/LayerView.cpp',
@@ -8,7 +9,8 @@ lib_sources = files(
     'client/Client.cpp',
     'surface/Surface.cpp',
     'surface/SurfaceView.cpp',
-    'client/ToplevelRole.cpp'
+    'client/ToplevelRole.cpp',
+    'interact/interact.cpp',
 )
 
 # 迁移完成后使用

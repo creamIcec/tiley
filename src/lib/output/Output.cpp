@@ -16,7 +16,7 @@
 
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/surface/Surface.hpp"
-#include "src/lib/types.h"
+#include "src/lib/types.hpp"
 
 using namespace Louvre;
 using namespace tiley;
@@ -78,6 +78,7 @@ void Output::initializeGL(){
 }
 
 void Output::paintGL(){
+
     // 查找全屏窗口
     Surface* fullscreenSurface{ searchFullscreenSurface() };
 

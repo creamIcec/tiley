@@ -4,7 +4,7 @@
 #include "LNamespaces.h"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/TileyServer.hpp"
-#include "src/lib/types.h"
+#include "src/lib/types.hpp"
 
 #include <LOutput.h>
 #include <LSolidColorView.h>

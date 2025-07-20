@@ -1,7 +1,9 @@
 #include "TileyCompositor.hpp"
+#include "LCompositor.h"
 #include "TileyServer.hpp"
 #include "src/lib/client/Client.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
+#include "src/lib/input/Keyboard.hpp"
 #include "src/lib/output/Output.hpp"
 #include "src/lib/surface/Surface.hpp"
 
@@ -12,6 +14,7 @@
 
 using namespace tiley;
 using namespace Louvre;
+
 
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
@@ -52,13 +55,16 @@ void TileyCompositor::uninitialized(){
 
 
 LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type objectType, const void* params){
+
     if (objectType == LFactoryObject::Type::LOutput){
         return new Output(params);
     }
+
     if (objectType == LFactoryObject::Type::LClient){
         // TODO: 实现客户端对象(原来的toplevel结构体)
         return new Client(params);
     }
+
     if (objectType == LFactoryObject::Type::LSurface){
         // TODO: 实现Surface对象
         return new Surface(params);
@@ -71,6 +77,14 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
         // TODO: 实现toplevel角色(注意: 和以前的"toplevel"结构体不是一个东西, 之前的应该概念有误, toplevel不是"窗口", 而是一个surface的角色)
         return new ToplevelRole(params);
     }
+    if (objectType == LFactoryObject::Type::LKeyboard){
+        // TODO: 实现键盘支持
+        return new Keyboard(params);
+    }
+
+    // TODO: 随着代码的迁移越来越完善, 将这行逐渐往下移动, 直到下方的所有对象完全实现之后删除, 标志着我们大功告成。
+    return LCompositor::createObjectRequest(objectType, params);
+
     if (objectType == LFactoryObject::Type::LSubsurfaceRole){
         // TODO: 实现subsurface角色
     }
@@ -88,9 +102,6 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
     }
     if (objectType == LFactoryObject::Type::LPointer){
         // TODO: 实现鼠标设备支持
-    }
-    if (objectType == LFactoryObject::Type::LKeyboard){
-        // TODO: 实现键盘支持
     }
     if (objectType == LFactoryObject::Type::LTouch){
         // TODO: 实现触摸支持
@@ -116,7 +127,7 @@ void TileyCompositor::onAnticipatedObjectDestruction(LFactoryObject* object){
 }
 
 bool TileyCompositor::createGlobalsRequest(){
-    // 创建所有可用组件
+    // 创建所有支持的功能
     return LCompositor::createGlobalsRequest();
 }
 

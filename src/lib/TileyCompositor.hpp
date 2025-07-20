@@ -22,6 +22,7 @@ namespace tiley{
 
             void onAnticipatedObjectDestruction(LFactoryObject* object) override;
 
+            // 表示我们支持哪些功能, 包含服务端装饰等等
             bool createGlobalsRequest() override;
 
             bool globalsFilter(LClient* client, LGlobal* global) override;

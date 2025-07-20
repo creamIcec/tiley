@@ -10,13 +10,8 @@ using namespace tiley;
 std::unique_ptr<TileyServer, TileyServer::ServerDeleter> TileyServer::INSTANCE = nullptr;
 std::once_flag TileyServer::onceFlag;
 
-TileyServer::TileyServer(){
-
-}
-
-TileyServer::~TileyServer(){
-    
-}
+TileyServer::TileyServer(){}
+TileyServer::~TileyServer(){}
 
 TileyServer& TileyServer::getInstance(){
     std::call_once(onceFlag, [](){
