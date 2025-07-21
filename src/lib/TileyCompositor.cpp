@@ -54,6 +54,10 @@ void TileyCompositor::uninitialized(){
 }
 
 
+
+// 各种协议对象的继承关系
+// LObject -> LFactoryObject -> XXXObject(Output, Client, etc.)
+// 如果我们这里返回了空指针, 则Wayland会使用LFactoryObject这个公共父类, 但该父类没有任何实际功能, 只是确保程序默认可以处理请求而不静默崩溃.
 LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type objectType, const void* params){
 
     if (objectType == LFactoryObject::Type::LOutput){
@@ -82,7 +86,7 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
         return new Keyboard(params);
     }
 
-    // TODO: 随着代码的迁移越来越完善, 将这行逐渐往下移动, 直到下方的所有对象完全实现之后删除, 标志着我们大功告成。
+    // TODO: 随着代码的迁移越来越完善, 下方需要继承的类逐渐完成继承, 就将这行逐渐往下移动, 直到所有需要继承的类都完成继承后, 标志着我们大功告成。
     return LCompositor::createObjectRequest(objectType, params);
 
     if (objectType == LFactoryObject::Type::LSubsurfaceRole){

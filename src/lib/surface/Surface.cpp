@@ -12,11 +12,17 @@
 #include <LCursor.h>
 #include <LSubsurfaceRole.h>
 #include <LClient.h>
+
 namespace tiley{
     struct NodeContainer;
 }
 
 using namespace tiley;
+
+LView* Surface::getView() noexcept{
+    // TODO: 带服务端装饰的view
+    return &view;
+}
 
 Surface::Surface(const void* params) noexcept : LSurface(params){
     // 不做任何事情。此时我们的Surface还没有分配任何属性。
@@ -27,172 +33,72 @@ Surface::Surface(const void* params) noexcept : LSurface(params){
 // 如果不是窗口, 则在组装顺序后直接MappingChanged.
 
 void Surface::mappingChanged(){
-    LLog::log("%d: mappingChanged", this);
+    //LLog::log("%d: mappingChanged", this);
     LSurface::mappingChanged();
 }
 
 void Surface::roleChanged(LBaseSurfaceRole *prevRole){
-    LLog::log("%d: roleChanged", this);
+    //LLog::log("%d: roleChanged", this);
     LSurface::roleChanged(prevRole);
-    // 刚分配时prev是null
-    if(!prevRole){
-        LLog::log("刚分配role");
-    }
-
     // 如果新的角色是鼠标指针的话, 则隐藏掉, 因为我们本来就有硬件指针。(防御性编程)
     if(cursorRole()){
         view.setVisible(false);
+        return;
     }
-}
 
-void Surface::layerChanged(){
-    LLog::log("%d: layerChanged", this);
-    TileyServer& server = TileyServer::getInstance();
-    view.setParent(&server.layers()[layer()]);
-}
-
-void Surface::orderChanged(){
-    LLog::log("%d: orderChanged", this);
-    LSurface::orderChanged();
-    if(toplevel()){
-        LLog::log("是窗口");
+    // 刚分配时prev是null
+    if(!prevRole){
         TileyServer& server = TileyServer::getInstance();
         view.setParent(&server.layers()[TILED_LAYER]);
-    }else{
-        LLog::log("是窗口中的子surface");
-        Surface* prev = static_cast<Surface*>(prevSurface());
-        view.insertAfter(prev && (prev->layer() == layer()) ? &prev->view : nullptr);
     }
-}
-
-void Surface::minimizedChanged(){
-    LSurface::minimizedChanged();
-}
-
-
-/*
-
-Surface::Surface(const void* params) noexcept : LSurface(params){
     
 }
 
-
-
-void Surface::mappingChanged(){
-
-    compositor()->repaintAllOutputs();
- 
-    LOutput *activeOutput { cursor()->output() };
- 
-    if (!activeOutput)
-        return;
- 
-    // TODO: 暂时放在屏幕中心
-    if (mapped() && toplevel())
-    {
-        const LSize size {
-            toplevel()->windowGeometry().size()
-        };  //总共(包括标题栏等的一共的大小)
- 
-        // 显示屏在布局中的位置 + 可用区域相对该显示屏左上角的位置 = 可以用来显示的矩形区域左上角
-        const LSize availGeoPos { activeOutput->pos() + activeOutput->availableGeometry().pos() };
- 
-        // 设置到中间
-        setPos(availGeoPos + (activeOutput->availableGeometry().size() - size) / 2);
-        
-        // 为什么可能被不可用区域挡住?
-        if (pos().y() < availGeoPos.y())
-            setY(availGeoPos.y());
-
-        if(toplevel()->decorationMode() != LToplevelRole::ServerSide){
-            LLog::log("不是服务端装饰");
-            toplevel()->configureSize(size);
-            toplevel()->configureDecorationMode(LToplevelRole::ServerSide);
-            toplevel()->configureRequest();
-        }
-
-        LLog::log("Window geometry: %dx%d", 
-              toplevel()->windowGeometry().w(), 
-              toplevel()->windowGeometry().h());
-        LLog::log("Extra geometry (top, left, bottom, right): %d, %d, %d, %d",
-              toplevel()->extraGeometry().top, toplevel()->extraGeometry().left,
-              toplevel()->extraGeometry().bottom, toplevel()->extraGeometry().right);
-    }
-
-    // 干下面的事:
-    // 1. 确保是一个toplevel(窗口)
-    // 2. 使用户聚焦到该窗口
-    // 3. 显示窗口
-
-    // 1.
-    if(toplevel()){
-        if(mapped()){
-            // 修改默认行为: 从默认相对于父view位置分离成绝对位置。对于窗口而言相当有用。
-            view.enableParentOffset(false);
-            // 2.
-            // 默认插入平铺层
-            TileyServer& server = TileyServer::getInstance();
-            view.insertAfter(&server.layers()[TILED_LAYER]);
-            focusWindow(this);
-
-            // 3.
-            LLog::log("显示窗口");
-            view.setVisible(true);
-
-        }else{
-            LLog::log("隐藏窗口");
-            view.setVisible(false);
-        }
-    }
-}
-
-void Surface::mappingChanged(){
-    LLog::log("Surface映射变化:");
-    LLog::log("  - 是toplevel: %d", toplevel() != nullptr);
-    LLog::log("  - 是subsurface: %d", subsurface() != nullptr);
-    LLog::log("  - 有parent: %d", parent() != nullptr);
-    LLog::log("  - mapped: %d", mapped());
-    
-    if (subsurface()) {
-        LLog::log("  - subsurface parent: %d", subsurface()->client());
-    }
-    LSurface::mappingChanged();
-
-    TileyServer& server = TileyServer::getInstance();
-    view.setParent(&server.layers()[TILED_LAYER]);  //放到平铺层
-}
-
-void Surface::roleChanged(LBaseSurfaceRole *prevRole){
-
-    LLog::log("surface的身份发生改变, 是窗口? %d", toplevel() != nullptr);
-    LSurface::roleChanged(prevRole);
-
-    if(toplevel()){
-        LLog::log("前驱surface是否存在? %d", prevSurface() != nullptr); // 窗口有前驱??
-        LLog::log("是否属于某一层? %d", parent() != nullptr);  // 初始时没有父视图
-    }
-
-    if (cursorRole())
-        view.setVisible(false);
-}
-
-// 这个函数只在创建窗口时调用了一次，并且不是toplevel那个surface调用的
-// 需要研究
+// 怎么获取到view的layer的?
+// 我如何从平铺层提升到浮动层
 void Surface::layerChanged(){
-    LLog::log("surface显示层次发生改变, 是toplevel? %d", toplevel() != nullptr);
+    //LLog::log("%d: layerChanged", this);
     TileyServer& server = TileyServer::getInstance();
-    view.(&server.layers()[TILED_LAYER]);
-    repaintOutputs();
+    if(toplevel()){
+        getView()->setParent(&server.layers()[layer()]);
+    }
 }
 
+
+// 设想我们在洗牌, 屏幕上显示的是现在应该是什么牌序, 我们需要将手上的牌洗成那个顺序
+// 显示牌序: 5 1 2 4 3
+// 手上牌序: 5 1 2 4 3
+// 显示牌序变了: 1 2 3 4 5
+// 洗牌
+// 1. 对于每张牌, 找到它新的显示牌序中的离它最近前一张m(例如1在2之前, 3在4之前)
+// 2. 将这张牌放到m之后即可
+// 3. 最后洗出来的保证符合显示牌序
+// 5 1 2 4 3 -> 选中5 -> 放到4之后 -> 1 2 4 5 3 -> 选中1 -> 放到nullptr之后 -> 1 2 4 5 3
+// -> 选中2 -> 放到1之后 -> 1 2 4 5 3 -> 选中4 -> 放到3之后 -> 1 2 5 3 4 -> 选中5 -> 放到4之后 -> 1 2 3 4 5
+// 虽然每次调整顺序都会出发一次全部牌的orderChanged(会再全部排一次), 不过算是面向对象方便人编写的一个副作用吧
+// 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
 void Surface::orderChanged(){
-    LLog::log("surface组内显示顺序发生改变");
-    Surface* prev = (Surface*)prevSurface();
-    view.insertAfter((prev && prev->layer() == layer()) ? &prev->view : nullptr);
+    //LLog::log("%d: orderChanged", this);
+    LSurface::orderChanged();
+    // 找到一个在我前面，并且其视图和我视图拥有同一个父亲的兄弟
+    LView* prevBrotherView = nullptr;
+    LSurface *prevSurf = prevSurface();
+
+    while (prevSurf) {
+        // prevSurf的视图的父亲, 必须和我的视图的父亲是同一个
+        if (((Surface*)prevSurf)->getView()->parent() == view.parent()) {
+            prevBrotherView = ((Surface*)prevSurf)->getView();
+            break; // 找到了，停止搜索
+        }
+        prevSurf = prevSurf->prevSurface();
+    }
+
+    // 将我的视图，插入到那个兄弟视图的后面。
+    // 如果没找到兄弟(我是第一个), prevBrotherView 就是 nullptr,
+    // insertAfter(nullptr) 会把我放到最前面
+    view.insertAfter(prevBrotherView);
 }
 
 void Surface::minimizedChanged(){
     LSurface::minimizedChanged();
 }
-
-*/
