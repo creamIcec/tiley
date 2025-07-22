@@ -31,6 +31,9 @@ void ToplevelRole::configureRequest(){
  
     configureSize(0,0);
     configureState(pendingConfiguration().state | Activated);
-    configureDecorationMode(ClientSide);
+    configureDecorationMode(ServerSide);
     configureCapabilities(WindowMenuCap | FullscreenCap | MaximizeCap | MinimizeCap);
+
+    LLog::log("客户端偏好: %d", preferredDecorationMode());
+
 }

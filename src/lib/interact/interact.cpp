@@ -13,7 +13,7 @@ namespace tiley{
         //3. 将键盘聚焦到该窗口
         //4. 平铺式特色: 将鼠标瞬移到该窗口(对于刚创建的窗口, 移动到中心)
 
-        if (!surface || !surface->toplevel() || !surface->getWindowView()) {
+        if (!surface || !surface->toplevel()) {
             return false; // 不处理非 toplevel 或还未创建 wrapperView 的 surface
         }
 
@@ -37,8 +37,8 @@ namespace tiley{
         //TODO: 如何瞬移鼠标?
 
         // 设置聚焦窗口
-        TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
-        manager.setFocusedContainer(surface->container);
+        //TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
+        //manager.setFocusedContainer(surface->container);
 
         return true;
     }

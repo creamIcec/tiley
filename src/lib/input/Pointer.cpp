@@ -27,10 +27,10 @@ void Pointer::pointerButtonEvent(const LPointerButtonEvent &event){
 
     if(!surface->parent() && surface->toplevel()){
         LLog::log("是窗口");
-        targetWrapperView = surface->getWindowView();
-    }else if(((Surface*)surface->topmostParent())->wrapperView){
+        //targetWrapperView = surface->getWindowView();
+    }else if(((Surface*)surface->topmostParent())){
         LLog::log("是窗口的subsurface");
-        targetWrapperView = ((Surface*)surface->topmostParent())->wrapperView.get();
+        //targetWrapperView = ((Surface*)surface->topmostParent())->wrapperView.get();
     }
 
     if(targetWrapperView){

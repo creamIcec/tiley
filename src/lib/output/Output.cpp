@@ -10,6 +10,7 @@
 #include <LPainter.h>
 #include <LRegion.h>
 #include <LOpenGL.h>
+#include <LCursor.h>
 
 #include "LContentType.h"
 #include "LLog.h"
@@ -157,7 +158,7 @@ void Output::availableGeometryChanged(){
 
 
 bool Output::tryDirectScanout(Surface* surface) noexcept{
-    return false;  //TODO
+    return false;
 }
 
 // 查找全屏的surface是否存在

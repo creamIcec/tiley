@@ -1,16 +1,19 @@
 #pragma once
 
 #include "LNamespaces.h"
-#include "LSurfaceView.h"
+#include "LToplevelRole.h"
+#include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include <LLayerView.h>
-#include <memory>
+#include "src/lib/client/ToplevelRole.hpp"
 
 using namespace Louvre;
 
 namespace tiley{
     class Surface;
+    class TileyWindowStateManager;
+    class ToplevelRole;
 }
 
 namespace tiley{
@@ -26,23 +29,28 @@ namespace tiley{
     // 也可以代表一个容器(用于分割的)
     class Container{
         private:
-        public:
-            // 容器
-            std::unique_ptr<LLayerView> con;
             // 动态平铺: 分割类型
-            SPLIT_TYPE split_type;
+            SPLIT_TYPE splitType;
             // 动态平铺: 浮动原因(用户要移动窗口/用户请求堆叠)
             FLOATING_REASON floating_reason = NONE;
             
-            Container* parentContainer = nullptr;
-
             // TODO: LWeak or unique_ptr
-            Surface* window = nullptr;  //双向指针其二: NodeContainer->Surface 当是叶子节点时, 指向一个窗口 
+            LToplevelRole* window = nullptr;  //双向指针其二: container->toplevel 当是叶子节点时, 指向一个窗口 
 
+            Container* parent = nullptr;
             Container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
             Container* child2;
             
-            Float32 splitRatio = 0.5;  //默认对半分
+            //范围:[0,1], 表示child1占区域大小的比例。默认0.5, 即对半分。
+            Float32 splitRatio = 0.5;  
+
+            // 管理器可以访问私有成员
+            friend TileyWindowStateManager;
+
+        public:
+            //构造函数: 传入window作为子节点, 传入空指针没有意义(no-op), 会弹出警告并直接销毁这个Container  
+            Container(ToplevelRole* window);
+            //构造函数: 不传入window, 说明是一个分割容器
             Container();
             ~Container();
     };
