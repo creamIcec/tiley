@@ -18,15 +18,15 @@ namespace tiley{
         OVERLAY_LAYER, // 用于显示一些整个显示器相关的内容, 例如显示器插入时的桌面淡入动画
     };
 
-    // 某个container的分割信息
-    enum SplitInfo{
+    // 某个container的分割类型
+    enum SPLIT_TYPE{
         SPLIT_NONE,  // 窗口, 叶子节点, 不进行分割
         SPLIT_H,     // 该容器水平分割(左右)
         SPLIT_V      // 该容器垂直分割(上下)
     };
 
     // 某个container的浮动信息, 表示因何种原因而浮动
-    enum FloatingReason{
+    enum FLOATING_REASON{
         NONE,       // 不浮动
         MOVING,     // 因为用户正在移动窗口
         STACKING,   // 因为用户请求将这个窗口变成堆叠显示, 可以堆叠显示在其他窗口上方
@@ -34,9 +34,10 @@ namespace tiley{
 
     // 一个NodeContainer可以代表一个叶子节点(真正的窗口)
     // 也可以代表一个容器(用于分割的)
+    // 暂时不使用, 因为可能是相对放置, 我们无需将数据和渲染分离
     struct NodeContainer{
-        enum SplitInfo split;
-        enum FloatingReason floating;
+        enum SPLIT_TYPE split;
+        enum FLOATING_REASON floating;
 
         struct NodeContainer* parent;
         struct NodeContainer* child1;   //这里我们不以上下左右命名, 只用编号, 避免混淆

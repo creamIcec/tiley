@@ -13,8 +13,8 @@ namespace tiley{
         //3. 将键盘聚焦到该窗口
         //4. 平铺式特色: 将鼠标瞬移到该窗口(对于刚创建的窗口, 移动到中心)
 
-        if(!surface){
-            return false;  // 防止没有窗口(尤其是针对调用者是通过查找得到的窗口的情况, 有可能没有窗口)
+        if (!surface || !surface->toplevel() || !surface->getWindowView()) {
+            return false; // 不处理非 toplevel 或还未创建 wrapperView 的 surface
         }
 
         TileyServer& server = TileyServer::getInstance();

@@ -11,6 +11,8 @@ lib_sources = files(
     'surface/SurfaceView.cpp',
     'client/ToplevelRole.cpp',
     'interact/interact.cpp',
+    'core/Container.cpp',
+    'input/Pointer.cpp'
 )
 
 # 迁移完成后使用

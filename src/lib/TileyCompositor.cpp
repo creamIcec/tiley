@@ -4,6 +4,7 @@
 #include "src/lib/client/Client.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/input/Keyboard.hpp"
+#include "src/lib/input/Pointer.hpp"
 #include "src/lib/output/Output.hpp"
 #include "src/lib/surface/Surface.hpp"
 
@@ -85,6 +86,10 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
         // TODO: 实现键盘支持
         return new Keyboard(params);
     }
+    if (objectType == LFactoryObject::Type::LPointer){
+        // TODO: 实现鼠标设备支持
+        return new Pointer(params);
+    }
 
     // TODO: 随着代码的迁移越来越完善, 下方需要继承的类逐渐完成继承, 就将这行逐渐往下移动, 直到所有需要继承的类都完成继承后, 标志着我们大功告成。
     return LCompositor::createObjectRequest(objectType, params);
@@ -104,9 +109,7 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
     if (objectType == LFactoryObject::Type::LSeat){
         // TODO: 实现Seat, 和wlroots一样, seat用于定义一个完整的用户操作环境("一个座位"), 至少包含一个键盘, 一个显示器
     }
-    if (objectType == LFactoryObject::Type::LPointer){
-        // TODO: 实现鼠标设备支持
-    }
+
     if (objectType == LFactoryObject::Type::LTouch){
         // TODO: 实现触摸支持
     }

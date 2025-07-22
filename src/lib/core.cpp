@@ -158,7 +158,7 @@ area_container* WindowStateManager::create_toplevel_container(surface_toplevel* 
 }
 
 // 将一个container插入container树中
-// container: 要插入的节点, oldleaf: 被分割的老窗口, 在该函数中换成容器, 并将自身插入到容器下方
+// container: 要插入的节点, target_leaf: 被分割的老窗口, 在该函数中换成容器, 并将自身插入到容器下方
 // 1. 判断原先是不是桌面的几种情况, 是则进入3, 否则进入2;
 // 2. 判断old_leaf是不是容器, 是则插入失败, 否则进入4;
 // 3. 创建新的容器作为根节点, 并将container作为child1插入, 设置desktop_root为水平分割, 插入成功;

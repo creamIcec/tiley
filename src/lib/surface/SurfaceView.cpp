@@ -8,7 +8,7 @@
 
 using namespace tiley;
 
-void SurfaceView::pointerButtonEvent (const LPointerButtonEvent &event){
+void SurfaceView::pointerButtonEvent(const LPointerButtonEvent &event){
 
     LLog::log("鼠标点击");
 

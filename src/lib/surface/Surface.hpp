@@ -2,12 +2,18 @@
 
 #include <LSurface.h>
 #include <LBaseSurfaceRole.h>
+#include <memory>
 
+#include "LPointerButtonEvent.h"
 #include "SurfaceView.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
-#include "src/lib/types.hpp"
+#include "src/lib/core/Container.hpp"
 
 using namespace Louvre;
+
+namespace tiley{
+    class Container;
+}
 namespace tiley{
     class Surface final : public LSurface{
         public:
@@ -16,6 +22,12 @@ namespace tiley{
             Surface(const void* params) noexcept;
 
             SurfaceView view {this};
+
+            // 双向指针其一: Surface(Role=Toplevel) -> NodeContainer
+            Container* container;
+            // 一个用于包装整个窗口的View
+            std::unique_ptr<LLayerView> wrapperView;
+
             ToplevelRole *tl() noexcept{
                 return (ToplevelRole*)toplevel();
             }
@@ -30,7 +42,6 @@ namespace tiley{
             void mappingChanged() override;
             void minimizedChanged() override;
 
-            // 双向指针其一: Surface(Role=Toplevel) -> NodeContainer
-            struct tiley::NodeContainer* container;
+            inline LView* getWindowView() const { return wrapperView.get(); }
     };
 }
