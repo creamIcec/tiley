@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "LPointerButtonEvent.h"
-#include "SurfaceView.hpp"
+#include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/core/Container.hpp"
 

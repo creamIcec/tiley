@@ -2,7 +2,7 @@
 #define __SCENE_H__
 
 #include <LScene.h>
-#include "LayerView.hpp"
+#include "src/lib/client/views/LayerView.hpp"
 
 using namespace Louvre;
 

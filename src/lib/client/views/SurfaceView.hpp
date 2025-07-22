@@ -1,5 +1,4 @@
-#ifndef __SURFACE_VIEW_H__
-#define __SURFACE_VIEW_H__
+#pragma once
 
 #include <LSurfaceView.h>
 
@@ -11,5 +10,3 @@ class SurfaceView final : public LSurfaceView{
         void pointerButtonEvent (const LPointerButtonEvent &event) override;
         void pointerEnterEvent 	(const LPointerEnterEvent &event) override;
 };
-
-#endif

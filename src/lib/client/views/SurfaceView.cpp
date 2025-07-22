@@ -1,6 +1,7 @@
 #include "SurfaceView.hpp"
 #include "LNamespaces.h"
-#include "Surface.hpp"
+
+#include "src/lib/surface/Surface.hpp"
 #include "src/lib/interact/interact.hpp"
 
 #include <LPointerButtonEvent.h>

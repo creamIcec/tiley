@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/lib/input/Seat.hpp"
-#include "src/lib/scene/LayerView.hpp"
+#include "src/lib/client/views/LayerView.hpp"
 #include "src/lib/scene/Scene.hpp"
 
 #include <LOutput.h>

@@ -34,6 +34,11 @@ void Pointer::pointerButtonEvent(const LPointerButtonEvent &event){
     }
 
     if(targetWrapperView){
+
+        // 判断点击的目标窗口是不是活动窗口
+        // 只有当不是活动窗口时才提升。已经是活动窗口则不提升。
+        
+
         LLog::log("准备提升");
         // 我该干什么?
         LLog::log("父容器的子节点数: %zu", targetWrapperView->parent()->children().size());

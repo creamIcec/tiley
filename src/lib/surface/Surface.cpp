@@ -4,7 +4,7 @@
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/interact/interact.hpp"
-#include "src/lib/surface/SurfaceView.hpp"
+#include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
 
 #include <LLog.h>
@@ -77,7 +77,18 @@ void Surface::mappingChanged(){
             view.setParent(wrapperView.get());
             
             seat()->keyboard()->setFocus(this);
+            seat()->pointer()->setFocus(this);
             toplevel()->configureState(LToplevelRole::Activated);
+
+            auto parentWindowSurface = (Surface*)parent();
+
+            if(toplevel() && parentWindowSurface){
+                LLog::log("发现父窗口surface, 这可能是一个对话框");
+                if(parentWindowSurface->getWindowView()){
+                    LLog::log("执行置顶");
+                    wrapperView->insertAfter(parentWindowSurface->getWindowView());
+                }
+            }
 
         }else{
             auto parentSurface = static_cast<Surface*>(topmostParent());
@@ -85,6 +96,11 @@ void Surface::mappingChanged(){
                 // 设置成和他属于同一个窗口的toplevel一样的wrapperView, 确保一个窗口内的surface都在一个容器内。
                 view.setParent(parentSurface->wrapperView.get());
             }
+        }
+    }else{
+        if (toplevel() && wrapperView) {
+            // 当 toplevel 被 unmap 时, 销毁包装盒
+            wrapperView.reset();
         }
     }
 }

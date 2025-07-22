@@ -55,7 +55,6 @@ void TileyCompositor::uninitialized(){
 }
 
 
-
 // 各种协议对象的继承关系
 // LObject -> LFactoryObject -> XXXObject(Output, Client, etc.)
 // 如果我们这里返回了空指针, 则Wayland会使用LFactoryObject这个公共父类, 但该父类没有任何实际功能, 只是确保程序默认可以处理请求而不静默崩溃.
