@@ -1,11 +1,12 @@
 #pragma once
 
-#include "LNamespaces.h"
-#include "LToplevelRole.h"
+#include <LNamespaces.h>
+#include <LToplevelRole.h>
+#include <LLayerView.h>
+
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/surface/Surface.hpp"
-#include <LLayerView.h>
 #include "src/lib/client/ToplevelRole.hpp"
 
 using namespace Louvre;

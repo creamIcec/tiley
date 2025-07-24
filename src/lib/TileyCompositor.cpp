@@ -16,7 +16,6 @@
 using namespace tiley;
 using namespace Louvre;
 
-
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
 

@@ -13,6 +13,7 @@ namespace tiley{
     class Container;
     class ToplevelRole;
 }
+
 namespace tiley{
     class Surface final : public LSurface{
         public:
@@ -33,5 +34,6 @@ namespace tiley{
             // 对应迁移wlroots: xdg_toplevel_map(不止toplevel, 任何一个surface的map状态改变都会触发该函数)
             void mappingChanged() override;
             void minimizedChanged() override;
+            void printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept;
     };
 }

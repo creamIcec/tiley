@@ -11,11 +11,11 @@ namespace tiley{
 namespace tiley{
     // 顺序: 从底层到顶层, 不能随意改变哦
     enum TILEY_LAYERS{
-        BACKGROUND_LAYER,
-        TILED_LAYER,
-        FLOATING_LAYER,
-        LOCKSCREEN_LAYER,
-        OVERLAY_LAYER, // 用于显示一些整个显示器相关的内容, 例如显示器插入时的桌面淡入动画
+        BACKGROUND_LAYER,    //背景层。没有任何东西显示时显示的层, 例如壁纸、纯色填充等等
+        DESKTOP_LAYER,  //桌面层。放置一些桌面的小部件, 例如时钟等
+        APPLICATION_LAYER,   //应用相关窗口, 包括他的弹出窗口, 里面的特殊区域(视频区域、画布区域)等
+        POPUP_LAYER,    // 输入法窗口, 系统级的提示窗口等
+        OVERLAY_LAYER,  // 用于显示一些整个显示器相关的内容, 例如锁屏, 显示器插入时的桌面淡入动画
     };
 
     // 某个container的分割类型

@@ -13,20 +13,15 @@ namespace tiley{
             Scene() noexcept;
 
             /*
-                场景树图层顺序:  floatingLayer > tiledLayer > backgroundLayer
-                lockscreenView;    //锁屏层.
+                场景图层顺序:  overlayLayer > lockscreenLayer > floatingLayer > tiledLayer > backgroundLayer    
+                overlayLayer;      //任何需要显示在锁屏之上的东西
+                lockscreenLayer;   //锁屏层.
                 floatingLayer;     //浮动层. 当窗口浮动时, 移动到该层反之移回正常层次.
-                tiledLayer;        //正常层.
+                tiledLayer;        //平铺层.
                 backgroundLayer;   //背景层, 显示壁纸.
             */
 
-            LayerView overlayLayer;
-            LayerView lockscreenLayer;
-            LayerView floatingLayer;
-            LayerView tiledLayer;
-            LayerView backgroundLayer;
-
-            LayerView layers[5]{&overlayLayer, &lockscreenLayer, &floatingLayer, &tiledLayer, &backgroundLayer};
+            LayerView layers[5];
     };
 }
 

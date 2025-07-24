@@ -1,11 +1,8 @@
 #include "Container.hpp"
-#include "LLayerView.h"
 #include "src/lib/types.hpp"
 
 #include <LSurfaceView.h>
 #include <LLog.h>
-#include <memory>
-
 using namespace tiley;
 
 Container::Container(){
@@ -21,6 +18,4 @@ Container::Container(ToplevelRole* window) : Container::Container(){
 }
 
 
-Container::~Container(){
-
-}
+Container::~Container(){}
