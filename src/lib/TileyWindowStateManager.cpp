@@ -131,7 +131,7 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
     return false;
 }
 
-Container* TileyWindowStateManager::detachTile(LToplevelRole* window){
+Container* TileyWindowStateManager::detachTile(LToplevelRole* window, FLOATING_REASON reason){
     // 和removeTile逻辑接近, 就是不删除容器。
     // TODO: 考虑和remove合并, 通过一个参数区分是分离还是关闭
 
@@ -176,7 +176,7 @@ Container* TileyWindowStateManager::detachTile(LToplevelRole* window){
         containerCount -= 1;
 
         containerToDetach->parent = nullptr;
-        containerToDetach->floating_reason = MOVING;
+        containerToDetach->floating_reason = reason;
         return containerToDetach;
     }
     
@@ -197,7 +197,7 @@ Container* TileyWindowStateManager::detachTile(LToplevelRole* window){
 
     // 清理所有被移除的容器
     containerToDetach->parent = nullptr; // 断开连接，好习惯
-    containerToDetach->floating_reason = MOVING;
+    containerToDetach->floating_reason = reason;
     delete parent; // 删除旧的分割容器
 
     // 窗口 -1, 分割容器 -1
@@ -379,14 +379,14 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
         case FLOATING:
         case RESTRICTED_SIZE: {
             LLog::log("显示了一个尺寸限制/瞬态窗口。surface地址: %d, 层次: %d", surface, surface->layer());
-            rearrangeWindowState(window);
+            reapplyWindowState(window);
             break;
         }
         case NORMAL:{
             LLog::log("显示了一个普通窗口。surface地址: %d, 层次: %d", surface, surface->layer());
             Container* newContainer = new Container(window);
             insertTile(DEFAULT_WORKSPACE, newContainer, 0.5);
-            rearrangeWindowState(window);
+            reapplyWindowState(window);
             container = newContainer;
             break;
         }
@@ -421,7 +421,7 @@ bool TileyWindowStateManager::removeWindow(ToplevelRole* window, Container*& con
 }
 
 // 插入窗口时被调用, 配置该窗口的全局状态(显示层次、激活状态等等)
-bool TileyWindowStateManager::rearrangeWindowState(ToplevelRole* window){
+bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
     
     Surface* surface = static_cast<Surface*>(window->surface());
 
@@ -430,18 +430,68 @@ bool TileyWindowStateManager::rearrangeWindowState(ToplevelRole* window){
         return false;
     }
 
-    if(window->type == RESTRICTED_SIZE || window->type == FLOATING){
+    if(window->type == RESTRICTED_SIZE || 
+       window->type == FLOATING || 
+       window->container->floating_reason == STACKING){
+        
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
             surface->topmostParent()->raise();
         }else{
             surface->raise();
         }
+
     }
 
     // 激活
     window->configureState(window->pendingConfiguration().state | LToplevelRole::Activated);
-
     return true;
+}
+
+// 切换一个窗口的平铺/堆叠状态
+bool TileyWindowStateManager::toggleStackWindow(ToplevelRole* window){
+
+    //1. 拿到toplevel的container
+    //1.1 入参检查
+    if(!window || !window->container){
+        LLog::log("切换状态: 切换目标窗口或其容器不能为空。停止操作");
+        return false;
+    }
+
+    if(window->type != NORMAL){
+        LLog::log("切换状态: 切换的窗口不能是必须浮动的窗口, 如尺寸限制窗口。停止操作");
+        return false;
+    }
+
+    if(window->container->floating_reason == MOVING){
+        LLog::log("切换状态: 暂时不支持移动中的窗口切换状态。停止操作");
+        return false;
+    }
+
+    // 如果是平铺状态
+    if(window->container->floating_reason == NONE){
+        // 从管理器分离
+        Container* detachedContainer = detachTile(window, STACKING);
+        if(detachedContainer){
+            // 如果分离成功, 重新组织并重新布局
+            reapplyWindowState(window);
+            recalculate();
+        }
+        return detachedContainer != nullptr;
+    }else if(window->container->floating_reason == STACKING){
+       // 如果是浮动状态
+       // 插入管理器
+        bool attached = attachTile(window);
+        // TODO: 允许跨屏幕插入
+        if(attached){
+            // 如果插入成功, 重新组织并重新布局
+            reapplyWindowState(window);
+            recalculate();
+        }
+        return attached;
+    }
+
+    LLog::log("切换状态: 切换窗口浮动状态失败, 未知原因");
+    return false;
 }
 
 // 获取某个工作区的第一个窗口
@@ -669,6 +719,14 @@ bool TileyWindowStateManager::isTiledWindow(ToplevelRole* window){
     }
 
     // 优先级3: 其他情况
+    return false;
+}
+
+bool TileyWindowStateManager::isStackedWindow(ToplevelRole* window){
+    if(window->container && window->container->floating_reason == STACKING){
+        return true;
+    }
+
     return false;
 }
 

@@ -5,12 +5,14 @@ lib_sources = files(
     'TileyServer.cpp',
     'TileyWindowStateManager.cpp',
     'input/Seat.cpp',
+    'input/Keyboard.cpp',
+    'input/Pointer.cpp',
     'output/Output.cpp',
     'scene/Scene.cpp',
     'surface/Surface.cpp',
     'interact/interact.cpp',
     'core/Container.cpp',
-    'input/Pointer.cpp'
+    
 )
 
 dep_sources = lib_sources + client_sources

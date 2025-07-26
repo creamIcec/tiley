@@ -30,7 +30,7 @@ namespace tiley{
             // remove: 移除容器, 用于关闭平铺的窗口。
             Container* removeTile(LToplevelRole* window);
             // detach: 将一个容器从容器树中分离, 用于浮动窗口/移动窗口等操作。
-            Container* detachTile(LToplevelRole* window);
+            Container* detachTile(LToplevelRole* window, FLOATING_REASON reason = MOVING);
             // attach: 将一个被分离的容器重新插入容器树中, 例如将浮动的窗口合并回平铺层, 或者停止移动窗口等。
             bool attachTile(LToplevelRole* window);
             // recalculate: 重新布局。
@@ -39,8 +39,12 @@ namespace tiley{
             bool addWindow(ToplevelRole* window, Container*& container);
             // removeWindow: 移除窗口。如果移除成功, 并且移除的是平铺层的窗口, 会用container带回。
             bool removeWindow(ToplevelRole* window, Container*& container);
-            // 检查一个窗口是否是平铺层窗口(正在移动的/用户浮动的)
+            // toggleFloatWindow: 切换窗口平铺/浮动状态
+            bool toggleStackWindow(ToplevelRole* window);
+            // 检查一个窗口是否是平铺层窗口(不包括正在移动的/用户浮动的)
             bool isTiledWindow(ToplevelRole* window);
+            // 检查一个窗口是否被堆叠
+            bool isStackedWindow(ToplevelRole* window);
             // 设置上一个活动容器。调用时机: 新窗口显示(设置成新窗口)/鼠标或键盘聚焦变化(设置成聚焦窗口)/没有任何聚焦(设置成nullptr)
             // 注意: 该函数和鼠标/键盘不一定同步。不要依赖该函数的container反向获得的window来当作聚焦窗口。仅供插入机制使用。
             inline void setActiveContainer(Container* container){ this->activeContainer = container; };
@@ -52,7 +56,7 @@ namespace tiley{
             // TODO: 找到一个更好的方法仅在平铺区的窗口中查找目标窗口
             Container* getInsertTargetTiledContainer(UInt32 workspace);
             // 重新分配窗口层级。将根据每个窗口(toplevel)的类型(type)刷新显示层级
-            bool rearrangeWindowState(ToplevelRole* window);
+            bool reapplyWindowState(ToplevelRole* window);
             // 调试: 打印某个工作区当前容器树层次信息
             void printContainerHierachy(UInt32 workspace);
             // printContainerHierachy的递归函数

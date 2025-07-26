@@ -8,7 +8,6 @@
 #include "src/lib/types.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
-#include "src/lib/input/Pointer.hpp"
 
 using namespace Louvre;
 

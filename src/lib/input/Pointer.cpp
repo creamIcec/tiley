@@ -297,7 +297,10 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
     // TODO: 下面的代码大部分由父类复制而来, 尚未完成修改。
 
     // 首先检查是否已经正在处理一个合成器的keybind
-    // TODO: 这里我们先只检查移动事件
+
+    // 调整窗口大小
+
+    // 移动窗口
     bool isMovingWindow = !seat()->toplevelMoveSessions().empty();
 
     if(!focus() || !focus()->toplevel()){
@@ -312,15 +315,20 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
         event.state() == Louvre::LPointerButtonEvent::Pressed &&
         !isMovingWindow){
         
+        // 对所有类型的窗口的处理
         window->startMoveRequest(event);
 
-        // 如果是正常窗口
-        if(window->type == NORMAL){
+        if(!window->container){
+            return true;
+        }
+
+        // 对平铺层窗口的处理: 如果是正常窗口并且没有堆叠
+        if(window->type == NORMAL && !manager.isStackedWindow(window)){
             // 从管理器分离
-            Container* detachedContainer = manager.detachTile(window);
+            Container* detachedContainer = manager.detachTile(window, MOVING);
             if(detachedContainer){
                 // 如果分离成功, 重新组织并重新布局
-                manager.rearrangeWindowState(window);
+                manager.reapplyWindowState(window);
                 manager.recalculate();
             }
         }
@@ -338,14 +346,14 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
             else{it++;}
         }
 
-        // 如果是正常窗口
-        if(window->type == NORMAL){
+        // 下面是平铺层的处理: 如果是正常窗口, 并且没有被堆叠
+        if(window->type == NORMAL && !manager.isStackedWindow(window)){
             // 插入管理器
             bool attached = manager.attachTile(window);
             // TODO: 允许跨屏幕插入
             if(attached){
                 // 如果插入成功, 重新组织并重新布局
-                manager.rearrangeWindowState(window);
+                manager.reapplyWindowState(window);
                 manager.recalculate();
             }
         }
@@ -445,6 +453,31 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         setDraggingSurface(nullptr);
         setFocus(nullptr);
     }
+
+    // 以下代码: 只要是移动光标, 就更新下一个插入目标
+    TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
+    // 更新目标容器
+    LSurface* targetInsertWindowSurface = surfaceAtWithFilter(cursor()->pos(), [&manager](LSurface* surface){
+        // 排除不是窗口的surface
+        if(!surface->toplevel()){
+            return false;
+        }
+
+        ToplevelRole* window = static_cast<ToplevelRole*>(surface->toplevel());
+
+        // 排除不是平铺的surface
+        if(!manager.isTiledWindow(window)){
+            return false;
+        }
+
+        return true;
+    });
+
+    Surface* _targetInsertWindowSurface = static_cast<Surface*>(targetInsertWindowSurface);
+    if(_targetInsertWindowSurface && manager.activateContainer() != _targetInsertWindowSurface->tl()->container){
+        manager.setActiveContainer(_targetInsertWindowSurface->tl()->container);
+        LLog::log("已将插入活动目标更新为鼠标处的平铺窗口");
+    }
  
     // 一个flag, 用于记录是否正在更改窗口大小
     bool activeResizing { false };
@@ -467,8 +500,6 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
  
     // 一个flag, 用于记录是否正在移动窗口
     bool activeMoving { false };
-
-    TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
  
     // 获取所有正在进行的窗口更改大小会话
     for (LToplevelMoveSession *session : seat()->toplevelMoveSessions())
@@ -487,35 +518,6 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
                 session->toplevel()->configureState(session->toplevel()->pendingConfiguration().state &~ LToplevelRole::Maximized);
         }
 
-        LToplevelRole* tl = session->toplevel();
-
-        // 更新目标容器
-        LSurface* targetInsertWindowSurface = surfaceAtWithFilter(cursor()->pos(), [tl, &manager](LSurface* surface){
-            // 排除不是窗口的surface
-            if(!surface->toplevel()){
-                return false;
-            }
-
-            // 排除是自己的surface
-            if(surface->toplevel() == tl){
-                return false;
-            }
-
-            ToplevelRole* window = static_cast<ToplevelRole*>(surface->toplevel());
-
-            // 排除不是平铺的surface
-            if(!manager.isTiledWindow(window)){
-                return false;
-            }
-
-            return true;
-        });
-
-        if(targetInsertWindowSurface){
-            Surface* surface = static_cast<Surface*>(targetInsertWindowSurface);
-            manager.setActiveContainer(surface->tl()->container);
-            LLog::log("正在移动窗口, 已将插入活动目标更新为鼠标处的平铺窗口");
-        }
     }
  
     // 后续无需处理
@@ -589,6 +591,9 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
 
 // pointer: focus(), setFocus() 和 focusChanged() 只是Louvre内置的信号系统, setFocus()并不会将信号发给客户端
 // keyboard: setFocus() 会将信号发给客户端。接下来的键盘输入都将定向到focused surface.
+
+// (TODO: hyprland: 点击非窗口位置(桌面等)不会导致上一个聚焦的窗口失焦。原则: 只要桌面上有窗口就有焦点)
+
 void Pointer::focusChanged(){
 
     LLog::log("聚焦发生改变");
