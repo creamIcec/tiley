@@ -9,6 +9,7 @@
 #include "src/lib/surface/Surface.hpp"
 
 #include <LTransform.h>
+#include <LLog.h>
 
 #include <cstdint>
 #include <cstdlib>
@@ -52,7 +53,6 @@ void TileyCompositor::uninitialized(){
     // 所有组件(Seat, Keyboard, Pointer等等), 客户端窗口, 后端此时仍然有效
     // 该方法在销毁之前调用, 在这里销毁所有相关资源。
 }
-
 
 // 各种协议对象的继承关系
 // LObject -> LFactoryObject -> XXXObject(Output, Client, etc.)
@@ -142,3 +142,17 @@ bool TileyCompositor::createGlobalsRequest(){
 bool TileyCompositor::globalsFilter(LClient* client, LGlobal* global){
     return true; //TODO
 }
+
+void TileyCompositor::printToplevelSurfaceLinklist(){
+    LLog::log("***********打印窗口surface关系(后面的显示更靠上)***********");
+    for(LSurface* surface : surfaces()){
+        if(surface->toplevel()){
+            if(surface->nextSurface()){
+                LLog::log("%d<-", surface);
+            }else{
+                LLog::log("%d", surface);
+            }
+        }
+    }
+    LLog::log("************************************************");
+};

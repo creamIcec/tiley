@@ -2,6 +2,7 @@
 
 #include <LSurface.h>
 #include <LBaseSurfaceRole.h>
+#include <memory>
 
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
@@ -10,6 +11,7 @@
 using namespace Louvre;
 
 namespace tiley{
+    class SurfaceView;
     class Container;
     class ToplevelRole;
 }
@@ -18,8 +20,9 @@ namespace tiley{
     class Surface final : public LSurface{
         public:
             using LSurface::LSurface;
+            Surface(const void *params);
 
-            SurfaceView view {this};
+            std::unique_ptr<SurfaceView> view;
 
             ToplevelRole *tl() noexcept{
                 return (ToplevelRole*)toplevel();

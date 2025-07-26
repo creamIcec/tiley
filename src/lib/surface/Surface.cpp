@@ -39,9 +39,13 @@ std::string getEnumName(LSurface::Role value) {
     }
 }
 
+Surface::Surface(const void *params) : LSurface(params) {
+    view = std::make_unique<SurfaceView>(this);
+}
+
 LView* Surface::getView() noexcept{
     // TODO: 带服务端装饰的view
-    return &view;
+    return view.get();
 }
 
 void Surface::printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept{
@@ -75,10 +79,15 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
     // 执行父类的方法。父类方法只是刷新一下屏幕
     LSurface::roleChanged(prevRole);
 
+    TileyServer& server = TileyServer::getInstance();
+
     if(cursorRole()){
         // 我们不能控制提交过来的surface, 但我们可以不渲染它。
-        view.setVisible(false);
+        view->setVisible(false);
         return;
+    }else if (roleId() == LSurface::SessionLock || roleId() == LSurface::Popup){
+        LLog::log("打开了一个弹出菜单");
+        view->setParent(&server.layers()[LLayerOverlay]);
     }
 }
 
@@ -95,48 +104,28 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 // -> 选中2 -> 放到1之后 -> 1 2 4 5 3 -> 选中4 -> 放到3之后 -> 1 2 5 3 4 -> 选中5 -> 放到4之后 -> 1 2 3 4 5
 // 虽然每次调整顺序都会出发一次全部牌的orderChanged(会再全部排一次), 不过算是面向对象方便人编写的一个副作用吧
 // 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
-void Surface::orderChanged(){
+void Surface::orderChanged()
+{   
+    //LLog::log("顺序改变, surface地址: %d, 层次: %d", this, layer());
     
-    LSurface::orderChanged();
-    //LLog::log("%d: orderChanged", this);
-    /*
-    int order = 0;
-    for(LSurface* surface : compositor()->surfaces()){
-        if(surface->toplevel()){
-            LLog::log("序号: %zu, 地址: %d", order, surface);
-            order += 1;
-        }
-    }
-    */
+    // 调试: 打印surface前后关系
+    // TileyServer& server = TileyServer::getInstance();
+    // server.compositor()->printToplevelSurfaceLinklist();
     
-    // 找到一个在我前面，并且其视图和我视图拥有同一个父亲的兄弟(subsurface和弹出窗口surface均是)
-    LView* prevBrotherView = nullptr;
-    // surface在compositor中, 是一个类链表结构
-    LSurface *prevSurf = prevSurface();
+    // Previous surface in LCompositor::surfaces()
+    Surface *prev { static_cast<Surface*>(prevSurface()) };
 
-    // 打擂台算法。找到新的顺序中比我更"在下方的", 插入到它后面(显示在它上方)即可。
-    while (prevSurf) {
-        // prevSurf的视图的父亲, 必须和我的视图的父亲是同一个
-        if (((Surface*)prevSurf)->view.parent() == view.parent()) {
-            prevBrotherView = ((Surface*)prevSurf)->getView();
-            break; // 找到了, 停止搜索
-        }
-        prevSurf = prevSurf->prevSurface();
-    }
+    // Re-insert the view only if there is a previous surface within the same layer
+    view->insertAfter((prev && prev->layer() == layer()) ? prev->view.get() : nullptr);
 
-    // 将我的视图，插入到那个兄弟视图的后面。
-    // 如果没找到兄弟(我是第一个), prevBrotherView 就是 nullptr,
-    // insertAfter(nullptr) 会把我放到最前面
-    view.insertAfter(prevBrotherView);
 }
-
 
 // layerChanged: 层次发生变化。对于我们来讲最有用的就是平铺层<->浮动层之间的互相切换。
 // 只需将toplevel的view移动到新的层即可, 它的弹出窗口和它的subsurface会自动跟随。
 void Surface::layerChanged(){
     //LLog::log("%d: layerChanged", this);
     TileyServer& server = TileyServer::getInstance();
-    view.setParent(&server.layers()[layer()]);
+    view->setParent(&server.layers()[layer()]);
 }
 
 // mappingChanged: 一个窗口的显示状态发生变化。常见于: 新的窗口要显示/窗口被关闭/窗口被最小化等
@@ -150,16 +139,16 @@ void Surface::mappingChanged(){
     compositor()->repaintAllOutputs();
 
     if(mapped()){
-        // 如果是显示出了窗口
-        // 设置到应用层 
-        view.setParent(&server.layers()[APPLICATION_LAYER]);
 
         // 如果不是窗口, 则无需额外的操作了
         if(!toplevel()){
             return;
         }
 
-        // 否则, 为窗口分配一个角色
+        // 如果是显示出了窗口
+        // 设置到应用层 
+        view->setParent(&server.layers()[APPLICATION_LAYER]);
+        // 否则, 为窗口分配一个类型
         tl()->assignToplevelType();
         // 准备插入
         Container* tiledContainer = nullptr;
@@ -167,7 +156,7 @@ void Surface::mappingChanged(){
         manager.addWindow(tl(), tiledContainer);
         // 如果成功插入平铺层
         if(tiledContainer){
-            // 设置成下一个新窗口的默认目标, 用于无法找到当前聚焦窗口的特殊情况
+            // 设置活动容器
             manager.setActiveContainer(tiledContainer);
             // 重新计算布局
             manager.recalculate();
@@ -177,18 +166,19 @@ void Surface::mappingChanged(){
         // 如果是关闭(隐藏)了窗口
         if(toplevel()){
             // 准备移除
-            Container* lastActiveContainer = nullptr;
+            Container* removedContainer = nullptr;
             // 移除窗口(包括平铺的和非平铺的都是这个方法)
-            manager.removeWindow(tl(), lastActiveContainer);
+            manager.removeWindow(tl(), removedContainer);
             // 如果移除成功
-            if(lastActiveContainer != nullptr){
+            if(removedContainer != nullptr){
                 // 重新布局
                 manager.recalculate();
+                // 设置活动容器为鼠标新的聚焦
             }
         }
 
         // 最后, 无论是什么surface, 都将view从parent的列表中移除, 销毁view
-        view.setParent(nullptr);    
+        view->setParent(nullptr);    
     }
     
 }
@@ -196,12 +186,3 @@ void Surface::mappingChanged(){
 void Surface::minimizedChanged(){
     LSurface::minimizedChanged();
 }
-
-
-/*
-
-Surface::Surface(const void* params) noexcept : LSurface(params){
-    // 不做任何事情。此时我们的Surface还没有分配任何属性。
-}
-
-*/

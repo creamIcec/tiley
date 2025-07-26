@@ -1,4 +1,7 @@
 #include "TileyWindowStateManager.hpp"
+#include "LSurface.h"
+#include "LToplevelMoveSession.h"
+#include "LToplevelRole.h"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/surface/Surface.hpp"
@@ -11,6 +14,7 @@
 #include <LLog.h>
 #include <LNamespaces.h>
 #include <LOutput.h>
+#include <LScene.h>
 
 #include <cassert>
 #include <memory>
@@ -93,43 +97,136 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
 
 // insert(插入)函数
 bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowContainer, Float32 splitRatio){
-    // 找到鼠标现在聚焦的surface
-    Surface* surface = static_cast<Surface*>(seat()->pointer()->focus());
-    if(surface){
-        LLog::log("鼠标位置有Surface");
-        // 找到这个surface的顶层窗口
-        Surface* windowSurface = findFirstParentToplevelSurface(surface);
-        if(windowSurface && windowSurface->toplevel()){
-            LLog::log("鼠标位置有toplevel");
-            SPLIT_TYPE split = windowSurface->size().w() >= windowSurface->size().h() ? SPLIT_H : SPLIT_V;
-            return insertTile(workspace, newWindowContainer, ((ToplevelRole*)windowSurface->toplevel())->container, split, splitRatio);   
-        }else{
-            LLog::log("鼠标位置没有窗口, 无法插入。");
-            return false;
-        }
-    }else{
-        // 可能是桌面(没有任何窗口)
-        if(workspaceRoots[workspace]->child1 == nullptr && workspaceRoots[workspace]->child2 == nullptr){
-            // 实锤
-            // 只有桌面的时候, 直接插入到桌面节点
-            LLog::log("只有桌面节点, 仅插入窗口");
-            workspaceRoots[workspace]->child1 = newWindowContainer;
-            newWindowContainer->parent = workspaceRoots[workspace];
 
-            containerCount += 1;
-            return true;
-        }
-        // 如果既不是桌面, 鼠标也没有聚焦到任何窗口, 尝试插入上一个被激活的container之后
-        if(activeContainer != nullptr){
-            const LRect& size = activeContainer->window->surface()->size();
-            SPLIT_TYPE split = size.w() >= size.h() ? SPLIT_H : SPLIT_V; 
-            return insertTile(workspace, newWindowContainer, activeContainer, split, splitRatio);
-        }
-        // TODO: 其他鼠标没有聚焦的情况
+    // 找到鼠标所在位置的平铺Container
+    Container* targetContainer = getInsertTargetTiledContainer(workspace);
+
+    // 如果是根节点, 表示是桌面
+    if(targetContainer == workspaceRoots[workspace]){
+        // 只有桌面的时候, 直接插入到桌面节点
+        LLog::log("只有桌面节点, 仅插入窗口");
+        workspaceRoots[workspace]->child1 = newWindowContainer;
+        newWindowContainer->parent = workspaceRoots[workspace];
+        containerCount += 1;
+        return true;
     }
+
+    if(targetContainer){
+        LLog::log("鼠标位置有窗口容器");
+        Surface* windowSurface = static_cast<Surface*>(targetContainer->window->surface());
+        SPLIT_TYPE split = windowSurface->size().w() >= windowSurface->size().h() ? SPLIT_H : SPLIT_V;
+        return insertTile(workspace, newWindowContainer, ((ToplevelRole*)windowSurface->toplevel())->container, split, splitRatio);   
+    }
+
+    // 如果既不是桌面, 鼠标也没有聚焦到任何窗口, 尝试插入上一个被激活的container之后
+    if(activeContainer != nullptr){
+        LLog::log("插入到上一个激活的窗口后");
+        const LRect& size = activeContainer->window->surface()->size();
+        SPLIT_TYPE split = size.w() >= size.h() ? SPLIT_H : SPLIT_V; 
+        return insertTile(workspace, newWindowContainer, activeContainer, split, splitRatio);
+    }
+    // TODO: 其他鼠标没有聚焦的情况
 
     LLog::log("插入失败, 未知情况。");
     return false;
+}
+
+Container* TileyWindowStateManager::detachTile(LToplevelRole* window){
+    // 和removeTile逻辑接近, 就是不删除容器。
+    // TODO: 考虑和remove合并, 通过一个参数区分是分离还是关闭
+
+    if(window == nullptr){
+        LLog::log("要分离的窗口为空, 停止分离");
+        return nullptr;
+    }
+
+    // 2. 找到这个window对应的container
+    Container* containerToDetach = ((ToplevelRole*)window)->container;
+    // 同时保存父亲和祖父的指针
+    Container* grandParent = containerToDetach->parent->parent;
+    Container* parent = containerToDetach->parent;
+
+    if(containerToDetach == nullptr){
+        LLog::log("要分离的窗口没有container? 正常情况下不应该发生, 停止分离");
+        return nullptr;
+    }
+
+    // TODO: 将下面的这行代码移动到一个更好的位置。视图和逻辑应该分开处理。
+    window->surface()->raise();
+
+    // 3. 处理只剩一个或两个窗口的情况
+    if(grandParent == nullptr){
+        Container* sibling = (parent->child1 == containerToDetach) ? parent->child2 : parent->child1;
+        if(sibling == nullptr){
+            // 3.1 这是最后一个窗口
+            LLog::log("分离最后一个窗口");
+            parent->child1 = nullptr;
+            
+        }else{
+            // 3.2 屏幕上还剩一个窗口
+            LLog::log("分离后仅剩一个窗口");
+            // 直接把兄弟节点的内容(它本身应该是个窗口容器)移动到根容器
+            parent->child1 = sibling;
+            parent->child2 = nullptr;
+            sibling->parent = parent; // 更新兄弟节点的父指针
+            //分割容器 -1
+            containerCount -= 1;
+        }
+        // 窗口 -1
+        containerCount -= 1;
+
+        containerToDetach->parent = nullptr;
+        containerToDetach->floating_reason = MOVING;
+        return containerToDetach;
+    }
+    
+    // 4. 不止一个窗口时, 保存兄弟container
+    Container* sibling = (parent->child1 == containerToDetach) ? parent->child2 : parent->child1;
+
+    // 4.1 让祖父节点收养兄弟节点
+    if (grandParent->child1 == parent) {
+        grandParent->child1 = sibling;
+    } else { // grandParent->child2 == parent
+        grandParent->child2 = sibling;
+    }
+
+    // 4.2 更新兄弟节点的父指针
+    if (sibling != nullptr) { // 如果被删除的窗口有兄弟
+        sibling->parent = grandParent;
+    }
+
+    // 清理所有被移除的容器
+    containerToDetach->parent = nullptr; // 断开连接，好习惯
+    containerToDetach->floating_reason = MOVING;
+    delete parent; // 删除旧的分割容器
+
+    // 窗口 -1, 分割容器 -1
+    containerCount -= 2;
+
+    return containerToDetach;
+};
+
+bool TileyWindowStateManager::attachTile(LToplevelRole* window){
+    // 直接调用insertTile
+
+    if(!window){
+        LLog::log("要合并的窗口为空, 取消合并");
+        return false;
+    }
+
+    ToplevelRole* windowToAttach = static_cast<ToplevelRole*>(window);
+
+    if(!windowToAttach || !windowToAttach->container){
+        LLog::log("要合并的窗口没有容器, 取消合并");
+        return false;
+    }
+
+    bool inserted = insertTile(DEFAULT_WORKSPACE, windowToAttach->container, 0.5);
+    if(inserted){
+        windowToAttach->container->floating_reason = NONE;
+    }
+
+    return inserted;
 }
 
 // 如何移除(remove)?
@@ -244,7 +341,7 @@ void TileyWindowStateManager::_printContainerHierachy(Container* current){
 void TileyWindowStateManager::reflow(UInt32 workspace, const LRect& region, bool& success){
     LLog::log("重新布局");
     // 调试: 打印当前容器树
-    printContainerHierachy(workspace);
+    //printContainerHierachy(workspace);
 
     UInt32 accumulateCount = 0;
 
@@ -273,7 +370,7 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
     }
 
     // 调试: 打印新建窗口的信息
-    surface->printWindowGeometryDebugInfo(activeOutput, availableGeometry);
+    //surface->printWindowGeometryDebugInfo(activeOutput, availableGeometry);
 
     // 设置窗口属于当前活动显示器 TODO: 当后面允许静默在其他显示器创建窗口时修改
     window->output = activeOutput;
@@ -281,20 +378,20 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
     switch (window->type) {
         case FLOATING:
         case RESTRICTED_SIZE: {
-            LLog::log("创建了一个尺寸限制/瞬态窗口。surface地址: %d, 层次: %d", surface, surface->layer());
-            rearrangeWindowLayer(window);
+            LLog::log("显示了一个尺寸限制/瞬态窗口。surface地址: %d, 层次: %d", surface, surface->layer());
+            rearrangeWindowState(window);
             break;
         }
         case NORMAL:{
-            LLog::log("创建了一个普通窗口。surface地址: %d, 层次: %d", surface, surface->layer());
+            LLog::log("显示了一个普通窗口。surface地址: %d, 层次: %d", surface, surface->layer());
             Container* newContainer = new Container(window);
-            insertTile(0, newContainer, 0.5);
-            rearrangeWindowLayer(window);
+            insertTile(DEFAULT_WORKSPACE, newContainer, 0.5);
+            rearrangeWindowState(window);
             container = newContainer;
             break;
         }
         default:
-            LLog::log("警告: 创建了一个未知类型的窗口。该窗口将不会被插入管理列表");
+            LLog::log("警告: 显示了一个未知类型的窗口。该窗口将不会被插入管理列表");
     }
 
     return true;
@@ -323,8 +420,8 @@ bool TileyWindowStateManager::removeWindow(ToplevelRole* window, Container*& con
     return false;
 }
 
-// 插入窗口时被调用, 将一个窗口放到该放的"层次"
-bool TileyWindowStateManager::rearrangeWindowLayer(ToplevelRole* window){
+// 插入窗口时被调用, 配置该窗口的全局状态(显示层次、激活状态等等)
+bool TileyWindowStateManager::rearrangeWindowState(ToplevelRole* window){
     
     Surface* surface = static_cast<Surface*>(window->surface());
 
@@ -334,8 +431,15 @@ bool TileyWindowStateManager::rearrangeWindowLayer(ToplevelRole* window){
     }
 
     if(window->type == RESTRICTED_SIZE || window->type == FLOATING){
-        surface->raise();
+        if(surface->topmostParent() && surface->topmostParent()->toplevel()){
+            surface->topmostParent()->raise();
+        }else{
+            surface->raise();
+        }
     }
+
+    // 激活
+    window->configureState(window->pendingConfiguration().state | LToplevelRole::Activated);
 
     return true;
 }
@@ -401,7 +505,7 @@ bool TileyWindowStateManager::recalculate(){
         return false;
      }
 
-     printContainerHierachy(workspace);
+     //printContainerHierachy(workspace);
 
      Output* rootOutput = static_cast<ToplevelRole*>((getFirstWindowContainer(workspace)->window))->output;
 
@@ -472,6 +576,102 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         _reflow(container->child2, area2, accumulateCount);
     }
 }
+
+// 获取下一个要显示的平铺窗口的插入目标容器
+// 该函数调用时将静态保存鼠标位置和"锁定"目标显示器, 也就是存储目标容器为一个内部状态
+// 因此, 该函数推荐在要插入新的窗口时紧跟着调用。如果不这样的话, 可能会出现目标和期望不一致的情况
+// 比如: 鼠标目前在这个位置, 但因为调用该函数过早/过晚, 导致鼠标位置和插入位置不一样的情况
+// 当然, 如果目标就是不跟随鼠标的(例如后期通过配置), 可以随时使用该函数而无碍
+Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspace){
+
+    // 函数分为两阶段逻辑: 一阶段直接返回由各种来源设置的"上一个活动容器"(通过setActiveContainer), 如果该容器不存在则进入二阶段回退, 计算鼠标坐标处的容器。
+
+    // 一阶段
+    if(activeContainer){
+        return activeContainer;
+    }
+
+    // 二阶段
+    Container* root = workspaceRoots[workspace];
+
+    if(!root){
+        LLog::log("工作区没有节点, 可能是bug, 停止获取鼠标处的容器");
+        return nullptr;
+    }
+
+    // 如果工作区为空, 直接返回自己
+    if(root->child1 == nullptr && root->child2 == nullptr){
+        return root;
+    }
+
+    // 这里不需要限制工作区。所有surface的集合>单个工作区的集合, 如果所有surface都找不到, 则说明肯定桌面是空的
+    // surface()只包含客户端创建的
+    for(LSurface* surface : compositor()->surfaces()){
+
+        if(surface->toplevel()){
+
+            Surface* targetSurface = static_cast<Surface*>(surface);
+
+            // 排除非平铺窗口
+            if(targetSurface->tl()->container->floating_reason != NONE){
+                continue;
+            }
+
+            // 排除正在被移动的窗口, TODO: 和上面的条件合并(确保正在移动的窗口==floating_reason不为NONE的窗口)
+            bool flag = true;
+
+            for(LToplevelMoveSession* session : seat()->toplevelMoveSessions()){
+                // TODO: 潜在风险: 可能在移动多个窗口吗? 先假设同时最多只有一个窗口能被移动
+                if(targetSurface->toplevel() == session->toplevel()){ 
+                    flag = false;
+                    break;
+                }
+            }
+
+            if(!flag){
+                // 目标位置不是窗口或者是非平铺窗口, 都不符合条件, 下一位
+                continue;
+            }
+
+            // 计算该surface的范围
+            const LRect rect = {
+                targetSurface->pos().x(),
+                targetSurface->pos().y(),
+                targetSurface->pos().x() + targetSurface->size().width(),
+                targetSurface->pos().y() + targetSurface->size().height()
+            };
+
+            if(rect.containsPoint(cursor()->pos())){
+                // 找到了目标窗口
+                ToplevelRole* targetWindow = static_cast<ToplevelRole*>(targetSurface->toplevel());
+                // 返回容器
+                return targetWindow->container;
+            }
+        }
+    }
+
+    // 如果遍历完了都没找到, 说明是桌面
+    return root;
+
+};
+
+
+bool TileyWindowStateManager::isTiledWindow(ToplevelRole* window){
+
+    // 优先级1: 是一个普通窗口, 但是由于正在移动/被用户浮动而脱离了平铺层, 返回false
+    if(window->container && window->container->floating_reason != NONE){
+        return false;
+    }
+
+    // 优先级2: 是一个在平铺层的普通窗口
+    if(window->type == NORMAL){
+        return true;
+    }
+
+    // 优先级3: 其他情况
+    return false;
+}
+
 
 TileyWindowStateManager& TileyWindowStateManager::getInstance(){
     std::call_once(onceFlag, [](){

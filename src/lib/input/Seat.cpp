@@ -1,8 +1,13 @@
 #include "Seat.hpp"
+#include "LKeyboardKeyEvent.h"
 #include "LNamespaces.h"
 #include <LCompositor.h>
 #include <LInputDevice.h>
 #include <libinput.h>
+
+#include <LEvent.h>
+#include <LKeyboard.h>
+#include <xkbcommon/xkbcommon.h>
 
 using namespace tiley;
 
@@ -32,5 +37,16 @@ void Seat::configureInputDevices() noexcept{
         // 启用平滑滚轮滚动(在用户看网页时非常有效)
         libinput_device_config_scroll_set_natural_scroll_enabled(dev, true);
         
+    }
+}
+
+// 在这里检测键盘事件, eventFilter会在onEvent之前先被调用, 因此是最顶层的判断时机
+bool Seat::eventFilter(LEvent& event){
+    // 检测: 是键盘事件, 并且是按键事件
+    if(event.type() == Louvre::LEvent::Type::Keyboard){
+        if(event.subtype() == Louvre::LEvent::Subtype::Key){
+            auto keyEvent = static_cast<LKeyboardKeyEvent&>(event);
+            // TODO: 完整的键盘按键记录。此时我们专注于实现移动功能, 因此先不完整记录, 仅使用isModActive判断。
+        }
     }
 }

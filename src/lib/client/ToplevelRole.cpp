@@ -5,12 +5,40 @@
 #include <LNamespaces.h>
 
 #include "ToplevelRole.hpp"
+#include "src/lib/TileyWindowStateManager.hpp"
 
 using namespace tiley;
 
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
+
+    LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);
-    LLog::log("装饰模式: %u", decorationMode());
+    
+    // 为了确保鼠标下面的窗口已经更新, 在接收到状态改变信号之后再设置活动容器
+    Surface* surface = static_cast<Surface*>(seat()->pointer()->surfaceAt(cursor()->pos()));
+
+    TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
+
+    if(!surface){
+        LLog::log("鼠标位置没有窗口, 更新活动容器为空");
+        manager.setActiveContainer(nullptr);
+        return;
+    }
+
+    if(surface->toplevel()){
+        ToplevelRole* window = surface->tl();
+
+        if(!manager.isTiledWindow(window)){
+            // 如果现在鼠标所在位置不是平铺窗口, 则不改变状态
+            LLog::log("鼠标位置不是平铺窗口, 不更新活动容器");
+            return;
+        }
+
+        if(window && window->container){
+            manager.setActiveContainer(window->container);
+            LLog::log("已设置活动容器为状态改变后窗口下的容器");
+        }
+    }
 };
 
 void ToplevelRole::configureRequest(){
@@ -66,5 +94,6 @@ void ToplevelRole::assignToplevelType(){
 
 // 根据官方文档, 这个事件由客户端触发。我们可以自己触发嘛?
 void ToplevelRole::startMoveRequest(const LEvent& triggeringEvent){
+    // TODO: 要不要在移动开始时关闭所有popup?
     LToplevelRole::startMoveRequest(triggeringEvent);
 }

@@ -13,6 +13,7 @@ namespace tiley{
     class TileyCompositor final : public Louvre::LCompositor{
         public:
             Scene scene;
+            void printToplevelSurfaceLinklist();
         protected:
             void initialized() override;
         
@@ -26,6 +27,7 @@ namespace tiley{
             bool createGlobalsRequest() override;
 
             bool globalsFilter(LClient* client, LGlobal* global) override;
+
     };
 }
 

@@ -1,5 +1,4 @@
-#ifndef __OUTPUT_H__
-#define __OUTPUT_H__
+#pragma once
 
 #include "LNamespaces.h"
 #include "src/lib/surface/Surface.hpp"
@@ -12,6 +11,10 @@
 
 using namespace Louvre;
 using namespace tiley;
+
+namespace tiley{
+    class Surface;
+}
 
 namespace tiley{
     class Output final : public LOutput{
@@ -60,5 +63,3 @@ namespace tiley{
             LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
     };
 }
-
-#endif // __OUTPUT_H__

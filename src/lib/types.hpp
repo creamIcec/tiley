@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LNamespaces.h"
 #include <LBox.h>
 
 using namespace Louvre;
@@ -46,4 +47,7 @@ namespace tiley{
         LBox box;
         float splitRatio;  //容器分割比例。仅在window==nullptr(是容器)时有效
     };
+
+    // TODO: 取消默认, 动态获取workspace
+    static UInt32 DEFAULT_WORKSPACE = 0;
 }

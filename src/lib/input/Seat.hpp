@@ -10,6 +10,7 @@ namespace tiley{
         public:
             using LSeat::LSeat;
             void configureInputDevices() noexcept;
+            bool eventFilter(LEvent& event) override;
     };
 }
 

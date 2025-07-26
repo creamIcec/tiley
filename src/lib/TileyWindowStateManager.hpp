@@ -18,6 +18,8 @@ namespace tiley{
 }
 
 namespace tiley{
+
+    // TODO: FLOATING_REASON和window->type同时存在是不是一种冗余? 考虑合并
     class TileyWindowStateManager{
         public:
             static TileyWindowStateManager& getInstance();
@@ -27,18 +29,30 @@ namespace tiley{
             bool insertTile(UInt32 workspace, Container* newWindowContainer, Container* targetContainer, SPLIT_TYPE split, Float32 splitRatio);
             // remove: 移除容器, 用于关闭平铺的窗口。
             Container* removeTile(LToplevelRole* window);
+            // detach: 将一个容器从容器树中分离, 用于浮动窗口/移动窗口等操作。
+            Container* detachTile(LToplevelRole* window);
+            // attach: 将一个被分离的容器重新插入容器树中, 例如将浮动的窗口合并回平铺层, 或者停止移动窗口等。
+            bool attachTile(LToplevelRole* window);
             // recalculate: 重新布局。
             bool recalculate();
             // addWindow: 添加窗口。如果添加成功, 并且添加到了平铺层, 会用container带回。
             bool addWindow(ToplevelRole* window, Container*& container);
             // removeWindow: 移除窗口。如果移除成功, 并且移除的是平铺层的窗口, 会用container带回。
             bool removeWindow(ToplevelRole* window, Container*& container);
-            // 设置上一个插入时活动的窗口。每次插入窗口后应该调用。   
+            // 检查一个窗口是否是平铺层窗口(正在移动的/用户浮动的)
+            bool isTiledWindow(ToplevelRole* window);
+            // 设置上一个活动容器。调用时机: 新窗口显示(设置成新窗口)/鼠标或键盘聚焦变化(设置成聚焦窗口)/没有任何聚焦(设置成nullptr)
+            // 注意: 该函数和鼠标/键盘不一定同步。不要依赖该函数的container反向获得的window来当作聚焦窗口。仅供插入机制使用。
             inline void setActiveContainer(Container* container){ this->activeContainer = container; };
-            // 获取上一个插入时活动的窗口。推荐在找不到应该插入哪个窗口位置时使用。
-            inline Container* activateContainer(){return activeContainer;}
-            // 获取一个工作区的第一个窗口对应的容器。
+            // 获取上一个活动容器。如果是nullptr, 表示没有满足活动条件的容器。
+            inline Container* activateContainer(){ return activeContainer; }
+            // 获取一个工作区的第一个窗口对应的容器
             Container* getFirstWindowContainer(UInt32 workspace);
+            // 获取一个工作区中, 当前鼠标所在位置的平铺容器, 这个函数是为了方便插入使用: 当工作区为空时, 直接返回工作区根节点, 否则返回所在位置的窗口的容器(而不是分割容器)
+            // TODO: 找到一个更好的方法仅在平铺区的窗口中查找目标窗口
+            Container* getInsertTargetTiledContainer(UInt32 workspace);
+            // 重新分配窗口层级。将根据每个窗口(toplevel)的类型(type)刷新显示层级
+            bool rearrangeWindowState(ToplevelRole* window);
             // 调试: 打印某个工作区当前容器树层次信息
             void printContainerHierachy(UInt32 workspace);
             // printContainerHierachy的递归函数
@@ -50,8 +64,7 @@ namespace tiley{
             void _reflow(Container* container, const LRect& areaRemain, UInt32& accumulateCount);
             // 获取第一个窗口的递归函数。
             Container* _getFirstWindowContainer(Container* container);
-            // 重新组织窗口层级, 在insert时调用
-            bool rearrangeWindowLayer(ToplevelRole* window);
+
             // 工作区最大数量
             static const int WORKSPACES = 10;
             // 每个工作区的平铺根节点

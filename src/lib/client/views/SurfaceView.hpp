@@ -1,12 +1,22 @@
 #pragma once
 
 #include <LSurfaceView.h>
+#include "src/lib/surface/Surface.hpp"
 
 using namespace Louvre;
 
-class SurfaceView final : public LSurfaceView{
-    public:
-        using LSurfaceView::LSurfaceView;
-        void pointerButtonEvent (const LPointerButtonEvent &event) override;
-        void pointerEnterEvent 	(const LPointerEnterEvent &event) override;
-};
+namespace tiley {
+    class Surface;
+}
+
+namespace tiley{
+    class SurfaceView final : public LSurfaceView{
+        public:
+            using LSurfaceView::LSurfaceView;
+
+            SurfaceView(Surface* surface) noexcept;
+            void pointerButtonEvent (const LPointerButtonEvent &event) override;
+            void pointerEnterEvent 	(const LPointerEnterEvent &event) override;
+    };
+
+}
