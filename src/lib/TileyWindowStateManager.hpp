@@ -4,6 +4,8 @@
 #include <mutex>
 #include <vector>
 
+#include "LBitset.h"
+#include "LEdge.h"
 #include "LNamespaces.h"
 #include "LToplevelRole.h"
 #include "src/lib/client/ToplevelRole.hpp"
@@ -33,6 +35,10 @@ namespace tiley{
             Container* detachTile(LToplevelRole* window, FLOATING_REASON reason = MOVING);
             // attach: 将一个被分离的容器重新插入容器树中, 例如将浮动的窗口合并回平铺层, 或者停止移动窗口等。
             bool attachTile(LToplevelRole* window);
+            // resizeTile: 调整当前活动的(由setupResizeSession设置)平铺容器的平铺比例。
+            bool resizeTile(LPointF cursorPos);
+            // setupResizeSession: 在开始调整窗口大小时调用, 用于建立调整的上下文。包括被调整的窗口
+            void setupResizeSession(LToplevelRole* window, LBitset<LEdge> edges, const LPointF& cursorPos);
             // recalculate: 重新布局。
             bool recalculate();
             // addWindow: 添加窗口。如果添加成功, 并且添加到了平铺层, 会用container带回。
@@ -61,6 +67,11 @@ namespace tiley{
             void printContainerHierachy(UInt32 workspace);
             // printContainerHierachy的递归函数
             void _printContainerHierachy(Container* current);
+            
+            // 全局记录工作区, 再也不用分散在各处了
+            // TODO: 我们需要这个成员始终反映用户意图。也就是说, 无论在哪儿调用, 当前工作区始终是那个函数想要的。怎么做?
+            UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
+
         private:
             // reflow: 在给定的region作为最大显示区域的情况下进行重新布局
             void reflow(UInt32 workspace, const LRect& region, bool& success);
@@ -79,6 +90,13 @@ namespace tiley{
             UInt32 containerCount = 0;
             // 窗口缓存区。包含所有窗口, 不只是平铺的
             std::vector<ToplevelRole*> windows = {};
+
+            // 拖拽改变大小时使用
+            LPointF initialCursorPos;            // 开始拖拽时鼠标的初始位置
+            double initialHorizontalRatio;       // 水平目标的初始分割比例
+            double initialVerticalRatio;         // 垂直目标的初始分割比例
+            Container* resizingHorizontalTarget; // 正在调整的水平目标
+            Container* resizingVerticalTarget;   // 正在调整的垂直目标
             struct WindowStateManagerDeleter {
                 void operator()(TileyWindowStateManager* p) const {
                     delete p;

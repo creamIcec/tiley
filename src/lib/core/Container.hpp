@@ -42,8 +42,11 @@ namespace tiley{
             Container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
             Container* child2;
             
-            //范围:[0,1], 表示child1占区域大小的比例。默认0.5, 即对半分。
-            Float32 splitRatio = 0.5;  
+            //范围:[0,1], 表示child1占区域大小的比例。默认0.5, 即对半分。对于窗口而言, splitRatio无效
+            Float32 splitRatio = 0.5;
+
+            // 保存这个容器的尺寸和位置信息。在重新布局和调整大小时更新
+            LRect geometry;
 
             // 管理器可以访问私有成员
             friend TileyWindowStateManager;

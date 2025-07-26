@@ -5,13 +5,14 @@
 #include <LNamespaces.h>
 
 #include "ToplevelRole.hpp"
+#include "LToplevelRole.h"
 #include "src/lib/TileyWindowStateManager.hpp"
 
 using namespace tiley;
 
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
 
-    LLog::log("窗口状态改变");
+    //LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);
     
     // 为了确保鼠标下面的窗口已经更新, 在接收到状态改变信号之后再设置活动容器
@@ -36,7 +37,7 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
 
         if(window && window->container){
             manager.setActiveContainer(window->container);
-            LLog::log("已设置活动容器为状态改变后窗口下的容器");
+            //LLog::log("已设置活动容器为状态改变后窗口下的容器");
         }
     }
 };
@@ -92,8 +93,12 @@ void ToplevelRole::assignToplevelType(){
     }
 }
 
-// 根据官方文档, 这个事件由客户端触发。我们可以自己触发嘛?
 void ToplevelRole::startMoveRequest(const LEvent& triggeringEvent){
     // TODO: 要不要在移动开始时关闭所有popup?
     LToplevelRole::startMoveRequest(triggeringEvent);
+}
+
+void ToplevelRole::startResizeRequest(const LEvent& triggeringEvent, LBitset<LEdge> edge){
+    // TODO: 要不要在移动开始时关闭所有popup?
+    LToplevelRole::startResizeRequest(triggeringEvent, edge);    
 }

@@ -1,5 +1,6 @@
 #include "Pointer.hpp"
 
+#include "LEdge.h"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
@@ -297,12 +298,6 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
     // TODO: 下面的代码大部分由父类复制而来, 尚未完成修改。
 
     // 首先检查是否已经正在处理一个合成器的keybind
-
-    // 调整窗口大小
-
-    // 移动窗口
-    bool isMovingWindow = !seat()->toplevelMoveSessions().empty();
-
     if(!focus() || !focus()->toplevel()){
         LLog::log("没有目标或目标不是窗口, 停止处理合成器事件");
         return false;
@@ -310,7 +305,72 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
 
     ToplevelRole* window = static_cast<ToplevelRole*>(focus()->toplevel());
 
-    // 如果是左键+按下+没有移动窗口
+    // 调整窗口大小
+    bool isResizingWindow = !seat()->toplevelResizeSessions().empty();
+
+    // 如果是右键+按下+之前没有调整窗口
+    if(event.button() == Louvre::LPointerButtonEvent::Right &&
+       event.state() == Louvre::LPointerButtonEvent::Pressed &&
+       !isResizingWindow){
+        const LPoint &mousePos = cursor()->pos(); // 鼠标在屏幕上的绝对位置
+        const LPoint &winPos = window->surface()->pos(); // 窗口在屏幕上的绝对位置
+        const LSize &winSize = window->surface()->size(); // 窗口的大小
+
+        // 计算鼠标在窗口内的相对位置
+        float relativeX = (float)(mousePos.x() - winPos.x()) / (float)winSize.w();
+        float relativeY = (float)(mousePos.y() - winPos.y()) / (float)winSize.h();
+
+        // 用一个四位二进制数进行位编码编码: 0000 <-> 上下左右
+        // 判断应该拖动哪个边界
+        LBitset<LEdge> edge = LEdgeNone;
+
+        // 判断 Y 轴位置
+        if (relativeY < 0.5f) {
+            edge |= LEdgeTop;
+        } else if (relativeY >= 0.5f) {
+            edge |= LEdgeBottom;
+        }
+
+        // 判断 X 轴位置
+        if (relativeX < 0.5f) {
+            edge |= LEdgeLeft;
+        } else if (relativeX >= 0.5f) {
+            edge |= LEdgeRight;
+        }
+
+        // 对所有窗口的处理
+        if (edge != LEdgeNone){
+            manager.setupResizeSession(window, edge, cursor()->pos());
+            window->startResizeRequest(event, edge);
+        }
+
+        if(!window->container){
+            return true;
+        }
+
+        return true;
+
+    }
+
+    // 如果是右键+按下+之前正在调整窗口
+    if(event.button() == Louvre::LPointerButtonEvent::Right &&
+       event.state() == Louvre::LPointerButtonEvent::Released &&
+       isResizingWindow){
+        for (auto it = seat()->toplevelResizeSessions().begin(); it != seat()->toplevelResizeSessions().end();){
+            if ((*it)->triggeringEvent().type() != LEvent::Type::Touch){
+                it = (*it)->stop();
+            }else{
+                it++;
+            }
+        }
+
+        return true;
+    }
+
+    // 移动窗口
+    bool isMovingWindow = !seat()->toplevelMoveSessions().empty();
+
+    // 如果是左键+按下+之前没有移动窗口
     if(event.button() == Louvre::LPointerButtonEvent::Left &&
         event.state() == Louvre::LPointerButtonEvent::Pressed &&
         !isMovingWindow){
@@ -488,10 +548,30 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         // 如果不是由触摸触发的(为什么? 触摸不是同理?)
         if (session->triggeringEvent().type() != LEvent::Type::Touch)
         {
-            // 更新拖拽窗口的位置
-            activeResizing = true;
-            session->updateDragPoint(cursor()->pos());
+
+            // TODO: 可能迁移到Louvre内置的回调方法(下方)。这个方法会在session更新之前触发。
+            //session->setOnBeforeUpdateCallback()
+
+            // 对平铺层的处理
+            ToplevelRole* targetWindow = static_cast<ToplevelRole*>(session->toplevel());
+
+            // 是否调整的是平铺层的
+            bool isResizingTiledWindow = targetWindow && targetWindow->container && targetWindow->type == NORMAL && manager.isTiledWindow(targetWindow);
+            
+            if(isResizingTiledWindow){
+                LLog::log("调整平铺容器大小");
+                if(manager.resizeTile(cursor()->pos())){
+                    manager.reapplyWindowState(targetWindow);
+                    manager.recalculate();
+                }
+            }else{
+                // 不是平铺层的, 直接更新调整的位置
+                activeResizing = true;
+                session->updateDragPoint(cursor()->pos());
+            }
+            
         }
+        
     }
  
     // 如果正在更改大小, 后续的就不用处理了
@@ -550,6 +630,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         event.localPos = cursor()->pos() - surface->rolePos();
  
         // 如果正在拖拽(这里不是处理图标(视觉)了, 而是拖拽的逻辑)
+        // DND这个surface不在surfaceAt列表中, 可以放心忽略
         if (activeDND)
         {
             if (seat()->dnd()->focus() == surface)
@@ -563,11 +644,20 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         {
             // 如果没有拖拽文件, 则向所在surface发送信号
             // 这里才是整个函数本来干的事情... 因为特殊情况太多必须先处理
-            if (focus() == surface)
+            if (focus() == surface){
                 sendMoveEvent(event);
-            else
+                // TODO: 配置: 焦点跟随鼠标
+                bool focusFollowMouse = true;
+                if(focusFollowMouse){
+                    seat()->keyboard()->setFocus(surface);
+                    if(surface->toplevel()){
+                        surface->toplevel()->configureState(surface->toplevel()->pendingConfiguration().state | LToplevelRole::Activated);
+                    }
+                }
+            } else {
                 // 否则, 聚焦到所在surface中, 并且设置成特定位置
                 setFocus(surface, event.localPos);
+            }
         }
  
         // 响应客户端的光标更改请求
@@ -603,6 +693,13 @@ void Pointer::focusChanged(){
 
     if(!surface){
         return;
+    }
+
+    // 以下都是为了设置新的平铺活动容器
+
+    // 排除是弹出菜单
+    if(surface->roleId() == LSurface::SessionLock || surface->roleId() == LSurface::Popup){
+        return;   
     }
 
     // 有surface但不是toplevel并且也没有上层toplevel

@@ -3,9 +3,12 @@
 #include <LToplevelRole.h>
 #include <memory>
 
+#include "LEvent.h"
 #include "src/lib/client/render/SSD.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/output/Output.hpp"
+
+#include <LToplevelResizeSession.h>
 
 using namespace Louvre;
 
@@ -36,7 +39,10 @@ namespace tiley{
             Output* output = nullptr;
             void atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev) override;
             void configureRequest() override;
+
             void startMoveRequest(const LEvent& triggeringEvent) override;
+            void startResizeRequest(const LEvent& triggeringEvent, LBitset<LEdge> edge) override;
+
             bool hasSizeRestrictions();
             
             void assignToplevelType();

@@ -1,4 +1,6 @@
 #include "TileyWindowStateManager.hpp"
+#include "LBitset.h"
+#include "LEdge.h"
 #include "LSurface.h"
 #include "LToplevelMoveSession.h"
 #include "LToplevelRole.h"
@@ -16,6 +18,7 @@
 #include <LOutput.h>
 #include <LScene.h>
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
@@ -221,7 +224,7 @@ bool TileyWindowStateManager::attachTile(LToplevelRole* window){
         return false;
     }
 
-    bool inserted = insertTile(DEFAULT_WORKSPACE, windowToAttach->container, 0.5);
+    bool inserted = insertTile(CURRENT_WORKSPACE, windowToAttach->container, 0.5);
     if(inserted){
         windowToAttach->container->floating_reason = NONE;
     }
@@ -235,7 +238,7 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
     Container* result = nullptr;
 
-    if(window == nullptr){
+    if(!window){
         LLog::log("要移除的窗口为空, 停止移除");
         return nullptr;
     }
@@ -308,7 +311,151 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
 }
 
+// 这是你的 resizeTile 的最终形态
+bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
+
+    // 计算机坐标系从屏幕左上角开始向右为x正方向, 向下为y正方向。在平铺式管理器中, 我们遵循一条法则:
+    // 调整该窗口所在容器A的分割比例和其祖父容器B(A的父容器)的分割比例即可。(Hyprland的行为)
+    // 例如现在有如下容器树(H=horizontal, 横向分割; V=vertical, 纵向分割):
+    //       root
+    //        |
+    //        H
+    //       / \
+    //      1   V
+    //         / \
+    //        2   3
+    // 如果我们调整窗口2的大小, 则会调整V的纵向分割比例和H的横向分割比例; 调整3同理;
+    // 如果我们调整窗口1的大小, 则会调整H的横向分割比例, 但由于其祖父容器为桌面, 就只能调整横向分割比例了。
+    // 此外, 如果有更多层:
+    //       root
+    //        |
+    //        H1
+    //       / \
+    //      1   V
+    //         / \
+    //        2   H2
+    //           /  \
+    //          3    4
+    // 此时调整4的大小, 只会影响到H2和V的比例, 而不会影响H1的比例, 调整3同理。
+    bool resized = false;
+    LPointF mouseDelta = cursorPos - initialCursorPos;
+
+    // 如果有水平目标，根据鼠标水平移动量调整
+    if (resizingHorizontalTarget) {
+        double totalWidth = resizingHorizontalTarget->geometry.w();
+        if (totalWidth >= 1) {
+            double ratioDelta = mouseDelta.x() / totalWidth;
+            double newRatio = initialHorizontalRatio + ratioDelta;
+            resizingHorizontalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
+            resized = true;
+        }
+    }
+
+    // 如果有垂直目标，根据鼠标垂直移动量调整
+    if (resizingVerticalTarget) {
+        double totalHeight = resizingVerticalTarget->geometry.h();
+        if (totalHeight >= 1) {
+            double ratioDelta = mouseDelta.y() / totalHeight;
+            double newRatio = initialVerticalRatio + ratioDelta;
+            resizingVerticalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
+            resized = true;
+        }
+    }
+
+    if (resized) {
+        LLog::log("成功调整容器分割比例");
+        return true;
+    }
+    return false;
+}
+
+
+
+// // TODO: 移除workspace参数, 自动寻找窗口所在工作区
+// bool TileyWindowStateManager::resizeTile(LToplevelRole* window, LBitset<LEdge> edges, LPointF cursorPos){ 
+
+
+//     if (!window) return false;
+//     ToplevelRole* targetWindow = static_cast<ToplevelRole*>(window);
+//     Container* container = targetWindow->container;
+//     if (!container || container->floating_reason != NONE || !container->parent || !container->parent->child2) {
+//         LLog::log("调整大小失败：前置条件不满足。");
+//         return false;
+//     }
+
+//     // --- 2. 核心逻辑：双目标向上追溯 ---
+//     Container* horizontalTarget = nullptr;
+//     Container* verticalTarget = nullptr;
+//     Container* current = container;
+    
+//     bool isHorizontalDrag = edges.check(LEdgeLeft) || edges.check(LEdgeRight);
+//     bool isVerticalDrag = edges.check(LEdgeTop) || edges.check(LEdgeBottom);
+
+//     // 向上遍历，直到找到所有可能的目标或到达根节点
+//     while (current->parent && current->parent != workspaceRoots[CURRENT_WORKSPACE])
+//     {
+//         Container* parent = current->parent;
+
+//         // 检查水平方向，如果需要且尚未找到
+//         if (isHorizontalDrag && !horizontalTarget && parent->splitType == SPLIT_H) {
+//             horizontalTarget = parent;
+//         }
+        
+//         // 检查垂直方向，如果需要且尚未找到
+//         if (isVerticalDrag && !verticalTarget && parent->splitType == SPLIT_V) {
+//             verticalTarget = parent;
+//         }
+
+//         // 如果两个目标都找到了，就可以提前结束循环
+//         if ((!isHorizontalDrag || horizontalTarget) && (!isVerticalDrag || verticalTarget)) {
+//             break;
+//         }
+
+//         current = parent;
+//     }
+
+//     // --- 3. 分别计算并应用两个方向的分割比例 ---
+//     bool resized = false;
+
+//     // 如果找到了水平目标，就调整它
+//     if (horizontalTarget) {
+//         double totalWidth = horizontalTarget->geometry.w();
+//         if (totalWidth >= 1) {
+//             double offset = cursorPos.x() - horizontalTarget->geometry.x() - grabPos.x();
+//             double newRatio = offset / totalWidth;
+//             horizontalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
+//             resized = true;
+//         }
+//     } 
+    
+//     // 如果找到了垂直目标，也调整它 (注意：这里是 if，不是 else if)
+//     if (verticalTarget) {
+//         double totalHeight = verticalTarget->geometry.h();
+//         if (totalHeight >= 1) {
+//             double offset = cursorPos.y() - verticalTarget->geometry.y() - grabPos.y();
+//             double newRatio = offset / totalHeight;
+//             verticalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
+//             resized = true;
+//         }
+//     }
+
+//     if (resized) {
+//         LLog::log("成功调整布局。H-Target: %p, V-Target: %p", horizontalTarget, verticalTarget);
+//         return true;
+//     }
+
+//     LLog::log("调整大小失败：找不到任何匹配的父容器。");
+//     return false;
+
+// }
+
 void TileyWindowStateManager::printContainerHierachy(UInt32 workspace){
+
+    if(workspace < 0 || workspace >= WORKSPACES){
+        LLog::log("目标工作区超出范围: 工作区%d, 停止打印容器树", workspace);
+        return;
+    }
+
     LLog::log("***************打印容器树***************");
     auto current = workspaceRoots[workspace];
     _printContainerHierachy(current);
@@ -385,7 +532,7 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
         case NORMAL:{
             LLog::log("显示了一个普通窗口。surface地址: %d, 层次: %d", surface, surface->layer());
             Container* newContainer = new Container(window);
-            insertTile(DEFAULT_WORKSPACE, newContainer, 0.5);
+            insertTile(CURRENT_WORKSPACE, newContainer, 0.5);
             reapplyWindowState(window);
             container = newContainer;
             break;
@@ -589,6 +736,8 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         return;
     }
 
+    container->geometry = areaRemain;
+
     // 1. 判断我是窗口(叶子)还是分割容器
     if(container->window){
         LLog::log("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
@@ -599,6 +748,7 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         if(surface->mapped()){
             surface->setPos(areaRemain.x(), areaRemain.y());
             container->window->configureSize(areaRemain.w(), areaRemain.h());
+            compositor()->repaintAllOutputs();
         }
 
         accumulateCount += 1;
@@ -606,7 +756,7 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
     }else if(!container->window){
         LRect area1, area2;
         // 横向分割
-        LLog::log("我是分割容器, 我的分割是: %d, 比例是: %f", container->splitType, container->splitRatio);
+        LLog::log("我是分割容器, 我的分割是: %d, 比例是: %f, 尺寸是: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
         if(container->splitType == SPLIT_H){
             Int32 child1Width = (Int32)(areaRemain.width() * (container->splitRatio));
             Int32 child2Width = (Int32)(areaRemain.width() * (1 - container->splitRatio));
@@ -704,6 +854,39 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
     return root;
 
 };
+
+
+void TileyWindowStateManager::setupResizeSession(LToplevelRole* window, LBitset<LEdge> edges, const LPointF& cursorPos)
+{
+    // 清空旧的上下文
+    resizingHorizontalTarget = nullptr;
+    resizingVerticalTarget = nullptr;
+    initialCursorPos = cursorPos;
+
+    Container* container = static_cast<ToplevelRole*>(window)->container;
+    if (!container || !container->parent) return;
+
+    Container* current = container;
+    bool needsHorizontal = edges.check(LEdgeLeft) || edges.check(LEdgeRight);
+    bool needsVertical = edges.check(LEdgeTop) || edges.check(LEdgeBottom);
+
+    while (current->parent && current->parent != workspaceRoots[CURRENT_WORKSPACE])
+    {
+        Container* parent = current->parent;
+        if (needsHorizontal && !resizingHorizontalTarget && parent->splitType == SPLIT_H) {
+            resizingHorizontalTarget = parent;
+            initialHorizontalRatio = parent->splitRatio; // 记录初始比例
+        }
+        if (needsVertical && !resizingVerticalTarget && parent->splitType == SPLIT_V) {
+            resizingVerticalTarget = parent;
+            initialVerticalRatio = parent->splitRatio; // 记录初始比例
+        }
+        if ((!needsHorizontal || resizingHorizontalTarget) && (!needsVertical || resizingVerticalTarget)) {
+            break;
+        }
+        current = parent;
+    }
+}
 
 
 bool TileyWindowStateManager::isTiledWindow(ToplevelRole* window){
