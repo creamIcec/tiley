@@ -1,5 +1,5 @@
 tiley_sources = files(
-    'tiley_louvre.cpp'
+    'tiley.cpp'
 )
 
 #subdir('events')

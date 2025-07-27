@@ -10,7 +10,6 @@ lib_sources = files(
     'output/Output.cpp',
     'scene/Scene.cpp',
     'surface/Surface.cpp',
-    'interact/interact.cpp',
     'core/Container.cpp',
     'core/UserAction.cpp'
 )

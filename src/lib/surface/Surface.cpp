@@ -46,7 +46,7 @@ Surface::Surface(const void *params) : LSurface(params) {
 // 获取要操作的view的方法
 // 对于正在平铺的窗口, 返回包装器; 对于目前没有平铺的窗口或其他任意角色, 返回view本身
 LView* Surface::getView() noexcept{
-    
+
     if(tl() && tl()->container && TileyWindowStateManager::getInstance().isTiledWindow(tl())){
         return tl()->container->getContainerView();
     }else{
@@ -164,6 +164,7 @@ void Surface::mappingChanged(){
             manager.setActiveContainer(tiledContainer);
             LLog::debug("设置上一个活动容器为新打开的窗口容器");
             // 重新计算布局
+            manager.reapplyWindowState(tl());
             manager.recalculate();
         }
 
