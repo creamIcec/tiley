@@ -95,13 +95,13 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
         if(changes.check(WindowGeometryChanged)){
             // 调试: 打印窗口大小信息
             // printWindowAreaInfo(surface->toplevel());
-        }   
+        }
 
         ToplevelRole* window = surface->tl();
 
         if(!manager.isTiledWindow(window)){
             // 如果现在鼠标所在位置不是平铺窗口, 则不改变状态
-            LLog::log("鼠标位置不是平铺窗口, 不更新活动容器");
+            LLog::debug("鼠标位置不是平铺窗口, 不更新活动容器");
             return;
         }
 

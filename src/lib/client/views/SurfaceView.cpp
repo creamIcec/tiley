@@ -15,7 +15,11 @@ using namespace tiley;
 // 在orderChanged里面又要对view进行排序。所以我们必须在orderChanged前(甚至所有surface相关提交操作之前)就把父级关系设置好
 
 SurfaceView::SurfaceView(Surface* surface) noexcept : 
-LSurfaceView((LSurface*) surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){}
+LSurfaceView((LSurface*) surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){
+
+    this->setColorFactor({1.0,1.0,1.0,0.9});
+
+}
 
 void SurfaceView::pointerButtonEvent(const LPointerButtonEvent &event){
 

@@ -203,6 +203,7 @@ Container* TileyWindowStateManager::detachTile(LToplevelRole* window, FLOATING_R
     containerToDetach->parent = nullptr; // 断开连接，好习惯
     containerToDetach->floating_reason = reason;
     delete parent; // 删除旧的分割容器
+    parent = nullptr;
 
     // 窗口 -1, 分割容器 -1
     containerCount -= 2;
@@ -277,6 +278,7 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
         }
 
         delete containerToRemove;
+        containerToRemove = nullptr;
 
         // 窗口 -1
         containerCount -= 1;
@@ -304,6 +306,8 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
     containerToRemove->parent = nullptr; // 断开连接，好习惯
     delete parent; // 删除旧的分割容器
     delete containerToRemove; // 删除被关闭窗口的容器
+    parent = nullptr;
+    containerToRemove = nullptr;
 
     // 窗口 -1, 分割容器 -1
     containerCount -= 2;
@@ -364,7 +368,7 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
     }
 
     if (resized) {
-        LLog::log("成功调整容器分割比例");
+        LLog::debug("成功调整容器分割比例");
         return true;
     }
     return false;
@@ -686,12 +690,22 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
     if(container->window){
         LLog::debug("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
         // 我是窗口
-        // TODO: 心跳检测
+        
         // 2. 如果我是窗口, 获取areaRemain, 分别调整surface大小/位置
+        
         Surface* surface = static_cast<Surface*>(container->window->surface());
         
+        // TODO: 心跳检测逻辑问题
+        /*
+        ToplevelRole* toplevel = static_cast<ToplevelRole*>(container->window);
+        if (toplevel->pendingConfiguration().serial != 0 &&
+            toplevel->serial() != toplevel->pendingConfiguration().serial){
+            LLog::debug("客户端仍在处理序列号 %u, 本次跳过配置", toplevel->pendingConfiguration().serial);
+            return;
+        }
+        */
+        
         if(surface->mapped()){
-
             // 窗口空隙实现
             const LRect& areaWithGaps = areaRemain;
 
@@ -706,10 +720,11 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
             if (areaForWindow.w() < 50) areaForWindow.setW(50);
             if (areaForWindow.h() < 50) areaForWindow.setH(50);
 
+            // 3. 显示部分调整为“内部区域”
             container->containerView->setPos(areaForWindow.pos());
             container->containerView->setSize(areaForWindow.size());
 
-            // 4. 请求客户端也调整为“内部区域”的大小
+            // 3. 请求客户端也调整为“内部区域”
             surface->setPos(areaRemain.pos());
             container->window->configureSize(areaForWindow.size());
             container->window->setExtraGeometry({GAP, GAP, GAP, GAP});
@@ -717,7 +732,6 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
             LLog::debug("containerView的children数量: %zu", container->containerView->children().size());
             SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
 
-            // 设置容器的子SurfaceView位置为相对父级的(0,0), 只enableCustomPos的话, 默认是(0,0)
             const LRect& windowGeometry = container->window->windowGeometry();
 
             // 如果窗口不支持服务端装饰, 并且windowGeometry有偏移(确实画了客户端装饰)

@@ -68,8 +68,10 @@ int main(int argc, char* argv[]){
         return EXIT_FAILURE;
     }
 
-    Louvre::LLauncher::launch(std::string("/bin/sh -c ").append(args.startupCMD));
-
+    if(args.startupCMD){
+        Louvre::LLauncher::launch(std::string("/bin/sh -c ").append(args.startupCMD));
+    }
+    
     //***************启动****************
     // 主循环
     while(compositor.state() != LCompositor::Uninitialized){

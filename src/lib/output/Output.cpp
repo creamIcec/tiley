@@ -200,7 +200,7 @@ void Output::updateWallpaper(){
 
     // 在这里修改壁纸路径
     path wallpaperRootPath("/home/iriseplos/tiley-data/wallpaper");
-    path wallpaperPath = wallpaperRootPath / "neon.jpeg";
+    path wallpaperPath = wallpaperRootPath / "tokyo-night.jpeg";
 
     LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
 
