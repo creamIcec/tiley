@@ -8,7 +8,10 @@
 #include <LLog.h>
 
 #include "LKeyboard.h"
+#include "LNamespaces.h"
+#include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
+#include "src/lib/core/UserAction.hpp"
 #include "src/lib/surface/Surface.hpp"
 
 using namespace tiley;
@@ -18,8 +21,11 @@ void Keyboard::keyEvent(const LKeyboardKeyEvent& event){
     // 首先判断是不是合成器指令
 
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
+    TileyServer& server = TileyServer::getInstance();
 
-    if(isModActive(XKB_VMOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE)){
+    server.is_compositor_modifier_down = isModActive(XKB_VMOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE);
+
+    if(server.is_compositor_modifier_down){
          // Alt + 空格 = 浮动窗口
          if(isKeyCodePressed(KEY_SPACE)){
             LLog::log("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
@@ -35,6 +41,11 @@ void Keyboard::keyEvent(const LKeyboardKeyEvent& event){
                 }
             }
          }
+    }else{
+        // 释放所有正在进行的移动窗口或者调整窗口大小的操作
+        // TODO: 迁移到eventFilter, 比键盘/鼠标更加靠前, 是最先处理的。避免在键盘和鼠标事件中都编写处理逻辑
+        stopResizeSession(true);
+        stopMoveSession(true);
     }
 
     LKeyboard::keyEvent(event);

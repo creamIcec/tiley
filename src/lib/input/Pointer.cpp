@@ -4,6 +4,7 @@
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
+#include "src/lib/core/UserAction.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/core/Container.hpp"
@@ -98,10 +99,7 @@ void Pointer::pointerButtonEvent(const LPointerButtonEvent& event){
 
     // 如果存在键盘
     if(seat()->keyboard()){
-        // 如果alt被按下 TODO: 分成嵌套运行和tty运行两种情况, 嵌套运行下主要用于调试, 使用alt键; tty运行使用super键
-        if(seat()->keyboard()->isModActive(XKB_VMOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE)){
-            compositorProceed = processCompositorKeybind(event);
-        }
+        compositorProceed = processCompositorKeybind(event);
     }
 
     // 如果合成器处理了按键, 则不继续处理(不发给客户端, 不进行其他处理等等)
@@ -307,11 +305,15 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
 
     // 调整窗口大小
     bool isResizingWindow = !seat()->toplevelResizeSessions().empty();
+    // 如果alt被按下 TODO: 分成嵌套运行和tty运行两种情况, 嵌套运行下主要用于调试, 使用alt键; tty运行使用super键
+    bool isModifierPressedDown = TileyServer::getInstance().is_compositor_modifier_down;
 
     // 如果是右键+按下+之前没有调整窗口
     if(event.button() == Louvre::LPointerButtonEvent::Right &&
        event.state() == Louvre::LPointerButtonEvent::Pressed &&
+       isModifierPressedDown &&
        !isResizingWindow){
+        LLog::log("调整窗口大小...");
         const LPoint &mousePos = cursor()->pos(); // 鼠标在屏幕上的绝对位置
         const LPoint &winPos = window->surface()->pos(); // 窗口在屏幕上的绝对位置
         const LSize &winSize = window->surface()->size(); // 窗口的大小
@@ -356,14 +358,8 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
     if(event.button() == Louvre::LPointerButtonEvent::Right &&
        event.state() == Louvre::LPointerButtonEvent::Released &&
        isResizingWindow){
-        for (auto it = seat()->toplevelResizeSessions().begin(); it != seat()->toplevelResizeSessions().end();){
-            if ((*it)->triggeringEvent().type() != LEvent::Type::Touch){
-                it = (*it)->stop();
-            }else{
-                it++;
-            }
-        }
-
+        LLog::log("停止调整窗口大小...");
+        stopResizeSession(true);
         return true;
     }
 
@@ -373,8 +369,10 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
     // 如果是左键+按下+之前没有移动窗口
     if(event.button() == Louvre::LPointerButtonEvent::Left &&
         event.state() == Louvre::LPointerButtonEvent::Pressed &&
+        isModifierPressedDown &&
         !isMovingWindow){
         
+        LLog::log("移动窗口");
         // 对所有类型的窗口的处理
         window->startMoveRequest(event);
 
@@ -401,23 +399,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
        event.state() == Louvre::LPointerButtonEvent::Released &&
        isMovingWindow){
 
-        for (auto it = seat()->toplevelMoveSessions().begin(); it != seat()->toplevelMoveSessions().end();){
-            if ((*it)->triggeringEvent().type() != LEvent::Type::Touch){it = (*it)->stop();}
-            else{it++;}
-        }
-
-        // 下面是平铺层的处理: 如果是正常窗口, 并且没有被堆叠
-        if(window->type == NORMAL && !manager.isStackedWindow(window)){
-            // 插入管理器
-            bool attached = manager.attachTile(window);
-            // TODO: 允许跨屏幕插入
-            if(attached){
-                // 如果插入成功, 重新组织并重新布局
-                manager.reapplyWindowState(window);
-                manager.recalculate();
-            }
-        }
-
+        stopMoveSession(true);
         return true;
             
     }
@@ -548,9 +530,12 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         // 如果不是由触摸触发的(为什么? 触摸不是同理?)
         if (session->triggeringEvent().type() != LEvent::Type::Touch)
         {
+            
+            if(!TileyServer::getInstance().is_compositor_modifier_down){
+                break;
+            }
 
-            // TODO: 可能迁移到Louvre内置的回调方法(下方)。这个方法会在session更新之前触发。
-            //session->setOnBeforeUpdateCallback()
+            activeResizing = true;
 
             // 对平铺层的处理
             ToplevelRole* targetWindow = static_cast<ToplevelRole*>(session->toplevel());
@@ -566,7 +551,6 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
                 }
             }else{
                 // 不是平铺层的, 直接更新调整的位置
-                activeResizing = true;
                 session->updateDragPoint(cursor()->pos());
             }
             
@@ -587,6 +571,11 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         // 如果不是由触摸触发的(看来作者不想处理触摸事件?)
         if (session->triggeringEvent().type() != LEvent::Type::Touch)
         {
+
+            if(!TileyServer::getInstance().is_compositor_modifier_down){
+                break;
+            }
+
             // 更新拖拽窗口的位置
             activeMoving = true;
             session->updateDragPoint(cursor()->pos());

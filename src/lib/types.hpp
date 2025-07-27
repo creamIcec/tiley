@@ -10,6 +10,13 @@ namespace tiley{
 }
 
 namespace tiley{
+
+    // 启动参数。和wlroots时期相同
+    struct LaunchArgs{
+        bool enableDebug;  // 启用调试。设置为true则打印各种非错误调试信息, false则只打印错误
+        char* startupCMD;  // 启动时要运行的linux指令
+    };
+
     // 顺序: 从底层到顶层, 不能随意改变哦
     enum TILEY_LAYERS{
         BACKGROUND_LAYER,    //背景层。没有任何东西显示时显示的层, 例如壁纸、纯色填充等等

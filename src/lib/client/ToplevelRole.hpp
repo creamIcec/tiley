@@ -31,6 +31,8 @@ namespace tiley{
         public:
             using LToplevelRole::LToplevelRole;
 
+            ToplevelRole(const void *params) noexcept;
+
             // 双向指针其一: Surface(Role=Toplevel) -> NodeContainer
             Container* container;
             // 一个窗口的自定义类型。默认是正常窗口。类型见TOPLEVEL_TYPE
@@ -46,5 +48,8 @@ namespace tiley{
             bool hasSizeRestrictions();
             
             void assignToplevelType();
+
+            // 调试: 打印windowGeometry和window的surface的区域信息
+            void printWindowAreaInfo(LToplevelRole* toplevel);
     };
 }

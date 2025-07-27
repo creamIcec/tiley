@@ -428,6 +428,11 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
 
     Surface* surface = static_cast<Surface*>(window->surface());
 
+    LLog::log("添加窗口, surface位置: (%d,%d)", surface->pos().x(), surface->pos().y());
+    for(LSurface* surf : surface->children()){
+        LLog::log("子surface位置: (%d,%d)", surf->pos().x(), surf->pos().y());
+    }
+
     // 获取屏幕显示区域
     Output* activeOutput = ((Output*)cursor()->output());
     const LRect& availableGeometry = activeOutput->availableGeometry();
@@ -674,6 +679,9 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
 
     container->geometry = areaRemain;
 
+    // 间隔大小
+    const Int32 GAP = 5;
+
     // 1. 判断我是窗口(叶子)还是分割容器
     if(container->window){
         LLog::log("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
@@ -683,17 +691,40 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         Surface* surface = static_cast<Surface*>(container->window->surface());
         
         if(surface->mapped()){
-            
-            surface->setPos(areaRemain.x(), areaRemain.y());
-            container->window->configureSize(areaRemain.w(), areaRemain.h());
 
-            // 配置容器的大小, 位置
-            container->containerView.get()->setPos(areaRemain.x(), areaRemain.y());
-            container->containerView.get()->setSize(areaRemain.width(), areaRemain.height());
+            // 窗口空隙实现
+            const LRect& areaWithGaps = areaRemain;
+
+            LRect areaForWindow = {
+                areaWithGaps.x() + GAP,
+                areaWithGaps.y() + GAP,
+                areaWithGaps.w() - GAP * 2,
+                areaWithGaps.h() - GAP * 2
+            };
+
+            // 如果窗口太小, 就不留空隙了, 避免负数宽高
+            if (areaForWindow.w() < 50) areaForWindow.setW(50);
+            if (areaForWindow.h() < 50) areaForWindow.setH(50);
+
+            container->containerView->setPos(areaForWindow.pos());
+            container->containerView->setSize(areaForWindow.size());
+
+            // 4. 请求客户端也调整为“内部区域”的大小
+            surface->setPos(areaRemain.pos());
+            container->window->configureSize(areaForWindow.size());
+            container->window->setExtraGeometry({GAP, GAP, GAP, GAP});
             
+            LLog::log("containerView的children数量: %zu", container->containerView->children().size());
             SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
-            // 设置容器的子SurfaceView位置为相对父级的(0,0)
-            surfaceView->setCustomPos(0,0);
+
+            // 设置容器的子SurfaceView位置为相对父级的(0,0), 只enableCustomPos的话, 默认是(0,0)
+            const LRect& windowGeometry = container->window->windowGeometry();
+
+            // 如果窗口不支持服务端装饰, 并且windowGeometry有偏移(确实画了客户端装饰)
+            if(!container->window->supportServerSideDecorations() && (windowGeometry.x() > 0 || windowGeometry.y() > 0)){
+                // 则说明它大概率会无论如何都要画自己的装饰, 我们移动customPos, 将装饰部分移动到外边(不影响布局的位置)
+                surfaceView->setCustomPos(-windowGeometry.x(), -windowGeometry.y());
+            }
 
             compositor()->repaintAllOutputs();
         }
@@ -701,18 +732,19 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         accumulateCount += 1;
     // 3. 如果我是分割容器
     }else if(!container->window){
+
         LRect area1, area2;
         // 横向分割
         LLog::log("我是分割容器, 我的分割是: %d, 比例是: %f, 尺寸是: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
         if(container->splitType == SPLIT_H){
             Int32 child1Width = (Int32)(areaRemain.width() * (container->splitRatio));
-            Int32 child2Width = (Int32)(areaRemain.width() * (1 - container->splitRatio));
+            Int32 child2Width = (Int32)(areaRemain.width() - child1Width);
             // TODO: 浮点数误差
             area1 = {areaRemain.x(),areaRemain.y(),child1Width,areaRemain.height()};
             area2 = {areaRemain.x() + child1Width, areaRemain.y(), child2Width, areaRemain.height()};
         }else if(container->splitType == SPLIT_V){
             Int32 child1Height = (Int32)(areaRemain.height() * (container->splitRatio));
-            Int32 child2Height = (Int32)(areaRemain.height() * (1 - container->splitRatio));
+            Int32 child2Height = (Int32)(areaRemain.height() - child1Height);
             area1 = {areaRemain.x(),areaRemain.y(), areaRemain.width(), child1Height};
             area2 = {areaRemain.x(),areaRemain.y() + child1Height,areaRemain.width(), child2Height};
         }

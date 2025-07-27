@@ -177,7 +177,6 @@ void Surface::mappingChanged(){
             if(removedContainer != nullptr){
                 // 重新布局
                 manager.recalculate();
-                // 设置活动容器为鼠标新的聚焦
             }
         }
 

@@ -202,8 +202,9 @@ void Output::updateWallpaper(){
 
     using std::filesystem::path;
 
+    // 在这里修改壁纸路径
     path wallpaperRootPath("/home/iriseplos/tiley-data/wallpaper");
-    path wallpaperPath = wallpaperRootPath / "visualbg_station.png";
+    path wallpaperPath = wallpaperRootPath / "neon.jpeg";
 
     LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
 

@@ -12,7 +12,7 @@ lib_sources = files(
     'surface/Surface.cpp',
     'interact/interact.cpp',
     'core/Container.cpp',
-    
+    'core/UserAction.cpp'
 )
 
 dep_sources = lib_sources + client_sources

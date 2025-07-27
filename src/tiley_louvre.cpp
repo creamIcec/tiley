@@ -4,7 +4,44 @@
 #include "src/lib/TileyCompositor.hpp"
 #include <cstdlib>
 
-int main(){
+#include <getopt.h>
+
+#include "src/lib/types.hpp"
+
+// 设置启动参数, 具体含义在LaunchArgs结构体中说明
+tiley::LaunchArgs setupParams(int argc, char* argv[]){
+
+    tiley::LaunchArgs args = {false, nullptr};
+    
+    int c;
+
+    // https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
+    struct option longopts[] = {
+        {"debug", no_argument, NULL, 'd'},
+        {"start", required_argument, NULL, 's'},
+        {0,0,0,0}
+    };
+
+    while((c = getopt_long(argc, argv, "ds:", longopts, NULL)) != -1){
+        switch(c){
+            case 'd':
+                args.enableDebug = true;
+                break;
+            case 's':
+                args.startupCMD = optarg;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return args;
+}
+
+int main(int argc, char* argv[]){
+
+    tiley::LaunchArgs args = setupParams(argc, argv);
+
     // 启用Louvre的调试输出
     setenv("LOUVRE_DEBUG", "1", 0);
     // 启用SRM的调试输出
@@ -18,6 +55,7 @@ int main(){
     // 特殊: 启用GDK的WAYLAND支持
     setenv("GDK_BACKEND", "wayland", 1);
 
+    // TODO: 怎么获得自己是几号?
     setenv("LOUVRE_WAYLAND_DISPLAY", "wayland-2", 0);
 
     Louvre::LLauncher::startDaemon();
@@ -28,6 +66,8 @@ int main(){
         LLog::fatal("启动合成器失败。");
         return EXIT_FAILURE;
     }
+
+    Louvre::LLauncher::launch(std::string("/bin/sh -c ").append(args.startupCMD));
 
     //***************启动****************
     // 主循环

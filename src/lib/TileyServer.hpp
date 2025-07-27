@@ -27,6 +27,9 @@ namespace tiley{
 
             static TileyServer& getInstance();
 
+            // 记录是否合成器修饰键被按下
+            bool is_compositor_modifier_down = false;
+
         private:
             struct ServerDeleter {
                 void operator()(TileyServer* p) const {

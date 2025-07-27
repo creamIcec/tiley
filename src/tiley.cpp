@@ -15,7 +15,7 @@
 #define PROJECT_NAME "tiley"
 
 // 处理启动参数。
-launch_args setup_params(int argc, char* argv[]){
+launch_args setupParams(int argc, char* argv[]){
 
     launch_args args = {false, nullptr};
     
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
         都使用WLR_DEBUG这个等级。这样便可以通过设置"--debug"参数一键切换是否输出这些日志, 避免了手动删除打印代码;
         --start, -s: 指定启动时要运行的程序。注意: 某些程序可能不能在嵌套模式(即Tiley运行在其他Compositor之下)下运行, 如果需要验证, 请切换至tty运行Tiley。
     */
-    launch_args args = setup_params(argc, argv);
+    launch_args args = setupParams(argc, argv);
 
     wlr_log_init(args.enable_debug ? WLR_DEBUG : WLR_INFO, NULL);
 

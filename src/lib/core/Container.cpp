@@ -61,13 +61,15 @@ void Container::enableContainerView(bool enable){
         containerView->setVisible(false);
         // 关闭自定义位置, 恢复默认逻辑, surface控制位置
         surface->view->enableCustomPos(false);
+
     }else if(enable){
         // 否则启用
         surface->view->setParent(containerView.get());
         containerView->setVisible(true);
         // 启用自定义位置, 全权交给我们的containerView控制位置
         surface->view->enableCustomPos(true);
-        surface->view->setCustomPos(0,0);
+        //surface->view->setCustomPos(0,0);
+
         enableContainerFeatures();
     }
 
