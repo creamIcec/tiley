@@ -11,11 +11,13 @@
 #include <LRegion.h>
 #include <LOpenGL.h>
 #include <LCursor.h>
+#include <variant>
 
 #include "LContentType.h"
 #include "LLog.h"
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 
@@ -104,6 +106,7 @@ void Output::paintGL(){
     // 注意: 在这里传入this, 是指当前屏幕。在Louvre中, 每个屏幕都是一个对象, 因此我们需要让scene知道现在的屏幕是哪个
     // TODO: 在scene中判断屏幕, 分配不同的容器树根节点
     server.scene().handlePaintGL(this);
+
     for(LScreenshotRequest * req : screenshotRequests()){
         req->accept(true);
     }

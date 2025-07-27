@@ -62,6 +62,27 @@ void ToplevelRole::configureRequest(){
     configureDecorationMode(ServerSide);
     configureCapabilities(WindowMenuCap | FullscreenCap | MaximizeCap | MinimizeCap);
 
+    /*
+        ToplevelRole* gimpWindow = nullptr;
+
+        // 测试最大化CSD窗口, 以GIMP为例
+        for(LSurface* lSurface : compositor()->surfaces()){
+            if(lSurface->toplevel()){
+                if(lSurface->toplevel()->appId().find("gimp") != std::variant_npos){
+                    gimpWindow = static_cast<Surface*>(lSurface)->tl();
+                    LLog::log("发现GIMP窗口");
+                    break;
+                }
+            }
+        }
+
+        if(gimpWindow){
+            const LRect& tileGeometry = gimpWindow->container->getGeometry();
+            const LSize& actualSurfaceSize = gimpWindow->surface()->size();
+            
+        }
+    */
+
     LLog::log("客户端偏好: %d", preferredDecorationMode());
 
 }

@@ -5,6 +5,7 @@
 #include "LToplevelMoveSession.h"
 #include "LToplevelRole.h"
 #include "src/lib/client/ToplevelRole.hpp"
+#include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
@@ -369,86 +370,6 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
     return false;
 }
 
-
-
-// // TODO: 移除workspace参数, 自动寻找窗口所在工作区
-// bool TileyWindowStateManager::resizeTile(LToplevelRole* window, LBitset<LEdge> edges, LPointF cursorPos){ 
-
-
-//     if (!window) return false;
-//     ToplevelRole* targetWindow = static_cast<ToplevelRole*>(window);
-//     Container* container = targetWindow->container;
-//     if (!container || container->floating_reason != NONE || !container->parent || !container->parent->child2) {
-//         LLog::log("调整大小失败：前置条件不满足。");
-//         return false;
-//     }
-
-//     // --- 2. 核心逻辑：双目标向上追溯 ---
-//     Container* horizontalTarget = nullptr;
-//     Container* verticalTarget = nullptr;
-//     Container* current = container;
-    
-//     bool isHorizontalDrag = edges.check(LEdgeLeft) || edges.check(LEdgeRight);
-//     bool isVerticalDrag = edges.check(LEdgeTop) || edges.check(LEdgeBottom);
-
-//     // 向上遍历，直到找到所有可能的目标或到达根节点
-//     while (current->parent && current->parent != workspaceRoots[CURRENT_WORKSPACE])
-//     {
-//         Container* parent = current->parent;
-
-//         // 检查水平方向，如果需要且尚未找到
-//         if (isHorizontalDrag && !horizontalTarget && parent->splitType == SPLIT_H) {
-//             horizontalTarget = parent;
-//         }
-        
-//         // 检查垂直方向，如果需要且尚未找到
-//         if (isVerticalDrag && !verticalTarget && parent->splitType == SPLIT_V) {
-//             verticalTarget = parent;
-//         }
-
-//         // 如果两个目标都找到了，就可以提前结束循环
-//         if ((!isHorizontalDrag || horizontalTarget) && (!isVerticalDrag || verticalTarget)) {
-//             break;
-//         }
-
-//         current = parent;
-//     }
-
-//     // --- 3. 分别计算并应用两个方向的分割比例 ---
-//     bool resized = false;
-
-//     // 如果找到了水平目标，就调整它
-//     if (horizontalTarget) {
-//         double totalWidth = horizontalTarget->geometry.w();
-//         if (totalWidth >= 1) {
-//             double offset = cursorPos.x() - horizontalTarget->geometry.x() - grabPos.x();
-//             double newRatio = offset / totalWidth;
-//             horizontalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
-//             resized = true;
-//         }
-//     } 
-    
-//     // 如果找到了垂直目标，也调整它 (注意：这里是 if，不是 else if)
-//     if (verticalTarget) {
-//         double totalHeight = verticalTarget->geometry.h();
-//         if (totalHeight >= 1) {
-//             double offset = cursorPos.y() - verticalTarget->geometry.y() - grabPos.y();
-//             double newRatio = offset / totalHeight;
-//             verticalTarget->splitRatio = std::min(0.95, std::max(0.05, newRatio));
-//             resized = true;
-//         }
-//     }
-
-//     if (resized) {
-//         LLog::log("成功调整布局。H-Target: %p, V-Target: %p", horizontalTarget, verticalTarget);
-//         return true;
-//     }
-
-//     LLog::log("调整大小失败：找不到任何匹配的父容器。");
-//     return false;
-
-// }
-
 void TileyWindowStateManager::printContainerHierachy(UInt32 workspace){
 
     if(workspace < 0 || workspace >= WORKSPACES){
@@ -567,7 +488,7 @@ bool TileyWindowStateManager::removeWindow(ToplevelRole* window, Container*& con
     return false;
 }
 
-// 插入窗口时被调用, 配置该窗口的全局状态(显示层次、激活状态等等)
+// 改变平铺布局后调用, 配置该窗口的全局状态(显示层次、激活状态等等)
 bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
     
     Surface* surface = static_cast<Surface*>(window->surface());
@@ -577,16 +498,31 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
         return false;
     }
 
-    if(window->type == RESTRICTED_SIZE || 
-       window->type == FLOATING || 
-       window->container->floating_reason == STACKING){
-        
+    if(window->type == RESTRICTED_SIZE || window->type == FLOATING){
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
             surface->topmostParent()->raise();
         }else{
             surface->raise();
         }
-
+    }else if(window->container->floating_reason == STACKING){
+        LLog::log("堆叠窗口: 禁用containerView");
+        window->container->enableContainerView(false);
+        if(surface->topmostParent() && surface->topmostParent()->toplevel()){
+            surface->topmostParent()->raise();
+        }else{
+            surface->raise();
+        }
+    }else if(window->container->floating_reason == MOVING){
+        LLog::log("移动窗口: 暂时禁用containerView");
+        window->container->enableContainerView(false);
+        if(surface->topmostParent() && surface->topmostParent()->toplevel()){
+            surface->topmostParent()->raise();
+        }else{
+            surface->raise();
+        }
+    }else{
+        LLog::log("窗口回到正常平铺: 启用containerView");
+        window->container->enableContainerView(true);
     }
 
     // 激活
@@ -745,9 +681,20 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         // TODO: 心跳检测
         // 2. 如果我是窗口, 获取areaRemain, 分别调整surface大小/位置
         Surface* surface = static_cast<Surface*>(container->window->surface());
+        
         if(surface->mapped()){
+            
             surface->setPos(areaRemain.x(), areaRemain.y());
             container->window->configureSize(areaRemain.w(), areaRemain.h());
+
+            // 配置容器的大小, 位置
+            container->containerView.get()->setPos(areaRemain.x(), areaRemain.y());
+            container->containerView.get()->setSize(areaRemain.width(), areaRemain.height());
+            
+            SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
+            // 设置容器的子SurfaceView位置为相对父级的(0,0)
+            surfaceView->setCustomPos(0,0);
+
             compositor()->repaintAllOutputs();
         }
 
@@ -786,12 +733,7 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
 
     // 函数分为两阶段逻辑: 一阶段直接返回由各种来源设置的"上一个活动容器"(通过setActiveContainer), 如果该容器不存在则进入二阶段回退, 计算鼠标坐标处的容器。
 
-    // 一阶段
-    if(activeContainer){
-        return activeContainer;
-    }
-
-    // 二阶段
+    // 特殊: 桌面根节点是所有的fallback
     Container* root = workspaceRoots[workspace];
 
     if(!root){
@@ -801,8 +743,17 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
 
     // 如果工作区为空, 直接返回自己
     if(root->child1 == nullptr && root->child2 == nullptr){
+        LLog::log("返回工作区根节点");
         return root;
     }
+
+    // 一阶段
+    if(activeContainer){
+        LLog::log("返回上一个活动的Container");
+        return activeContainer;
+    }
+
+    // 二阶段
 
     // 这里不需要限制工作区。所有surface的集合>单个工作区的集合, 如果所有surface都找不到, 则说明肯定桌面是空的
     // surface()只包含客户端创建的
@@ -892,7 +843,10 @@ void TileyWindowStateManager::setupResizeSession(LToplevelRole* window, LBitset<
 bool TileyWindowStateManager::isTiledWindow(ToplevelRole* window){
 
     // 优先级1: 是一个普通窗口, 但是由于正在移动/被用户浮动而脱离了平铺层, 返回false
-    if(window->container && window->container->floating_reason != NONE){
+    if(window->type == NORMAL && window->container && window->container->floating_reason != NONE){
+        //LLog::log("window->type: %d", window->type);
+        //LLog::log("window->container: %d", window->container);
+        //LLog::log("window->container->floating_reason: %d", window->container->floating_reason);
         return false;
     }
 

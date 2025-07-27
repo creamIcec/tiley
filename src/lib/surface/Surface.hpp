@@ -22,7 +22,7 @@ namespace tiley{
             using LSurface::LSurface;
             Surface(const void *params);
 
-            std::unique_ptr<SurfaceView> view;
+            friend Container;
 
             ToplevelRole *tl() noexcept{
                 return (ToplevelRole*)toplevel();
@@ -34,9 +34,13 @@ namespace tiley{
             void roleChanged(LBaseSurfaceRole *prevRole) override;
             void layerChanged() override;
             void orderChanged() override;
-            // 对应迁移wlroots: xdg_toplevel_map(不止toplevel, 任何一个surface的map状态改变都会触发该函数)
+            
+            // 当surface尺寸发生变化时, 如果是窗口, 我们先保证
+            
             void mappingChanged() override;
             void minimizedChanged() override;
             void printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept;
+        private:
+            std::unique_ptr<SurfaceView> view;
     };
 }

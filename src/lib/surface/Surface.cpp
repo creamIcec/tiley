@@ -43,9 +43,14 @@ Surface::Surface(const void *params) : LSurface(params) {
     view = std::make_unique<SurfaceView>(this);
 }
 
+// 获取要操作的view的方法
+// 对于正在平铺的窗口, 返回包装器; 对于目前没有平铺的窗口或其他任意角色, 返回view本身
 LView* Surface::getView() noexcept{
-    // TODO: 带服务端装饰的view
-    return view.get();
+    if(tl() && tl()->container && TileyWindowStateManager::getInstance().isTiledWindow(tl())){
+        return tl()->container->getContainerView();
+    }else{
+        return view.get();
+    }
 }
 
 void Surface::printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept{
@@ -83,11 +88,11 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 
     if(cursorRole()){
         // 我们不能控制提交过来的surface, 但我们可以不渲染它。
-        view->setVisible(false);
+        getView()->setVisible(false);
         return;
     }else if (roleId() == LSurface::SessionLock || roleId() == LSurface::Popup){
         LLog::log("打开了一个弹出菜单");
-        view->setParent(&server.layers()[LLayerOverlay]);
+        getView()->setParent(&server.layers()[LLayerOverlay]);
     }
 }
 
@@ -116,7 +121,7 @@ void Surface::orderChanged()
     Surface *prev { static_cast<Surface*>(prevSurface()) };
 
     // Re-insert the view only if there is a previous surface within the same layer
-    view->insertAfter((prev && prev->layer() == layer()) ? prev->view.get() : nullptr);
+    getView()->insertAfter((prev && prev->layer() == layer()) ? prev->getView() : nullptr);
 
 }
 
@@ -125,7 +130,7 @@ void Surface::orderChanged()
 void Surface::layerChanged(){
     //LLog::log("%d: layerChanged", this);
     TileyServer& server = TileyServer::getInstance();
-    view->setParent(&server.layers()[layer()]);
+    getView()->setParent(&server.layers()[layer()]);
 }
 
 // mappingChanged: 一个窗口的显示状态发生变化。常见于: 新的窗口要显示/窗口被关闭/窗口被最小化等
@@ -139,15 +144,10 @@ void Surface::mappingChanged(){
     compositor()->repaintAllOutputs();
 
     if(mapped()){
-
-        // 如果不是窗口, 则无需额外的操作了
+        // 如果不是窗口, 则无需额外的操作了(SurfaceView构造函数已经初始化过默认显示层级是APPLICATION_LAYER, 不用担心非窗口的Surface没有得到处理)
         if(!toplevel()){
             return;
         }
-
-        // 如果是显示出了窗口
-        // 设置到应用层 
-        view->setParent(&server.layers()[APPLICATION_LAYER]);
         // 否则, 为窗口分配一个类型
         tl()->assignToplevelType();
         // 准备插入
@@ -156,8 +156,12 @@ void Surface::mappingChanged(){
         manager.addWindow(tl(), tiledContainer);
         // 如果成功插入平铺层
         if(tiledContainer){
+            // 如果是显示出了窗口
+            // 设置到应用层(在SurfaceView的构造函数中已经初始化过, 这里调用是为了防止某些地方使其发生了变化)
+            getView()->setParent(&server.layers()[APPLICATION_LAYER]);
             // 设置活动容器
             manager.setActiveContainer(tiledContainer);
+            LLog::log("设置上一个活动容器为新打开的窗口容器");
             // 重新计算布局
             manager.recalculate();
         }
@@ -178,7 +182,7 @@ void Surface::mappingChanged(){
         }
 
         // 最后, 无论是什么surface, 都将view从parent的列表中移除, 销毁view
-        view->setParent(nullptr);    
+        getView()->setParent(nullptr);    
     }
     
 }
