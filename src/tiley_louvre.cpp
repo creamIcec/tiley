@@ -43,7 +43,8 @@ int main(int argc, char* argv[]){
     tiley::LaunchArgs args = setupParams(argc, argv);
 
     // 启用Louvre的调试输出
-    setenv("LOUVRE_DEBUG", "1", 0);
+    // 等级数字参考LLog::init()中的说明
+    setenv("LOUVRE_DEBUG", args.enableDebug ? "4" : "1", 0);
     // 启用SRM的调试输出
     setenv("SRM_DEBUG", "1", 0);
 

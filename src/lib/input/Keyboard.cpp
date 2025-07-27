@@ -28,7 +28,7 @@ void Keyboard::keyEvent(const LKeyboardKeyEvent& event){
     if(server.is_compositor_modifier_down){
          // Alt + 空格 = 浮动窗口
          if(isKeyCodePressed(KEY_SPACE)){
-            LLog::log("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
+            LLog::debug("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
             // 1. 获取当前的焦点
             LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
             

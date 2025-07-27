@@ -91,7 +91,7 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
         getView()->setVisible(false);
         return;
     }else if (roleId() == LSurface::SessionLock || roleId() == LSurface::Popup){
-        LLog::log("打开了一个弹出菜单");
+        LLog::debug("打开了一个弹出菜单");
         getView()->setParent(&server.layers()[LLayerOverlay]);
     }
 }
@@ -111,7 +111,7 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 // 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
 void Surface::orderChanged()
 {   
-    //LLog::log("顺序改变, surface地址: %d, 层次: %d", this, layer());
+    //LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
     
     // 调试: 打印surface前后关系
     // TileyServer& server = TileyServer::getInstance();
@@ -128,7 +128,7 @@ void Surface::orderChanged()
 // layerChanged: 层次发生变化。对于我们来讲最有用的就是平铺层<->浮动层之间的互相切换。
 // 只需将toplevel的view移动到新的层即可, 它的弹出窗口和它的subsurface会自动跟随。
 void Surface::layerChanged(){
-    //LLog::log("%d: layerChanged", this);
+    //LLog::debug("%d: 层次改变: ", this);
     TileyServer& server = TileyServer::getInstance();
     getView()->setParent(&server.layers()[layer()]);
 }
@@ -161,7 +161,7 @@ void Surface::mappingChanged(){
             getView()->setParent(&server.layers()[APPLICATION_LAYER]);
             // 设置活动容器
             manager.setActiveContainer(tiledContainer);
-            LLog::log("设置上一个活动容器为新打开的窗口容器");
+            LLog::debug("设置上一个活动容器为新打开的窗口容器");
             // 重新计算布局
             manager.recalculate();
         }

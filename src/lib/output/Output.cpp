@@ -36,11 +36,11 @@ Output::Output(const void* params) noexcept : LOutput(params){
 
 void Output::initializeGL(){
 
-    LLog::log("新的屏幕插入, id: %u 。", this->id());
+    LLog::debug("新的屏幕插入, id: %u 。", this->id());
 
     TileyServer& server = TileyServer::getInstance();
 
-    LLog::log("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
+    LLog::debug("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
 
     // 1. 交给scene, 计算需要显示在这块显示屏上的部分
     server.scene().handleInitializeGL(this);
@@ -120,27 +120,15 @@ void Output::moveGL(){
 // resizeGL被设计成会在屏幕刚插入的时候也调用一次。
 // 因此, 真实尺寸只能从这里面获取, 而不是initializeGL中.
 void Output::resizeGL(){
-    LLog::log("[屏幕id: %u]屏幕状态发生改变", this->id());
-    LLog::log("[屏幕id: %u]接收到状态修改指令, 包含新的缩放: %f, 新的尺寸: %dx%d", 
+    LLog::debug("[屏幕id: %u]屏幕状态发生改变", this->id());
+    LLog::debug("[屏幕id: %u]接收到状态修改指令, 包含新的缩放: %f, 新的尺寸: %dx%d", 
                 this->id(), this->scale(), this->size().w(), this->size().h());
 
     TileyServer& server = TileyServer::getInstance();
-
-    /*
-    auto layers = server.layers();    
-    
-    LLog::log("[屏幕id: %u]更新")
-
-    // TODO: 暂时假设只有一个屏幕, 所以这么设置, 之后需要改成所有屏幕加起来的大小。
-    for(int i = 0; i <= BACKGROUND_LAYER; i++){
-        layers[i].setSize(size());
-        LLog::log("层[%d]的尺寸: %dx%d", i, layers[i].size().w(), layers[i].size().h());
-    }
-    */
     
     server.scene().handleResizeGL(this);
 
-    LLog::log("[屏幕id: %u] 更新壁纸。", this->id());
+    LLog::debug("[屏幕id: %u] 更新壁纸。", this->id());
 
     updateWallpaper();
 };
@@ -183,6 +171,14 @@ Surface* Output::searchFullscreenSurface() const noexcept{
     }
 
     return nullptr;
+}
+
+void Output::printWallpaperInfo(){
+
+    LLog::log("壁纸view的尺寸: %dx%d", wallpaperView.size().w(), wallpaperView.size().h());
+    LLog::log("壁纸view的本地尺寸: %dx%d", wallpaperView.nativeSize().w(), wallpaperView.nativeSize().h());
+    LLog::log("壁纸view的父View(BackgroundLayerView)尺寸: %dx%d",wallpaperView.parent()->size().w(), wallpaperView.parent()->size().h());
+    LLog::log("壁纸view的父View(BackgroundLayerView)本地尺寸: %dx%d",wallpaperView.parent()->nativeSize().w(), wallpaperView.parent()->nativeSize().h());
 }
 
 
@@ -248,12 +244,8 @@ void Output::updateWallpaper(){
     wallpaperView.setPos(pos());  //和屏幕左上角位置对齐
     wallpaperView.setDstSize(outputSizeB);
 
-    LLog::log("壁纸view的尺寸: %dx%d", wallpaperView.size().w(), wallpaperView.size().h());
-    LLog::log("壁纸view的本地尺寸: %dx%d", wallpaperView.nativeSize().w(), wallpaperView.nativeSize().h());
-    LLog::log("壁纸view的父View(BackgroundLayerView)尺寸: %dx%d",wallpaperView.parent()->size().w(), wallpaperView.parent()->size().h());
-    LLog::log("壁纸view的父View(BackgroundLayerView)本地尺寸: %dx%d",wallpaperView.parent()->nativeSize().w(), wallpaperView.parent()->nativeSize().h());
-
-
     //到这里我们就完成了壁纸的加载
 
+    // 调试: 打印壁纸信息
+    // printWallpaperInfo();
 }

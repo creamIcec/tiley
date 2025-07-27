@@ -221,7 +221,7 @@ void Pointer::processPointerButtonEvent(const LPointerButtonEvent& event){
  
         // 如果鼠标所在位置是窗口, 并且这个窗口没有激活
         if (focus()->toplevel() && !focus()->toplevel()->activated()){
-            LLog::log("激活窗口: %d", focus()->toplevel());
+            LLog::debug("激活窗口: %d", focus()->toplevel());
             // 激活窗口
             focus()->toplevel()->configureState(focus()->toplevel()->pendingConfiguration().state | LToplevelRole::Activated);
         }
@@ -297,7 +297,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
 
     // 首先检查是否已经正在处理一个合成器的keybind
     if(!focus() || !focus()->toplevel()){
-        LLog::log("没有目标或目标不是窗口, 停止处理合成器事件");
+        LLog::debug("没有目标或目标不是窗口, 停止处理合成器事件");
         return false;
     }
 
@@ -313,7 +313,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
        event.state() == Louvre::LPointerButtonEvent::Pressed &&
        isModifierPressedDown &&
        !isResizingWindow){
-        LLog::log("调整窗口大小...");
+        LLog::debug("调整窗口大小...");
         const LPoint &mousePos = cursor()->pos(); // 鼠标在屏幕上的绝对位置
         const LPoint &winPos = window->surface()->pos(); // 窗口在屏幕上的绝对位置
         const LSize &winSize = window->surface()->size(); // 窗口的大小
@@ -358,7 +358,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
     if(event.button() == Louvre::LPointerButtonEvent::Right &&
        event.state() == Louvre::LPointerButtonEvent::Released &&
        isResizingWindow){
-        LLog::log("停止调整窗口大小...");
+        LLog::debug("停止调整窗口大小...");
         stopResizeSession(true);
         return true;
     }
@@ -372,7 +372,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
         isModifierPressedDown &&
         !isMovingWindow){
         
-        LLog::log("移动窗口");
+        LLog::debug("移动窗口");
         // 对所有类型的窗口的处理
         window->startMoveRequest(event);
 
@@ -411,7 +411,7 @@ bool Pointer::processCompositorKeybind(const LPointerButtonEvent& event){
 }
 
 void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
-    //LLog::log("鼠标移动事件");
+    //LLog::debug("鼠标移动事件");
 
     // 首先移动光标位置, 确保后续的操作是更新过的位置
     // Update the cursor position
@@ -518,7 +518,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
     Surface* _targetInsertWindowSurface = static_cast<Surface*>(targetInsertWindowSurface);
     if(_targetInsertWindowSurface && manager.activateContainer() != _targetInsertWindowSurface->tl()->container){
         manager.setActiveContainer(_targetInsertWindowSurface->tl()->container);
-        LLog::log("已将插入活动目标更新为鼠标处的平铺窗口");
+        LLog::debug("已将插入活动目标更新为鼠标处的平铺窗口");
     }
  
     // 一个flag, 用于记录是否正在更改窗口大小
@@ -544,7 +544,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
             bool isResizingTiledWindow = targetWindow && targetWindow->container && targetWindow->type == NORMAL && manager.isTiledWindow(targetWindow);
             
             if(isResizingTiledWindow){
-                LLog::log("调整平铺容器大小");
+                LLog::debug("调整平铺容器大小");
                 if(manager.resizeTile(cursor()->pos())){
                     manager.reapplyWindowState(targetWindow);
                     manager.recalculate();
@@ -675,7 +675,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
 
 void Pointer::focusChanged(){
 
-    LLog::log("聚焦发生改变");
+    LLog::debug("聚焦发生改变");
 
     Surface* surface = static_cast<Surface*>(focus());
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
@@ -694,7 +694,7 @@ void Pointer::focusChanged(){
     // 有surface但不是toplevel并且也没有上层toplevel
     if(!surface->toplevel() && !surface->topmostParent()){
         manager.setActiveContainer(nullptr);
-        LLog::log("鼠标下没有窗口surface, 已设置活动容器为空");
+        LLog::debug("鼠标下没有窗口surface, 已设置活动容器为空");
         return;
     }
 
@@ -702,13 +702,13 @@ void Pointer::focusChanged(){
 
     // 排除是浮动的窗口
     if(!manager.isTiledWindow(surface->tl())){
-        LLog::log("鼠标位置的窗口不是平铺窗口, 不更新平铺容器");
+        LLog::debug("鼠标位置的窗口不是平铺窗口, 不更新平铺容器");
         return;
     }
 
     // 设置活动容器
     manager.setActiveContainer(surface->tl()->container);
-    LLog::log("已设置活动容器为聚焦窗口的容器");
+    LLog::debug("已设置活动容器为聚焦窗口的容器");
 
     /*
 

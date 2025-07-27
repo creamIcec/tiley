@@ -85,7 +85,7 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
 
     if(!surface){
-        LLog::log("鼠标位置没有窗口, 更新活动容器为空");
+        LLog::debug("鼠标位置没有窗口, 更新活动容器为空");
         manager.setActiveContainer(nullptr);
         return;
     }
@@ -113,7 +113,7 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
 };
 
 void ToplevelRole::configureRequest(){
-    LLog::log("接收到配置请求");
+    LLog::debug("接收到配置请求");
 
     LOutput *output { cursor()->output() };
  
@@ -158,7 +158,7 @@ void ToplevelRole::configureRequest(){
         }
     */
 
-    LLog::log("客户端偏好: %d", preferredDecorationMode());
+    LLog::debug("客户端偏好: %d", preferredDecorationMode());
 
 }
 

@@ -60,6 +60,10 @@ namespace tiley{
 
             // 壁纸
             void updateWallpaper();
+            
+            // 打印壁纸信息
+            void printWallpaperInfo();
+            
             LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
     };
 }

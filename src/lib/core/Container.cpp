@@ -1,6 +1,7 @@
 #include "Container.hpp"
 #include "LLayerView.h"
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/types.hpp"
 
 #include <LSurfaceView.h>
@@ -27,12 +28,23 @@ Container::Container(ToplevelRole* window) : Container::Container(){
 
     // 先对齐一遍containerView和surfaceView, 避免初始化问题
     if(window->surface() && window->surface()->mapped()){
-        LLog::log("初始化容器View, 对齐surface");
-        LLog::log("surface位置: (%d,%d), 大小: (%dx%d)", window->surface()->pos().x(), window->surface()->pos().y(), window->surface()->size().width(), window->surface()->size().height());
+        LLog::debug("初始化容器View, 对齐surface");
+        LLog::debug("surface位置: (%d,%d), 大小: (%dx%d)", window->surface()->pos().x(), window->surface()->pos().y(), window->surface()->size().width(), window->surface()->size().height());
         containerView->setPos(window->surface()->pos());
         containerView->setSize(window->surface()->size());
-        LLog::log("containerView: nativePos: (%d,%d)", containerView->nativePos().x(), containerView->nativePos().y());
-        LLog::log("containerView: pos: (%d,%d)", containerView->pos().x(), containerView->pos().y());
+        LLog::debug("containerView: nativePos: (%d,%d)", containerView->nativePos().x(), containerView->nativePos().y());
+        LLog::debug("containerView: pos: (%d,%d)", containerView->pos().x(), containerView->pos().y());
+    }
+}
+
+void Container::printContainerWindowInfo(){
+    if(this->window){
+
+        ToplevelRole* win = static_cast<ToplevelRole*>(this->window);
+
+        LLog::log("window->type: %d", win->type);
+        LLog::log("window->container: %d", win->container);
+        LLog::log("window->container->floating_reason: %d", win->container->floating_reason);
     }
 }
 
@@ -42,14 +54,14 @@ void Container::enableContainerView(bool enable){
     // 2. 同样根据上面的情况, 如果window父级是containerView, 则显示containerView; 否则隐藏
 
     if(!window){
-        LLog::log("该容器不是窗口容器, 无法切换包装状态, 停止操作。");
+        LLog::debug("该容器不是窗口容器, 无法切换包装状态, 停止操作。");
         return;
     }
 
     Surface* surface = static_cast<Surface*>(window->surface());
 
     if(!surface){
-        LLog::log("窗口的surface不存在, 是否已被销毁? 无法切换包装状态, 停止操作。");
+        LLog::warning("[enableContainerView]: 窗口的surface不存在, 是否已被销毁? 无法切换包装状态, 停止操作。");
         return;
     }
 

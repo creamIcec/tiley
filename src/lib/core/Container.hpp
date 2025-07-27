@@ -32,6 +32,7 @@ namespace tiley{
         public:
             inline const LRect& getGeometry(){return geometry;}
             inline LLayerView* getContainerView(){ return containerView.get(); }
+            void printContainerWindowInfo();
             //构造函数: 传入window作为子节点, 传入空指针没有意义(no-op), 会弹出警告并直接销毁这个Container  
             Container(ToplevelRole* window);
             //构造函数: 不传入window, 说明是一个分割容器
