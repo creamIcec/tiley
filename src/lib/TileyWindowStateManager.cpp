@@ -30,7 +30,23 @@ static Surface* findFirstParentToplevelSurface(Surface* surface){
     while(iterator != nullptr && surface->toplevel() == nullptr){
         if(surface == nullptr){
             // TODO: 原因?
-            LLog::debug("无法找到一个surface的父窗口");
+             //那这里不应该用iterator进行判断吗
+            /*
+             while (iterator) {
+        // 如果这个 Surface 已经是顶层了，就直接返回
+        if (iterator->toplevel()) {
+            return iteratorr;
+        }
+        // 否则沿着 parent() 指针往上找
+        iterator = static_cast<Surface*>(iterator->parent());
+    }
+    // 找到顶层前就走到根了，打个日志，返回 nullptr
+    LLog::log("无法找到一个surface的父窗口");
+    return nullptr;
+}
+            
+            */
+            LLog::log("无法找到一个surface的父窗口");
             return nullptr;
         }
         iterator = (Surface*)iterator->parent();
@@ -82,16 +98,42 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
         parent->child2 = splitContainer;
         splitContainer->parent = parent;
     }else{
-        // TODO: 可能有意外嘛?
+        // TODO: 可能有意外嘛?   这里测试的时候可以看看，逻辑上感觉没问题
     }
 
     // 4. 挂载窗口
-    // TODO: 根据鼠标位置不同决定1和2分别是谁
+    // TODO: 根据鼠标位置不同决定1和2分别是谁    鼠标位置？计算坐标即可。完成。
+    const LRect& geo = targetContainer->geometry;
+    LPointF mouse = cursor()->pos();
+    bool before;
+    if (splitType == SPLIT_H) {
+    float midX = geo.x() + geo.w() * splitRatio;
+    before = (mouse.x() < midX);
+    } else {
+    float midY = geo.y() + geo.h() * splitRatio;
+    before = (mouse.y() < midY);
+    }
+    if (before) {
+    // 鼠标在“前半区”：新窗口 child1，原窗口 child2
+    splitContainer->child1 = newWindowContainer;
+    splitContainer->child2 = targetContainer;
+    //LLog::debug("前半区");
+    } else {
+    // 鼠标在“后半区”：原窗口 child1，新窗口 child2
+    splitContainer->child1 = targetContainer;
+    splitContainer->child2 = newWindowContainer;
+    //LLog::debug("后半区");
+    }
+    newWindowContainer->parent = splitContainer;
+    targetContainer->parent = splitContainer;
+    LLog::debug("%d, %d, %d, %d",geo.x(),geo.y(),geo.w(),mouse.x());
+    //LLog::debug("确实在调用这个函数");
+    /*
     splitContainer->child1 = targetContainer;
     splitContainer->child2 = newWindowContainer;
     targetContainer->parent = splitContainer;
     newWindowContainer->parent = splitContainer;
-
+*/
     // 增加追踪数量(+1 分割容器, +1 窗口)
     containerCount += 2;
 
@@ -129,7 +171,8 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
         SPLIT_TYPE split = size.w() >= size.h() ? SPLIT_H : SPLIT_V; 
         return insertTile(workspace, newWindowContainer, activeContainer, split, splitRatio);
     }
-    // TODO: 其他鼠标没有聚焦的情况
+    // TODO: 其他鼠标没有聚焦的情况，比如呢？
+    //
 
     LLog::error("[insertTile]: 插入失败, 未知情况。");
     return false;
