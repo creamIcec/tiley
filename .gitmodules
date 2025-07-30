@@ -1,3 +1,6 @@
 [submodule "subprojects/wlroots"]
 	path = subprojects/wlroots
 	url = https://gitlab.freedesktop.org/wlroots/wlroots.git
+[submodule "include/glm"]
+	path = include/glm
+	url = https://github.com/g-truc/glm
