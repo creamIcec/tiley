@@ -34,7 +34,7 @@ namespace tiley{
             ToplevelRole(const void *params) noexcept;
 
             // 双向指针其一: Surface(Role=Toplevel) -> NodeContainer
-            Container* container;
+            Container* container = nullptr;
             // 一个窗口的自定义类型。默认是正常窗口。类型见TOPLEVEL_TYPE
             TOPLEVEL_TYPE type = NORMAL;
             // 属于的显示屏

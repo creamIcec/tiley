@@ -513,7 +513,13 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
         }else{
             surface->raise();
         }
-    }else if(window->container->floating_reason == STACKING){
+    }
+
+    if(!window->container){
+        return false;
+    }
+    
+    if(window->container->floating_reason == STACKING){
         LLog::debug("堆叠窗口: 暂时禁用containerView");
         window->container->enableContainerView(false);
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
