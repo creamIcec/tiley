@@ -10,11 +10,37 @@ project(
   ],
 )
 
+fs = import('fs')
+
+# 安装后的着色器目录
+install_shader_dir = get_option('datadir') / meson.project_name() / 'shaders'
+
+# 开发时的着色器目录
+source_shader_dir = join_paths(meson.project_source_root(), 'src/assets/shaders')
+
+# 程序安装数据
+install_data(
+    'src/assets/shaders/rounded_corners.vert',
+    'src/assets/shaders/rounded_corners.frag',
+    install_dir: install_shader_dir
+)
+
+conf_data = configuration_data()
+conf_data.set('SHADER_INSTALL_DIR', install_shader_dir)
+conf_data.set('SHADER_SOURCE_DIR', source_shader_dir)
+
+configure_file(
+    input: 'src/config.h.in',
+    output: 'config.h',
+    configuration: conf_data
+)
+
 
 louvre_dep = dependency('Louvre', version: '>=2.18.1')
 pixman_dep = dependency('pixman-1')
 libinput_dep = dependency('libinput')
 sdbus = dependency(['libsystemd', 'libelogind', 'basu'])
+
 
 source_root = 'src'
 
@@ -34,7 +60,7 @@ add_project_arguments(
 )
 
 # 公共包含文件夹
-common_includes = include_directories('include')
+common_includes = include_directories(['include', '.'])
 # 收集源文件
 all_tiley_sources = []
 subdir('src')

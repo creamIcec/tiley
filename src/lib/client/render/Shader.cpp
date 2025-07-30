@@ -1,6 +1,8 @@
 #include "Shader.hpp"
 #include "LNamespaces.h"
+#include <GLES2/gl2.h>
 #include <LLog.h>
+#include <glm/vec3.hpp>
 
 using namespace tiley;
 using namespace Louvre;
@@ -61,6 +63,10 @@ void Shader::setUniform(const char* name, float value) {
 
 void Shader::setUniform(const char* name, const LPointF& value) {
     glUniform2f(glGetUniformLocation(m_programID, name), value.x(), value.y());
+}
+
+void Shader::setUniform(const char* name, const glm::vec3 vec3){
+    glUniform3f(glGetUniformLocation(m_programID, name), vec3[0], vec3[1], vec3[2]);
 }
 
 /*

@@ -5,6 +5,8 @@
 #include "src/lib/types.hpp"
 
 #include <GLES2/gl2.h>
+#include <cstdlib>
+#include <glm/fwd.hpp>
 #define GLM_FORCE_RADIANS // 确保 glm 使用弧度，与 OpenGL 标准一致
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> // 包含 glm::translate, glm::rotate, glm::scale
@@ -43,8 +45,8 @@ void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
 
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
-    TileyServer &server = TileyServer::getInstance();
-    Shader *shader = server.roundedCornerShader();
+
+    //LSurfaceView::paintEvent(params);
 
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
@@ -52,17 +54,34 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
         return;
     }
 
+    TileyServer &server = TileyServer::getInstance();
+    Shader *shader = server.roundedCornerShader();
+    // 获取需要重绘的区域
+    LRegion *region = params.region;   
+
     // 如果没有着色器或者窗口没有纹理, 也使用默认绘制方法
-    if (!shader || !surface() || !surface()->texture()) {
-        LLog::warning("找不到shader着色器脚本/编译失败, 使用窗口默认绘制方法");
+    if (!shader || !surface() || !surface()->texture() || region->empty()) {
+        LLog::warning("当前surface不满足自定义绘制条件, 使用窗口默认绘制方法");
         LSurfaceView::paintEvent(params);
         return;
     }
 
+    // TODO: 将当前该surface可见的屏幕都执行一遍
+    LOutput *out = surface()->outputs()[0];
+
+    if(!out){
+        // 这个surface没有被映射, 不用绘制了
+        return;
+    }
+
+    // 保存先前视口
+    GLint old_viewport[4];
+    glGetIntegerv(GL_VIEWPORT, old_viewport);
+
+
     // --- 准备 OpenGL 状态 ---
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     // --- 激活着色器和几何体 ---
     shader->use();
     // --- 绑定纹理 ---
@@ -70,7 +89,6 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     // TODO: 由于Louvre的多线程特性, 一个texture的buffer不是线程共享的, 而是每个屏幕一个对象。这里需要用更好的方式获取当前屏幕
     // 我们暂时传入nullptr, 默认指定为主线程(main thread)的buffer
     glBindTexture(GL_TEXTURE_2D, surface()->texture()->id(nullptr));
-
     glBindBuffer(GL_ARRAY_BUFFER, server.quadVBO());
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, server.quadEBO());
 
@@ -84,47 +102,73 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     // ...麻烦您把这两个之间映射起来, 谢谢
 
+    const float scale = out->scale();              // 获取缩放比例, e.g., 2.0 for 200% scaling
+    const LSize &logical_size = out->size();       // 逻辑尺寸, e.g., 1920x1080
+    const LSize &physical_size = out->sizeB();     // 物理缓冲区尺寸, e.g., 3840x2160
+
+    // 定义圆角半径(逻辑像素, 需要根据实际分辨率放大)
+    const float cornerRadius = 8.f; // TODO: 圆角半径, 可以从配置文件读取
+    const float borderWidth = 1.f;  // 边框粗细
+
     shader->setUniform("u_texture", 0);
     shader->setUniform("u_resolution", LSizeF(size()));
-    shader->setUniform("u_radius", 12.f); // TODO: 圆角半径, 可以从配置文件读取
+    // 传递给着色器的像素值，都需要乘以缩放比例
+    shader->setUniform("u_radius", cornerRadius * scale);
+    shader->setUniform("u_border_width", borderWidth * scale);
+    // 设置边框颜色为白色 (R=1.0, G=1.0, B=1.0)
+    shader->setUniform("u_border_color", glm::vec3(1.0f, 1.0f, 1.0f));
 
-    // TODO: 将当前该surface可见的屏幕都执行一遍
-    LOutput *out = surface()->outputs()[0];
-
-    if(!out){
-        // 这个surface没有被映射, 不用绘制了
-        return;
-    }
-
-    glm::mat4 projection_matrix = glm::ortho(0.0f, (float)out->size().w(), (float)out->size().h(), 0.0f, -1.0f, 1.0f);
+    glm::mat4 projection_matrix = glm::ortho(0.0f, (float)logical_size.w(), (float)logical_size.h(), 0.0f, -1.0f, 1.0f);
 
     // 2. 创建模型矩阵
     // 从一个单位矩阵开始
     glm::mat4 model_matrix = glm::mat4(1.0f);
-    // a. 平移：将我们的单位矩形的原点移动到视图的左上角位置
-    model_matrix = glm::translate(model_matrix, glm::vec3(pos().x(), pos().y(), 0.0f));
-    // b. 缩放：将我们的单位矩形(1x1)缩放到视图的实际大小
-    model_matrix = glm::scale(model_matrix, glm::vec3(size().w(), size().h(), 1.0f));
-
+    // a. 平移：将我们的单位矩形的原点移动到视图的左上角位置(偏移进行补偿)
+    model_matrix = glm::translate(model_matrix, glm::vec3(pos().x() - cornerRadius, pos().y() - cornerRadius, 0.0f));
+    // b. 缩放：将我们的单位矩形(1x1)缩放到视图的实际大小(扩大3倍进行裁剪补偿, 防止视觉边距过大)
+    model_matrix = glm::scale(model_matrix, glm::vec3(size().w() + 3 * cornerRadius, size().h() + 3 * cornerRadius, 1.0f));
     // 3. 计算最终变换
     glm::mat4 final_transform = projection_matrix * model_matrix;
-
     // 4. 将矩阵传递给着色器
     GLuint transformLoc = glGetUniformLocation(shader->id(), "u_transform");
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(final_transform));
 
-    // --- 执行绘制 ---
-    // 因为使用了 EBO，我们用 glDrawElements
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glViewport(0, 0, physical_size.w(), physical_size.h());
+    
+    glEnable(GL_SCISSOR_TEST); // 启用剪裁测试
 
-    // --- 清理 ---
+    Int32 n;
+    const LBox *boxes = region->boxes(&n);
+    for (Int32 i = 0; i < n; i++) {
+        const LBox &box = boxes[i];
+        
+        Int32 physical_x = box.x1 * scale;
+        Int32 physical_y = box.y1 * scale;
+        Int32 physical_w = (box.x2 - box.x1) * scale;
+        Int32 physical_h = (box.y2 - box.y1) * scale;
+
+        // gl坐标系是从左下角开始的(和笛卡尔平面坐标系一致), 而Louvre(或者说计算机坐标系)左上角是原点, 因此需要翻转y轴
+        glScissor(physical_x, physical_size.h() - (physical_y + physical_h), physical_w, physical_h);
+        
+        // 在这个小小的剪裁区域内，执行我们的绘制命令
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    }
+
+
+    // 清理, 还原状态机绘制之前的状态
+    glDisable(GL_SCISSOR_TEST);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
-    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glUseProgram(0);
     glDisable(GL_BLEND);
+
+    glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+
+    params.painter->bindProgram();
+
+    
 }
 
 const LRegion * SurfaceView::translucentRegion() const noexcept{
