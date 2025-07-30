@@ -23,9 +23,25 @@ void Keyboard::keyEvent(const LKeyboardKeyEvent& event){
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
     TileyServer& server = TileyServer::getInstance();
 
-    server.is_compositor_modifier_down = isModActive(XKB_VMOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE);
-
+    server.is_compositor_modifier_down = isModActive(XKB_MOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE);
+    //这里有问题
+/*
+    std::string keycombo_to_string(uint32_t keycode, uint32_t modifiers) {
+    std::string s;
+    if (modifiers & WLR_MODIFIER_CTRL)  s += "ctrl+";
+    if (modifiers & WLR_MODIFIER_ALT)   s += "alt+";
+    if (modifiers & WLR_MODIFIER_SHIFT) s += "Shift+";
+    s += std::to_string(keycode);
+    return s;
+   }
+    std::string combo = keycombo_to_string(
+        event.keycode,
+        event.state,        样
+        keyboard()->wlr_keyboard->xkb_state
+    );
+*/
     if(server.is_compositor_modifier_down){
+       // LLog::debug("检测到按下了修饰键");
          // Alt + 空格 = 浮动窗口
          if(isKeyCodePressed(KEY_SPACE)){
             LLog::debug("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
