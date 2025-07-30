@@ -4,4 +4,5 @@ client_sources = files(
    'views/LayerView.cpp',
    'views/SurfaceView.cpp',
    'render/SSD.cpp',
+   'render/Shader.cpp'
 )

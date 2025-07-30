@@ -17,6 +17,8 @@ namespace tiley{
             SurfaceView(Surface* surface) noexcept;
             void pointerButtonEvent (const LPointerButtonEvent &event) override;
             void pointerEnterEvent 	(const LPointerEnterEvent &event) override;
+            void paintEvent(const PaintEventParams& params) noexcept override;
+            const LRegion * translucentRegion() const noexcept override;
     };
 
 }

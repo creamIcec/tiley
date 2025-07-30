@@ -18,9 +18,13 @@ sdbus = dependency(['libsystemd', 'libelogind', 'basu'])
 
 source_root = 'src'
 
-# 将编译参数移到目标声明之前
 add_project_arguments(
   '-DWLR_USE_UNSTABLE',
+  language: 'cpp'
+)
+
+add_project_link_arguments(
+  '-lGLESv2', 
   language: 'cpp'
 )
 
