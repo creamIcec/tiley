@@ -76,5 +76,14 @@ namespace tiley{
 
             // 管理器可以访问私有成员
             friend TileyWindowStateManager;
+            
+            //TODO，去封装一下左右半区的实现。
+            enum class InsertHalf{
+                Undefined,
+                First,
+                Second
+            };
+            InsertHalf insertHalf = InsertHalf::Undefined;
+
     };
 }
