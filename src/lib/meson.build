@@ -7,6 +7,7 @@ lib_sources = files(
     'input/Seat.cpp',
     'input/Keyboard.cpp',
     'input/Pointer.cpp',
+    'input/ShortcutManager.cpp',
     'output/Output.cpp',
     'scene/Scene.cpp',
     'surface/Surface.cpp',
