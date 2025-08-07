@@ -952,6 +952,50 @@ bool TileyWindowStateManager::isStackedWindow(ToplevelRole* window){
 
     return false;
 }
+// 递归设置某个容器及其子容器视图的可见性
+void TileyWindowStateManager::setContainerTreeVisible(Container* root, bool visible) {
+    if (!root) return;
+    // 根节点本身（如果是窗口容器）不直接可见，但它的 containerView 代表这棵树
+    if (root->getContainerView())
+        root->getContainerView()->setVisible(visible);
+
+    if (root->child1) setContainerTreeVisible(root->child1, visible);
+    if (root->child2) setContainerTreeVisible(root->child2, visible);
+}
+// 切换工作区
+bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
+    if (target >= WORKSPACES || target == CURRENT_WORKSPACE) {
+        LLog::debug("switchWorkspace: 无效目标 %u 或与当前相同", target);
+        return false;
+    }
+
+    // 1. 隐藏旧区所有容器视图
+    setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], false);
+
+    // 2. 清空焦点
+    auto seat = Louvre::seat();
+    if (seat->keyboard()) seat->keyboard()->setFocus(nullptr);
+    if (seat->pointer())  seat->pointer()->setFocus(nullptr);
+
+    // 3. 更新索引
+    CURRENT_WORKSPACE = target;
+
+    // 4. 显示新工作区容器树
+    setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], true);
+
+    // 5. 重排与重绘
+    // 只对当前区的布局执行一次 recalculate()
+    recalculate();
+    // repaint 所有输出，重新绘制
+    for (auto out : Louvre::compositor()->outputs())
+        out->repaint();
+
+    LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
+    return true;
+}
+
+
+
 
 
 TileyWindowStateManager& TileyWindowStateManager::getInstance(){
@@ -963,7 +1007,7 @@ TileyWindowStateManager& TileyWindowStateManager::getInstance(){
 
 std::unique_ptr<TileyWindowStateManager, TileyWindowStateManager::WindowStateManagerDeleter> TileyWindowStateManager::INSTANCE = nullptr;
 std::once_flag TileyWindowStateManager::onceFlag;
-
+/*
 TileyWindowStateManager::TileyWindowStateManager(){
     for(int i = 0; i < WORKSPACES; i++){
         workspaceRoots[i] = new Container();
@@ -972,5 +1016,23 @@ TileyWindowStateManager::TileyWindowStateManager(){
     }
     // 添加了根节点
     containerCount += 1;
+}*/
+TileyWindowStateManager::TileyWindowStateManager()
+  : workspaceRoots(WORKSPACES, nullptr)
+{
+    // 为每个工作区创建一个根容器，并初始化为“桌面”状态
+    for (int i = 0; i < WORKSPACES; ++i) {
+        Container* root = new Container();
+        root->splitType = SPLIT_H;
+        root->splitRatio = 1.0f;
+        workspaceRoots[i] = root;
+    }
+    containerCount += 1;
 }
-TileyWindowStateManager::~TileyWindowStateManager(){}
+
+//删除对应根节点
+TileyWindowStateManager::~TileyWindowStateManager(){
+    for (auto root : workspaceRoots) {
+        delete root;
+    }
+}

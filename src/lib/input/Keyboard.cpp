@@ -55,13 +55,27 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
 
 void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
     static bool initialized = false;
-    if(!initialized){
+    if (!initialized) {
         ShortcutManager& mgr = ShortcutManager::instance();
         mgr.init("/home/zero/tiley/hotkey.json");
-        // 注册默认 handler
-        mgr.registerHandler("launch_terminal", [](const std::string&){ LLog::log("执行: launch_terminal"); });
-        mgr.registerHandler("launch_app_launcher", [](const std::string&){ LLog::log("执行: launch_app_launcher"); });
-        mgr.registerHandler("change_wallpaper", [](const std::string&){ LLog::log("执行: change_wallpaper"); });
+
+        // --- 注册默认命令 ---
+        mgr.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
+        mgr.registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
+        mgr.registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
+
+        // --- 注册工作区切换 ---
+        // 假设你在 JSON 里定义了 "ctrl+1": "goto_ws_1" 等映射
+        mgr.registerHandler("goto_ws_1", [](auto){ 
+            TileyWindowStateManager::getInstance().switchWorkspace(0);
+        });
+        mgr.registerHandler("goto_ws_2", [](auto){ 
+            TileyWindowStateManager::getInstance().switchWorkspace(1);
+        });
+        mgr.registerHandler("goto_ws_3", [](auto){ 
+            TileyWindowStateManager::getInstance().switchWorkspace(2);
+        });
+     
         initialized = true;
         LLog::debug("快捷键系统初始化完成（模块化）");
     }

@@ -33,6 +33,11 @@ namespace tiley{
             Container* removeTile(LToplevelRole* window);
             // detach: 将一个容器从容器树中分离, 用于浮动窗口/移动窗口等操作。
             Container* detachTile(LToplevelRole* window, FLOATING_REASON reason = MOVING);
+            //切换到指定工作区（0-10）
+            bool switchWorkspace(UInt32 target);
+            // 获取当前工作区
+            UInt32 currentWorkspace() const { return CURRENT_WORKSPACE; }
+
             // attach: 将一个被分离的容器重新插入容器树中, 例如将浮动的窗口合并回平铺层, 或者停止移动窗口等。
             bool attachTile(LToplevelRole* window);
             // resizeTile: 调整当前活动的(由setupResizeSession设置)平铺容器的平铺比例。
@@ -70,7 +75,7 @@ namespace tiley{
             
             // 全局记录工作区, 再也不用分散在各处了
             // TODO: 我们需要这个成员始终反映用户意图。也就是说, 无论在哪儿调用, 当前工作区始终是那个函数想要的。怎么做?
-            UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
+           // UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
 
         private:
             // reflow: 在给定的region作为最大显示区域的情况下进行重新布局
@@ -82,8 +87,15 @@ namespace tiley{
 
             // 工作区最大数量
             static const int WORKSPACES = 10;
+
             // 每个工作区的平铺根节点
             std::vector<Container*> workspaceRoots{WORKSPACES};
+            
+            //当前工作区的索引
+            UInt32 CURRENT_WORKSPACE=0;
+            //递归去把一个容器树设置为不可见（切换工作区）
+            void setContainerTreeVisible(Container* root,bool visible);
+            
             // 目前活动的Container, 用于当某次insert找不到应该放在哪儿时作为fallback使用
             Container* activeContainer;
             // 目前一共的container数量, 作为校验使用, 可以检测出平铺过程中出现意外导致container数量不一致。TODO: 自动重新计算数量
