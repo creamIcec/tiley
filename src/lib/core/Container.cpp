@@ -23,7 +23,7 @@ Container::Container(ToplevelRole* window) : Container::Container(){
     this->window = window;
     window->container = this;
 
-    // 设置csrc/lib/core/Container.hppontainerView的父级为应用层
+    // 设置src/lib/core/Container.hpp containerView的父级为应用层
     containerView = std::make_unique<LLayerView>(&TileyServer::getInstance().layers()[APPLICATION_LAYER]);
 
     // 先对齐一遍containerView和surfaceView, 避免初始化问题

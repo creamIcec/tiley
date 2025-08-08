@@ -20,8 +20,6 @@ namespace tiley{
 }
 
 namespace tiley{
-
-    // TODO: FLOATING_REASON和window->type同时存在是不是一种冗余? 考虑合并
     class TileyWindowStateManager{
         public:
             static TileyWindowStateManager& getInstance();
@@ -57,12 +55,14 @@ namespace tiley{
             // 检查一个窗口是否被堆叠
             bool isStackedWindow(ToplevelRole* window);
             // 设置上一个活动容器。调用时机: 新窗口显示(设置成新窗口)/鼠标或键盘聚焦变化(设置成聚焦窗口)/没有任何聚焦(设置成nullptr)
-            // 注意: 该函数和鼠标/键盘不一定同步。不要依赖该函数的container反向获得的window来当作聚焦窗口。仅供插入机制使用。
-            inline void setActiveContainer(Container* container){ this->activeContainer = container; };
+            // 注意: 该函数和鼠标/键盘不一定同步(比如可能在另一个工作区)。不要依赖该函数的container反向获得的window来当作聚焦窗口。仅供插入机制使用。
+            void setActiveContainer(Container* container);
             // 获取上一个活动容器。如果是nullptr, 表示没有满足活动条件的容器。
             inline Container* activateContainer(){ return activeContainer; }
             // 获取一个工作区的第一个窗口对应的容器
             Container* getFirstWindowContainer(UInt32 workspace);
+            // 传入容器返回工作区根节点
+            UInt32 getWorkspace(Container* container) const;
             // 获取一个工作区中, 当前鼠标所在位置的平铺容器, 这个函数是为了方便插入使用: 当工作区为空时, 直接返回工作区根节点, 否则返回所在位置的窗口的容器(而不是分割容器)
             // TODO: 找到一个更好的方法仅在平铺区的窗口中查找目标窗口
             Container* getInsertTargetTiledContainer(UInt32 workspace);
@@ -88,18 +88,26 @@ namespace tiley{
 
             // 工作区最大数量
             static const int WORKSPACES = 10;
-
-            // 每个工作区的平铺根节点
-            std::vector<Container*> workspaceRoots{WORKSPACES};
             
             //当前工作区的索引
             UInt32 CURRENT_WORKSPACE=0;
             //递归去把一个容器树设置为不可见（切换工作区）
-            void setContainerTreeVisible(Container* root,bool visible);
+            void setWindowVisible(ToplevelRole* window, bool visible);
             //
             static UInt32 countContainersOfWorkspace(const Container* root);
-            // 目前活动的Container, 用于当某次insert找不到应该放在哪儿时作为fallback使用
+            // 目前活动的Container, 作为平铺算法在当前工作区下的操作依据
+            
+            // 单一来源: workspaceActiveContainers. 更新顺序: workspaceActiveContainers -> activeContainer;
+            // 访问当前工作区的仍然是activeContainer
+            // TOOD: 仅使用workspaceActiveContainers[index], 删除activeContainer
+
+            // 注意: 需要保持和workspaceActiveContainers的同步
             Container* activeContainer;
+            // 各个工作区最后活动的Container, 作为平铺算法在指定工作区下的操作依据
+            std::vector<Container*> workspaceActiveContainers{WORKSPACES};
+            // 各个工作区的平铺根节点Container, 作为平铺算法仅仅需要获取根节点时的操作依据
+            std::vector<Container*> workspaceRoots{WORKSPACES};
+
             // 目前一共的container数量, 作为校验使用, 可以检测出平铺过程中出现意外导致container数量不一致。TODO: 自动重新计算数量
             UInt32 containerCount = 0;
             // 窗口缓存区。包含所有窗口, 不只是平铺的

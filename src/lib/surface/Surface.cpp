@@ -112,18 +112,35 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 // 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
 void Surface::orderChanged()
 {   
-    LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
+    //LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
     
     // 调试: 打印surface前后关系
     // TileyServer& server = TileyServer::getInstance();
     // server.compositor()->printToplevelSurfaceLinklist();
-    
-    // Previous surface in LCompositor::surfaces()
-    Surface *prev { static_cast<Surface*>(prevSurface()) };
 
-    // Re-insert the view only if there is a previous surface within the same layer
-    getView()->insertAfter((prev && prev->layer() == layer()) ? prev->getView() : nullptr);
+    // Louvre-views 官方写法
 
+    if (toplevel() && toplevel()->fullscreen())
+        return;
+
+    Surface *prevSurface { static_cast<Surface*>(this->prevSurface()) };
+    LView *view { getView() };
+
+    while (prevSurface != nullptr)
+    {
+        if (subsurface() || prevSurface->getView()->parent() == view->parent())
+            break;
+
+        prevSurface = static_cast<Surface*>(prevSurface->prevSurface());
+    }
+
+    if (prevSurface)
+    {
+        if (subsurface() || prevSurface->getView()->parent() == getView()->parent())
+            view->insertAfter(prevSurface->getView());
+    }
+    else
+        view->insertAfter(nullptr);
 }
 
 // layerChanged: 层次发生变化。对于我们来讲最有用的就是平铺层<->浮动层之间的互相切换。

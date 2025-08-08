@@ -83,6 +83,7 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
     //LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);
     
+    /*
     // 为了确保鼠标下面的窗口已经更新, 在接收到状态改变信号之后再设置活动容器
     Surface* surface = static_cast<Surface*>(seat()->pointer()->surfaceAt(cursor()->pos()));
 
@@ -114,6 +115,7 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
             //LLog::log("已设置活动容器为状态改变后窗口下的容器");
         }
     }
+    */
 };
 
 //服务端向客户端下发配置请求

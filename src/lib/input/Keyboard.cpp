@@ -57,7 +57,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
     static bool initialized = false;
     if (!initialized) {
         ShortcutManager& mgr = ShortcutManager::instance();
-        mgr.init("/home/zero/tiley/hotkey.json");
+        mgr.init("/home/iriseplos/projects/os/tiley/hotkey.json");
 
         //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
         mgr.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
@@ -74,6 +74,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
             TileyWindowStateManager::getInstance().switchWorkspace(1);
         });
         mgr.registerHandler("goto_ws_3", [](auto){ 
+            LLog::log("执行: goto_ws_3"); 
             TileyWindowStateManager::getInstance().switchWorkspace(2);
         });
      
