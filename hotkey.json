@@ -41,6 +41,9 @@
   "alt+#": "move_window_to_workspace",
   "alt+WheelUp": "move_window_left_ws",
   "alt+WheelDown": "move_window_right_ws",
-  "alt+P": "toggle_panel"
+  "alt+P": "toggle_panel",
+  "ctrl+1": "goto_ws_1",
+  "ctrl+2": "goto_ws_2",
+  "ctrl+3": "goto_ws_3"
 }
 

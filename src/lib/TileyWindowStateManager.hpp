@@ -73,6 +73,7 @@ namespace tiley{
             // printContainerHierachy的递归函数
             void _printContainerHierachy(Container* current);
             
+            
             // 全局记录工作区, 再也不用分散在各处了
             // TODO: 我们需要这个成员始终反映用户意图。也就是说, 无论在哪儿调用, 当前工作区始终是那个函数想要的。怎么做?
            // UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
@@ -95,7 +96,8 @@ namespace tiley{
             UInt32 CURRENT_WORKSPACE=0;
             //递归去把一个容器树设置为不可见（切换工作区）
             void setContainerTreeVisible(Container* root,bool visible);
-            
+            //
+            static UInt32 countContainersOfWorkspace(const Container* root);
             // 目前活动的Container, 用于当某次insert找不到应该放在哪儿时作为fallback使用
             Container* activeContainer;
             // 目前一共的container数量, 作为校验使用, 可以检测出平铺过程中出现意外导致container数量不一致。TODO: 自动重新计算数量

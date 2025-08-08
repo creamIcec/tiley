@@ -112,7 +112,7 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 // 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
 void Surface::orderChanged()
 {   
-    //LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
+    LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
     
     // 调试: 打印surface前后关系
     // TileyServer& server = TileyServer::getInstance();

@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
-
+#include <functional> 
 using namespace tiley;
 //找底层窗口
 static Surface* findFirstParentToplevelSurface(Surface* surface){
@@ -675,13 +675,13 @@ Container* TileyWindowStateManager::_getFirstWindowContainer(Container* containe
 
     return nullptr;
 }
-
+/*
 // 重新计算布局。需要外部在合适的时候手动触发
 bool TileyWindowStateManager::recalculate(){
 
      // TODO: 实现多工作区全部重排, 但考虑性能 vs 准确性
      // 目前就0号工作区
-     UInt32 workspace = 0;
+     UInt32 workspace = CURRENT_WORKSPACE;
      Container* root = workspaceRoots[workspace];
 
      // 如果工作区没有窗口
@@ -716,7 +716,69 @@ bool TileyWindowStateManager::recalculate(){
 
     LLog::debug("重新布局失败。未知原因。");
     return false;
+}*/
+bool TileyWindowStateManager::recalculate(){
+    // 用当前工作区
+    UInt32 workspace = CURRENT_WORKSPACE;
+    Container* root = workspaceRoots[workspace];
+
+    if (!root) {
+        LLog::warning("[recalculate]: 工作区 %u 的根节点为空。", workspace);
+        return false;
+    }
+    if (!root->child1 && !root->child2) {
+        LLog::debug("工作区 %u 没有窗口, 无需重排平铺。", workspace);
+        return false;
+    }
+
+    // 选一个可用的输出：优先取该工作区第一个窗口的输出；没有就退回到鼠标所在输出
+    Output* rootOutput = nullptr;
+    if (auto* first = getFirstWindowContainer(workspace)) {
+        rootOutput = static_cast<ToplevelRole*>(first->window)->output;
+    }
+    if (!rootOutput) {
+        rootOutput = static_cast<Output*>(cursor()->output());
+    }
+    if (!rootOutput) {
+        LLog::warning("[recalculate]: 工作区 %u 找不到有效输出，放弃重排。", workspace);
+        return false;
+    }
+
+    const LRect& availableGeometry = rootOutput->availableGeometry();
+
+    // 当前工作区的期望节点数
+    containerCount = countContainersOfWorkspace(root);   
+
+    bool reflowSuccess = false;
+    LLog::debug("执行重新布局... ws=%u, nodes=%u", workspace, containerCount);
+
+    reflow(workspace, availableGeometry, reflowSuccess);
+    if (reflowSuccess){
+        LLog::debug("重新布局成功。");
+        return true;
+    } else {
+        LLog::debug("重新布局失败, 可能有容器被意外修改。");
+        return false;
+    }
 }
+
+
+UInt32 TileyWindowStateManager::countContainersOfWorkspace(const Container* root) {
+    if (!root) return 0;
+
+    UInt32 n = 0;
+    std::function<void(const Container*)> dfs = [&](const Container* c){
+        if (!c) return;
+        // 和 _reflow 对齐：无论是窗口容器还是分割容器，节点本身都计数
+        ++n;
+        dfs(c->child1);
+        dfs(c->child2);
+    };
+
+    dfs(root);
+    return n;
+}
+
 
 void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRemain, UInt32& accumulateCount){
 
@@ -969,22 +1031,22 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
         return false;
     }
 
-    // 1. 隐藏旧区所有容器视图
+    // 隐藏旧区所有容器视图
     setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], false);
 
-    // 2. 清空焦点
+    // 清空焦点
     auto seat = Louvre::seat();
     if (seat->keyboard()) seat->keyboard()->setFocus(nullptr);
     if (seat->pointer())  seat->pointer()->setFocus(nullptr);
 
-    // 3. 更新索引
+    //更新索引
     CURRENT_WORKSPACE = target;
 
-    // 4. 显示新工作区容器树
+    // 显示新工作区容器树
     setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], true);
 
-    // 5. 重排与重绘
-    // 只对当前区的布局执行一次 recalculate()
+    // 重排与重绘
+    // 只对当前区的布局执行一次 recalculate()，TODO:这里为什么会报错（重新布局失败）呢，有点不理解
     recalculate();
     // repaint 所有输出，重新绘制
     for (auto out : Louvre::compositor()->outputs())
