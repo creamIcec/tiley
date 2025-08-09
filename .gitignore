@@ -27,3 +27,8 @@ bin/*.so
 *.py
 *.pyc
 presentation/
+
+
+# logs
+
+tiley_log.txt

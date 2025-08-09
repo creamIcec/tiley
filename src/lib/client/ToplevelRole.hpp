@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "LEvent.h"
+#include "LNamespaces.h"
 #include "src/lib/client/render/SSD.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/output/Output.hpp"
@@ -39,6 +40,9 @@ namespace tiley{
             TOPLEVEL_TYPE type = NORMAL;
             // 属于的显示屏
             Output* output = nullptr;
+            // 属于的工作区
+            UInt32 workspaceId;
+
             void atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev) override;
             void configureRequest() override;
 

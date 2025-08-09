@@ -7,6 +7,7 @@
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/core/Container.hpp"
+#include "src/lib/input/Pointer.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/output/Output.hpp"
@@ -24,6 +25,7 @@
 #include <memory>
 #include <functional> 
 using namespace tiley;
+
 //找底层窗口
 static Surface* findFirstParentToplevelSurface(Surface* surface){
     Surface* iterator = surface;
@@ -52,6 +54,45 @@ static Surface* findFirstParentToplevelSurface(Surface* surface){
         iterator = (Surface*)iterator->parent();
     }
     return iterator;
+}
+
+UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
+    if(!container){
+        LLog::debug("传入的容器为空, 返回当前工作区");
+        return CURRENT_WORKSPACE;
+    }
+
+    // 一路回溯到根节点
+    Container* root = container;
+    while(root->parent){
+        root = root->parent;
+    }
+
+    for(UInt32 w = 0; w < WORKSPACES; w++){
+        if(workspaceRoots[w] == root){
+            return w;
+        }
+    }
+
+    LLog::error("错误: 无法找到一个容器所在树的根节点, 可能存在bug, 请报告!");
+    return CURRENT_WORKSPACE;
+
+}
+
+
+void TileyWindowStateManager::setActiveContainer(Container* container){
+    if(!container){
+        activeContainer = container;  //设置为空容器
+        return;
+    }
+
+    UInt32 workspace = getWorkspace(container);
+    if(workspace >= 0 && workspace < WORKSPACES){
+        workspaceActiveContainers[workspace] = container;
+    }
+
+    // 同步更新, 非常重要, 在我们没有完全迁移过来之前, 需要随时更新activeContainer和workspaceActiveContainers, 让他们保持同步
+    activeContainer = workspaceActiveContainers[workspace];
 }
 
 // insert(插入)函数
@@ -290,7 +331,16 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
     // 2. 找到这个window对应的container
     Container* containerToRemove = ((ToplevelRole*)window)->container;
-    // 同时保存父亲和祖父的指针
+    
+    // 2.1. 首先处理是浮动的可平铺窗口, 因为他们没有父容器
+    if(containerToRemove->floating_reason != NONE){
+        LLog::debug("关闭浮动窗口");
+        delete containerToRemove;
+        containerToRemove = nullptr;
+        return nullptr;
+    }
+    
+    // 是一般窗口, 同时保存父亲和祖父的指针
     Container* grandParent = containerToRemove->parent->parent;
     Container* parent = containerToRemove->parent;
 
@@ -473,6 +523,11 @@ void TileyWindowStateManager::reflow(UInt32 workspace, const LRect& region, bool
 
 bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &container){
 
+    if(!window){
+        LLog::debug("尝试添加空指针窗口, 停止操作");
+        return false;
+    }
+
     Surface* surface = static_cast<Surface*>(window->surface());
 
     LLog::debug("添加窗口, surface位置: (%d,%d)", surface->pos().x(), surface->pos().y());
@@ -513,6 +568,9 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
         default:
             LLog::warning("[addWindow]: 显示了一个未知类型的窗口。该窗口将不会被插入管理列表");
     }
+
+    // 无论如何, 向窗口添加工作区信息
+    window->workspaceId = CURRENT_WORKSPACE;
 
     return true;
 }
@@ -573,7 +631,7 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
             surface->raise();
         }
     }else{
-        LLog::debug("窗口回到正常平铺: 启用containerView");
+        LLog::debug("窗口进入平铺: 启用containerView");
         window->container->enableContainerView(true);
     }
 
@@ -726,10 +784,13 @@ bool TileyWindowStateManager::recalculate(){
         LLog::warning("[recalculate]: 工作区 %u 的根节点为空。", workspace);
         return false;
     }
+
     if (!root->child1 && !root->child2) {
         LLog::debug("工作区 %u 没有窗口, 无需重排平铺。", workspace);
         return false;
     }
+
+    LLog::log("当前重新布局工作区: %d", workspace);
 
     // 选一个可用的输出：优先取该工作区第一个窗口的输出；没有就退回到鼠标所在输出
     Output* rootOutput = nullptr;
@@ -894,65 +955,61 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
 
     // 如果工作区为空, 直接返回自己
     if(root->child1 == nullptr && root->child2 == nullptr){
-        LLog::debug("返回工作区根节点");
+        LLog::debug("[getInsertTargetTiledContainer]: 返回工作区根节点");
         return root;
     }
 
-    // 一阶段
+    // 一阶段, 命中缓存
+    Container* activeContainer = workspaceActiveContainers[workspace];
     if(activeContainer){
-        LLog::debug("返回上一个活动的Container");
+        LLog::debug("[getInsertTargetTiledContainer]: 返回工作区 %u 上一个活动的Container", workspace);
         return activeContainer;
     }
 
-    // 二阶段
+    // 二阶段, 未命中缓存, 回退到鼠标位置查找
+    auto filter = [this](LSurface* s) -> bool{
+        
+        auto surface = static_cast<Surface*>(s);
 
-    // 这里不需要限制工作区。所有surface的集合>单个工作区的集合, 如果所有surface都找不到, 则说明肯定桌面是空的
-    // surface()只包含客户端创建的
-    for(LSurface* surface : compositor()->surfaces()){
+        // 条件1: 必须是一个窗口
+        if(!surface->toplevel()){
+            return false;
+        }
 
-        if(surface->toplevel()){
+        // 条件2: 其视图必须可见
+        if(!surface->getView() || !surface->getView()->visible()){
+            return false;
+        }
 
-            Surface* targetSurface = static_cast<Surface*>(surface);
+        // 条件3: 必须是可被平铺窗口和平铺中的非浮动窗口
+        auto window = static_cast<ToplevelRole*>(surface->toplevel());
+        if(window->type != NORMAL || (window->container && window->container->floating_reason != NONE)){
+            return false;
+        }
 
-            // 排除非平铺窗口
-            if(targetSurface->tl()->container->floating_reason != NONE){
-                continue;
-            }
-
-            // 排除正在被移动的窗口, TODO: 和上面的条件合并(确保正在移动的窗口==floating_reason不为NONE的窗口)
-            bool flag = true;
-
-            for(LToplevelMoveSession* session : seat()->toplevelMoveSessions()){
-                // TODO: 潜在风险: 可能在移动多个窗口吗? 先假设同时最多只有一个窗口能被移动
-                if(targetSurface->toplevel() == session->toplevel()){ 
-                    flag = false;
-                    break;
-                }
-            }
-
-            if(!flag){
-                // 目标位置不是窗口或者是非平铺窗口, 都不符合条件, 下一位
-                continue;
-            }
-
-            // 计算该surface的范围
-            const LRect rect = {
-                targetSurface->pos().x(),
-                targetSurface->pos().y(),
-                targetSurface->pos().x() + targetSurface->size().width(),
-                targetSurface->pos().y() + targetSurface->size().height()
-            };
-
-            if(rect.containsPoint(cursor()->pos())){
-                // 找到了目标窗口
-                ToplevelRole* targetWindow = static_cast<ToplevelRole*>(targetSurface->toplevel());
-                // 返回容器
-                return targetWindow->container;
+        // 条件 4: 健壮性: 确保该窗口没有正在被移动
+        for (LToplevelMoveSession* session : seat()->toplevelMoveSessions()) {
+            if (s->toplevel() == session->toplevel()) {
+                return false;
             }
         }
+
+        // 检查完全通过!
+        return true;
+
+    };
+
+    LSurface* targetSurface = static_cast<Pointer*>(seat()->pointer())->surfaceAtWithFilter(cursor()->pos(), filter);
+    
+    if (targetSurface) {
+        // 找到了目标窗口
+        ToplevelRole* targetWindow = static_cast<ToplevelRole*>(targetSurface->toplevel());
+        LLog::debug("[getInsertTargetTiledContainer]: 返回鼠标下的窗口");
+        return targetWindow->container;
     }
 
-    // 如果遍历完了都没找到, 说明是桌面
+    // 三阶段, 鼠标位置也没有, 返回根节点
+    LLog::debug("[getInsertTargetTiledContainer]: 返回桌面容器");
     return root;
 
 };
@@ -1014,16 +1071,36 @@ bool TileyWindowStateManager::isStackedWindow(ToplevelRole* window){
 
     return false;
 }
-// 递归设置某个容器及其子容器视图的可见性
-void TileyWindowStateManager::setContainerTreeVisible(Container* root, bool visible) {
-    if (!root) return;
-    // 根节点本身（如果是窗口容器）不直接可见，但它的 containerView 代表这棵树
-    if (root->getContainerView())
-        root->getContainerView()->setVisible(visible);
 
-    if (root->child1) setContainerTreeVisible(root->child1, visible);
-    if (root->child2) setContainerTreeVisible(root->child2, visible);
+// 递归设置某个窗口及其子窗口的可见性
+void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visible) {
+    // 入参检查
+    if (!window || !window->surface()){
+        LLog::warning("要修改可见性的窗口是空指针, 或者其surface不存在, 停止修改");
+        return;
+    }
+
+    // 1. 设置window自身的surfaceView的可见性(对于平铺窗口而言是双重保障, 对于浮动窗口而言就是唯一手段)
+    auto windowSurface = static_cast<Surface*>(window->surface());
+    if(windowSurface && windowSurface->getView()){
+        windowSurface->getView()->setVisible(visible);
+    }
+
+    // 2. 如果是可平铺窗口, 设置其containerView可见性
+    if (window->container && window->container->getContainerView() && window->container->getContainerView()->mapped()){
+        window->container->getContainerView()->setVisible(visible);
+    }
+
+    // 3. 再设置子Surface的可见性
+    for(auto s : window->surface()->children()){
+        auto surface = static_cast<Surface*>(s);
+        surface->getView()->setVisible(visible);
+    }
+
+    // 4. 最后, 关闭所有弹出菜单
+    seat()->dismissPopups();
 }
+
 // 切换工作区
 bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
     if (target >= WORKSPACES || target == CURRENT_WORKSPACE) {
@@ -1031,19 +1108,29 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
         return false;
     }
 
-    // 隐藏旧区所有容器视图
-    setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], false);
-
-    // 清空焦点
-    auto seat = Louvre::seat();
-    if (seat->keyboard()) seat->keyboard()->setFocus(nullptr);
-    if (seat->pointer())  seat->pointer()->setFocus(nullptr);
+    // 隐藏所有属于旧工作区的窗口, 并显示新工作区的所有窗口
+    for(auto surface : compositor()->surfaces()){
+        if(surface->toplevel()){
+            auto window = static_cast<ToplevelRole*>(surface->toplevel());
+            bool shouldBeVisible = (window->workspaceId == target);
+            // 一键切换可见性
+            setWindowVisible(window, shouldBeVisible);
+        }
+    }
 
     //更新索引
     CURRENT_WORKSPACE = target;
+    activeContainer = workspaceActiveContainers[CURRENT_WORKSPACE];
 
-    // 显示新工作区容器树
-    setContainerTreeVisible(workspaceRoots[CURRENT_WORKSPACE], true);
+    auto seat = Louvre::seat();
+    // 如果目标工作区活动窗口存在, 则直接切换焦点过去, 不用先清空再设置到新的哦
+    if(activeContainer && activeContainer->window){
+        if (seat->keyboard()) seat->keyboard()->setFocus(activeContainer->window->surface());
+        if (seat->pointer())  seat->pointer()->setFocus(activeContainer->window->surface());
+    }else{
+        if (seat->keyboard()) seat->keyboard()->setFocus(nullptr);
+        if (seat->pointer())  seat->pointer()->setFocus(nullptr);
+    }
 
     // 重排与重绘
     // 只对当前区的布局执行一次 recalculate()，TODO:这里为什么会报错（重新布局失败）呢，有点不理解
@@ -1055,10 +1142,6 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
     LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
     return true;
 }
-
-
-
-
 
 TileyWindowStateManager& TileyWindowStateManager::getInstance(){
     std::call_once(onceFlag, [](){

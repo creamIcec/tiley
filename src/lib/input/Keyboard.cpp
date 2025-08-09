@@ -7,10 +7,10 @@
 #include <LSeat.h>
 #include <LCursor.h>
 #include <LLog.h>
+#include <LKeyboard.h>
+#include <LKeyboardKeyEvent.h>
+#include <LNamespaces.h>
 
-#include "LKeyboard.h"
-#include "LKeyboardKeyEvent.h"
-#include "LNamespaces.h"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/core/UserAction.hpp"
@@ -57,7 +57,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
     static bool initialized = false;
     if (!initialized) {
         ShortcutManager& mgr = ShortcutManager::instance();
-        mgr.init("/home/zero/tiley/hotkey.json");
+        mgr.init("/home/iriseplos/projects/os/tiley/hotkey.json");
 
         //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
         mgr.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
@@ -74,6 +74,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
             TileyWindowStateManager::getInstance().switchWorkspace(1);
         });
         mgr.registerHandler("goto_ws_3", [](auto){ 
+            LLog::log("执行: goto_ws_3"); 
             TileyWindowStateManager::getInstance().switchWorkspace(2);
         });
      
@@ -89,6 +90,8 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
         }
     }
 
+    LLog::debug("[keyEvent]: 尝试切换窗口浮动");
+
     //  旧逻辑（alt+space ）
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
     TileyServer& server = TileyServer::getInstance();
@@ -97,7 +100,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
     server.is_compositor_modifier_down = altDown;
 
     if(server.is_compositor_modifier_down){
-        if(event.state() == Louvre::LKeyboardKeyEvent::Released && event.keyCode() == KEY_SPACE){
+        if(event.state() == Louvre::LKeyboardKeyEvent::Pressed && event.keyCode() == KEY_SPACE){
             LLog::debug("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
             Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
             if(surface){

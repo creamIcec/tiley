@@ -1,5 +1,6 @@
 #include "ShortcutManager.hpp"
 
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <sys/inotify.h>
 #include <unistd.h>
@@ -9,6 +10,7 @@
 #include <chrono>
 #include <LLog.h>
 #include "src/lib/TileyServer.hpp"
+
 using json = nlohmann::json;
 using namespace tiley;
 
@@ -54,6 +56,7 @@ bool ShortcutManager::tryDispatch(const std::string& combo){
         hit->second(combo);
     } else {
         LLog::warning("快捷键动作未注册: %s (combo=%s)", actionName.c_str(), combo.c_str());
+        return false;  //未注册则不命中
     }
     return true;
 }
