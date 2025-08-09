@@ -45,7 +45,7 @@ namespace tiley{
             FLOATING_REASON floating_reason = NONE;
             
             // TODO: LWeak or unique_ptr
-            LToplevelRole* window = nullptr;  //双向指针其二: container->toplevel 当是叶子节点时, 指向一个窗口 
+            LToplevelRole* window = nullptr;  //双向指针其二: container->toplevel 当是叶子节点时, 指向一个窗口
 
             Container* parent = nullptr;
             Container* child1;  //这里我们不以上下左右命名, 只用编号, 避免混淆
@@ -76,5 +76,14 @@ namespace tiley{
 
             // 管理器可以访问私有成员
             friend TileyWindowStateManager;
+            
+            //TODO，去封装一下左右半区的实现。
+            enum class InsertHalf{
+                Undefined,
+                First,
+                Second
+            };
+            InsertHalf insertHalf = InsertHalf::Undefined;
+
     };
 }

@@ -199,7 +199,7 @@ void Output::updateWallpaper(){
     using std::filesystem::path;
 
     // 在这里修改壁纸路径
-    path wallpaperRootPath("/home/iriseplos/tiley-data/wallpaper");
+    path wallpaperRootPath("/home/iriseplos/.local/share/");
     path wallpaperPath = wallpaperRootPath / "tokyo-night.jpeg";
 
     LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
@@ -207,6 +207,8 @@ void Output::updateWallpaper(){
     if(!originalWallpaper){
         LLog::error("[屏幕id: %u]无法加载壁纸。请检查路径是否存在。", this->id());
         return;
+    }else{
+        LLog::debug("壁纸加载完毕, 地址: %u", originalWallpaper);
     }
 
     // 下面就是具体的计算逻辑

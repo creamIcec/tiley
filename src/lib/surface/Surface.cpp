@@ -19,7 +19,6 @@
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
 
-
 using namespace Louvre;
 using namespace tiley;
 
@@ -113,13 +112,30 @@ void Surface::orderChanged()
     // 调试: 打印surface前后关系
     // TileyServer& server = TileyServer::getInstance();
     // server.compositor()->printToplevelSurfaceLinklist();
-    
-    // Previous surface in LCompositor::surfaces()
-    Surface *prev { static_cast<Surface*>(prevSurface()) };
 
-    // Re-insert the view only if there is a previous surface within the same layer
-    getView()->insertAfter((prev && prev->layer() == layer()) ? prev->getView() : nullptr);
+    // Louvre-views 官方写法
 
+    if (toplevel() && toplevel()->fullscreen())
+        return;
+
+    Surface *prevSurface { static_cast<Surface*>(this->prevSurface()) };
+    LView *view { getView() };
+
+    while (prevSurface != nullptr)
+    {
+        if (subsurface() || prevSurface->getView()->parent() == view->parent())
+            break;
+
+        prevSurface = static_cast<Surface*>(prevSurface->prevSurface());
+    }
+
+    if (prevSurface)
+    {
+        if (subsurface() || prevSurface->getView()->parent() == getView()->parent())
+            view->insertAfter(prevSurface->getView());
+    }
+    else
+        view->insertAfter(nullptr);
 }
 
 // layerChanged: 层次发生变化。对于我们来讲最有用的就是平铺层<->浮动层之间的互相切换。
@@ -171,7 +187,7 @@ void Surface::mappingChanged(){
             Container* removedContainer = nullptr;
             // 移除窗口(包括平铺的和非平铺的都是这个方法)
             manager.removeWindow(tl(), removedContainer);
-            // 如果移除成功
+            // 如果移除的是平铺层的窗口
             if(removedContainer != nullptr){
                 // 重新布局
                 manager.recalculate();

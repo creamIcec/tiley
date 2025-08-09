@@ -15,6 +15,7 @@ using namespace tiley;
 
 ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
 {
+    //由Louvre提供，用于计算允许的移动范围。
     moveSession().setOnBeforeUpdateCallback([](LToplevelMoveSession *session)
     {
         LMargins constraints { session->toplevel()->calculateConstraintsFromOutput(cursor()->output()) };
@@ -35,7 +36,8 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
             stopMoveSession(false);
         }
     });
-
+    
+    //同理，但是是限制屏幕大小
     resizeSession().setOnBeforeUpdateCallback([](LToplevelResizeSession *session)
     {
         // 更改大小也限制在屏幕范围内
@@ -49,6 +51,7 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
         }
     });
 }
+
 
 void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
 
@@ -74,11 +77,13 @@ void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
     );
 }
 
+//重载窗口属性变化函数，驱动平铺驱点。
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
 
     //LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);
     
+    /*
     // 为了确保鼠标下面的窗口已经更新, 在接收到状态改变信号之后再设置活动容器
     Surface* surface = static_cast<Surface*>(seat()->pointer()->surfaceAt(cursor()->pos()));
 
@@ -110,8 +115,10 @@ void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev)
             //LLog::log("已设置活动容器为状态改变后窗口下的容器");
         }
     }
+    */
 };
 
+//服务端向客户端下发配置请求
 void ToplevelRole::configureRequest(){
     LLog::debug("接收到配置请求");
 

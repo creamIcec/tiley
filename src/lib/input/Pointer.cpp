@@ -605,9 +605,21 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
 
     // 从这里开始, 才是正常的鼠标移动逻辑(前面的都是特殊情况处理)
  
-    // 查找光标下的第一个surface。性能优化: 如果鼠标被锁定, 并且前面将鼠标锁定的逻辑处理得很好了, 那么这里直接取focus(), 避免后面的射线检测
-    // Find the first surface under the cursor
-    LSurface *surface { pointerConstrained ? focus() : surfaceAt(cursor()->pos()) };
+    // 查找光标下的第一个正在被显示的surface
+    LSurface *surface { pointerConstrained ? focus() : surfaceAtWithFilter(cursor()->pos(), 
+        [this](LSurface* s) -> bool{
+            auto surface = static_cast<Surface*>(s);
+            if(!surface || !surface->getView()){
+                return false;
+            }
+
+            if(!surface->getView()->visible()){
+                return false;
+            }
+            
+            return true;
+        })
+    };
  
     if (surface)
     {   

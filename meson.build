@@ -10,6 +10,7 @@ project(
   ],
 )
 
+
 fs = import('fs')
 
 # 安装后的着色器目录
@@ -35,6 +36,7 @@ configure_file(
     configuration: conf_data
 )
 
+xkbcommon_dep = dependency('xkbcommon', required: true)
 
 louvre_dep = dependency('Louvre', version: '>=2.18.1')
 pixman_dep = dependency('pixman-1')
@@ -69,7 +71,7 @@ subdir('src')
 exe = executable(
   'tiley',
   all_tiley_sources,
-  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus],
+  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus,xkbcommon_dep],
   install : true,
   include_directories: common_includes
 )
