@@ -331,7 +331,16 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
     // 2. 找到这个window对应的container
     Container* containerToRemove = ((ToplevelRole*)window)->container;
-    // 同时保存父亲和祖父的指针
+    
+    // 2.1. 首先处理是浮动的可平铺窗口, 因为他们没有父容器
+    if(containerToRemove->floating_reason != NONE){
+        LLog::debug("关闭浮动窗口");
+        delete containerToRemove;
+        containerToRemove = nullptr;
+        return nullptr;
+    }
+    
+    // 是一般窗口, 同时保存父亲和祖父的指针
     Container* grandParent = containerToRemove->parent->parent;
     Container* parent = containerToRemove->parent;
 
@@ -1068,6 +1077,7 @@ void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visibl
     // 入参检查
     if (!window || !window->surface()){
         LLog::warning("要修改可见性的窗口是空指针, 或者其surface不存在, 停止修改");
+        return;
     }
 
     // 1. 设置window自身的surfaceView的可见性(对于平铺窗口而言是双重保障, 对于浮动窗口而言就是唯一手段)
@@ -1086,7 +1096,7 @@ void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visibl
         auto surface = static_cast<Surface*>(s);
         surface->getView()->setVisible(visible);
     }
-    
+
     // 4. 最后, 关闭所有弹出菜单
     seat()->dismissPopups();
 }

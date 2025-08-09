@@ -19,7 +19,6 @@
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
 
-
 using namespace Louvre;
 using namespace tiley;
 
@@ -192,7 +191,7 @@ void Surface::mappingChanged(){
             Container* removedContainer = nullptr;
             // 移除窗口(包括平铺的和非平铺的都是这个方法)
             manager.removeWindow(tl(), removedContainer);
-            // 如果移除成功
+            // 如果移除的是平铺层的窗口
             if(removedContainer != nullptr){
                 // 重新布局
                 manager.recalculate();

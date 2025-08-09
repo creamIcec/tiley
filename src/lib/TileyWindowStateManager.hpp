@@ -35,7 +35,6 @@ namespace tiley{
             bool switchWorkspace(UInt32 target);
             // 获取当前工作区
             UInt32 currentWorkspace() const { return CURRENT_WORKSPACE; }
-
             // attach: 将一个被分离的容器重新插入容器树中, 例如将浮动的窗口合并回平铺层, 或者停止移动窗口等。
             bool attachTile(LToplevelRole* window);
             // resizeTile: 调整当前活动的(由setupResizeSession设置)平铺容器的平铺比例。

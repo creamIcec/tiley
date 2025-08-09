@@ -7,10 +7,10 @@
 #include <LSeat.h>
 #include <LCursor.h>
 #include <LLog.h>
+#include <LKeyboard.h>
+#include <LKeyboardKeyEvent.h>
+#include <LNamespaces.h>
 
-#include "LKeyboard.h"
-#include "LKeyboardKeyEvent.h"
-#include "LNamespaces.h"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/core/UserAction.hpp"
@@ -90,6 +90,8 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
         }
     }
 
+    LLog::debug("[keyEvent]: 尝试切换窗口浮动");
+
     //  旧逻辑（alt+space ）
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
     TileyServer& server = TileyServer::getInstance();
@@ -98,7 +100,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
     server.is_compositor_modifier_down = altDown;
 
     if(server.is_compositor_modifier_down){
-        if(event.state() == Louvre::LKeyboardKeyEvent::Released && event.keyCode() == KEY_SPACE){
+        if(event.state() == Louvre::LKeyboardKeyEvent::Pressed && event.keyCode() == KEY_SPACE){
             LLog::debug("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
             Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
             if(surface){
