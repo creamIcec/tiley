@@ -6,6 +6,7 @@
 
 #include <getopt.h>
 
+#include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
 
 // 设置启动参数, 具体含义在LaunchArgs结构体中说明
@@ -68,8 +69,19 @@ int main(int argc, char* argv[]){
         return EXIT_FAILURE;
     }
 
+    // 加载服务器需要的资源
+    tiley::TileyServer::getInstance().initOpenGLResources();
+
     if(args.startupCMD){
         Louvre::LLauncher::launch(std::string("/bin/sh -c ").append(args.startupCMD));
+    }
+
+    // TODO: 从配置判断是否启用waybar
+    // TODO: 启动waybar带参数
+    // TODO: hyprland: 配置文件exec-once
+    bool waybar = true;
+    if(waybar){
+        Louvre::LLauncher::launch("waybar");
     }
     
     //***************启动****************
@@ -77,6 +89,9 @@ int main(int argc, char* argv[]){
     while(compositor.state() != LCompositor::Uninitialized){
         compositor.processLoop(-1);
     }
+
+    // 释放服务器资源
+    tiley::TileyServer::getInstance().uninitOpenGLResources();
 
     return EXIT_SUCCESS;
 

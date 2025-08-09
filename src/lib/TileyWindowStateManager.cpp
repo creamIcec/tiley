@@ -147,24 +147,27 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
     const LRect& geo = targetContainer->geometry;
     LPointF mouse = cursor()->pos();
     bool before;
+
     if (splitType == SPLIT_H) {
-    float midX = geo.x() + geo.w() * splitRatio;
-    before = (mouse.x() < midX);
+        float midX = geo.x() + geo.w() * splitRatio;
+        before = (mouse.x() < midX);
     } else {
-    float midY = geo.y() + geo.h() * splitRatio;
-    before = (mouse.y() < midY);
+        float midY = geo.y() + geo.h() * splitRatio;
+        before = (mouse.y() < midY);
     }
+
     if (before) {
-    // 鼠标在“前半区”：新窗口 child1，原窗口 child2
-    splitContainer->child1 = newWindowContainer;
-    splitContainer->child2 = targetContainer;
-    //LLog::debug("前半区");
+        // 鼠标在“前半区”：新窗口 child1，原窗口 child2
+        splitContainer->child1 = newWindowContainer;
+        splitContainer->child2 = targetContainer;
+        //LLog::debug("前半区");
     } else {
-    // 鼠标在“后半区”：原窗口 child1，新窗口 child2
-    splitContainer->child1 = targetContainer;
-    splitContainer->child2 = newWindowContainer;
-    //LLog::debug("后半区");
+        // 鼠标在“后半区”：原窗口 child1，新窗口 child2
+        splitContainer->child1 = targetContainer;
+        splitContainer->child2 = newWindowContainer;
+        //LLog::debug("后半区");
     }
+    
     newWindowContainer->parent = splitContainer;
     targetContainer->parent = splitContainer;
     LLog::debug("%d, %d, %d, %d",geo.x(),geo.y(),geo.w(),mouse.x());
@@ -614,7 +617,13 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
         }else{
             surface->raise();
         }
-    }else if(window->container->floating_reason == STACKING){
+    }
+
+    if(!window->container){
+        return false;
+    }
+    
+    if(window->container->floating_reason == STACKING){
         LLog::debug("堆叠窗口: 暂时禁用containerView");
         window->container->enableContainerView(false);
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
@@ -758,6 +767,7 @@ bool TileyWindowStateManager::recalculate(){
          return false;
      }
 
+     // 屏幕可用区域。会减去不可占用的区域, 例如顶栏等。
      const LRect& availableGeometry = rootOutput->availableGeometry();
 
      bool reflowSuccess = false;

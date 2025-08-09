@@ -20,7 +20,6 @@ namespace tiley{
     class Surface final : public LSurface{
         public:
             using LSurface::LSurface;
-            Surface(const void *params);
 
             friend Container;
 
@@ -41,6 +40,6 @@ namespace tiley{
             void minimizedChanged() override;
             void printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept;
         private:
-            std::unique_ptr<SurfaceView> view;
+            std::unique_ptr<SurfaceView> view = std::make_unique<SurfaceView>(this);
     };
 }

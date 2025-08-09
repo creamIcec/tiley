@@ -38,10 +38,6 @@ std::string getEnumName(LSurface::Role value) {
     }
 }
 
-Surface::Surface(const void *params) : LSurface(params) {
-    view = std::make_unique<SurfaceView>(this);
-}
-
 // 获取要操作的view的方法
 // 对于正在平铺的窗口, 返回包装器; 对于目前没有平铺的窗口或其他任意角色, 返回view本身
 LView* Surface::getView() noexcept{

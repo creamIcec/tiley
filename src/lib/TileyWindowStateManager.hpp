@@ -6,7 +6,8 @@
 
 #include "LBitset.h"
 #include "LEdge.h"
-#include "LNamespaces.h"
+
+#include <LNamespaces.h>
 #include "LToplevelRole.h"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/core/Container.hpp"
