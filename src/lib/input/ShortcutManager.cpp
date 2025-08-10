@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <LLog.h>
-#include "src/lib/TileyServer.hpp"
+#include "src/lib/TileyWindowStateManager.hpp"
 
 using json = nlohmann::json;
 using namespace tiley;
@@ -17,9 +17,14 @@ using namespace tiley;
 //每200m才真正重置一次，防止多时间频繁修改
 static constexpr auto kDebounceMs = 200;
 
-ShortcutManager& ShortcutManager::instance(){
-    static ShortcutManager inst;
-    return inst;
+std::unique_ptr<ShortcutManager, ShortcutManager::ShortcutManagerDeleter> ShortcutManager::INSTANCE = nullptr;
+std::once_flag ShortcutManager::onceFlag;
+
+ShortcutManager& ShortcutManager::getInstance(){
+    std::call_once(onceFlag, [](){
+        INSTANCE.reset(new ShortcutManager());
+    });
+    return *INSTANCE;
 }
 
 ShortcutManager::ShortcutManager() : stopWatcher_(false) {}
@@ -38,10 +43,48 @@ void ShortcutManager::init(const std::string& jsonPath){
     startWatcher(jsonPath);
 }
 
+void ShortcutManager::initializeHandlers(){
+    // 首先重置
+    resetHandlers();
+    
+    ShortcutManager& shortcutManager = ShortcutManager::getInstance();
+    TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
+
+    // TODO: 动态加载
+    shortcutManager.init("/home/iriseplos/projects/os/tiley/hotkey.json");
+
+    //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
+    shortcutManager.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
+    shortcutManager.registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
+    shortcutManager.registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
+
+    // 注册工作区切换，理论上可以注册最大工作区的数量呢
+    shortcutManager.registerHandler("goto_ws_1", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_1");
+        windowStateManager.switchWorkspace(0);
+    });
+    shortcutManager.registerHandler("goto_ws_2", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_2"); 
+        windowStateManager.switchWorkspace(1);
+    });
+    shortcutManager.registerHandler("goto_ws_3", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_3"); 
+        windowStateManager.switchWorkspace(2);
+    });
+
+    LLog::debug("快捷键系统初始化完成（模块化）");
+}
+
 //绑定对应功能函数，TODO:后续可以继续绑定其它各种功能函数
 void ShortcutManager::registerHandler(const std::string& actionName, ShortcutHandler handler){
     std::lock_guard lock(mutex_);
     handlers_[actionName] = std::move(handler);
+}
+
+void ShortcutManager::resetHandlers(){
+    std::lock_guard lock(mutex_);
+    std::map<std::string, ShortcutHandler> empty;
+    handlers_.swap(empty);
 }
 
 //通过对应事件调用对应函数

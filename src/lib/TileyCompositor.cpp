@@ -1,5 +1,6 @@
 #include "TileyCompositor.hpp"
 #include "LCompositor.h"
+#include "LNamespaces.h"
 #include "TileyServer.hpp"
 #include "src/lib/client/Client.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
@@ -10,12 +11,56 @@
 
 #include <LTransform.h>
 #include <LLog.h>
+#include <LOutputMode.h>
+#include <LLauncher.h>
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 using namespace tiley;
 using namespace Louvre;
+
+// 静态工具函数: 获取一块屏幕的最佳整数缩放
+// TODO: 我们应该允许用户自定义
+static UInt32 getIdealScale(LOutput* output){
+    // 96这个数字的来源: 一个标准的、不需要缩放的屏幕, 其 DPI 基准被认为是 96。这个数字来自微软Windows的历史设定, 现在被广泛沿用
+    float idealScale = output->dpi() / 96.f;
+
+    // 四舍五入
+    float finalScale = roundf(idealScale);
+
+    // 保证至少为1
+    if (finalScale < 1.f) {
+        finalScale = 1.f;
+    }
+
+    return finalScale;
+}
+
+// 静态工具函数: 获取一块屏幕的最佳显示模式(主要是刷新率)
+static LOutputMode* getBestDisplayMode(LOutput* output){
+    LOutputMode *bestMode = nullptr;
+    const LSize &physicalSize = output->physicalSize();
+    LLog::debug("[屏幕id: %u] 屏幕物理尺寸: %dx%d", output->id(), physicalSize.w(), physicalSize.h());
+
+    for (LOutputMode *mode : output->modes()){
+        if (mode->sizeB() == physicalSize){
+            if (!bestMode || mode->refreshRate() > bestMode->refreshRate()){
+                bestMode = mode;
+            }
+        }
+    }
+
+    if (bestMode){
+        LLog::debug("[屏幕id: %u] 使用显示模式: %dx%d @ %.2f Hz",
+                   output->id(), bestMode->sizeB().w(), bestMode->sizeB().h(), bestMode->refreshRate() / 1000.f);
+        return bestMode;
+    }
+
+    return nullptr;
+}
 
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
@@ -31,9 +76,13 @@ void TileyCompositor::initialized(){
     // Seat中的显示器是所有的(包括已配置和未配置的, 此时刚启动肯定都没有配置)
     // 如果要只获得已经配置的显示器, 使用LCompositor::seat(1)
     for(LOutput* output : server.seat()->outputs()){
-        // 根据DPI处理屏幕缩放比例: 当DPI >= 200 时自动设置成2倍放大
-        // TODO: 我们应该允许用户自定义
-        output->setScale(output->dpi() >= 200 ? 2.f : 1.f);
+        LOutputMode* bestMode = getBestDisplayMode(output);
+        if(bestMode){
+            output->setMode(bestMode);
+        }else{
+            LLog::warning("[屏幕id: %u] 警告: 未找到合适的显示模式, 使用屏幕默认模式");
+        }
+        output->setScale(getIdealScale(output));
         // 正常显示, 不旋转也不翻转
         output->setTransform(LTransform::Normal);
         // 按照从左到右配置显示器, 每一个显示器都在上一个的右边
@@ -45,8 +94,19 @@ void TileyCompositor::initialized(){
         output->repaint();
     }
 
-    //TODO: 启动顶栏
+    // TODO: 从配置判断是否启用waybar
+    // TODO: 启动waybar带参数
+    // TODO: hyprland: 配置文件exec-once
+    bool waybar = true;
+    if(waybar){
+        Louvre::LLauncher::launch("waybar");
+    }
 
+    const std::vector<std::string>& cmds = TileyServer::getInstance().getStartupCMD();
+    for(auto cmd : cmds){
+        LLog::debug("启动指令: %s", cmd.c_str());
+        Louvre::LLauncher::launch(cmd);
+    }
 }
 
 void TileyCompositor::uninitialized(){

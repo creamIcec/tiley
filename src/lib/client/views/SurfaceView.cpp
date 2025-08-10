@@ -46,7 +46,8 @@ void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
 
-    //LSurfaceView::paintEvent(params);
+    LSurfaceView::paintEvent(params);
+    return;
 
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
@@ -61,7 +62,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
 
     // 如果没有着色器或者窗口没有纹理, 也使用默认绘制方法
     if (!shader || !surface() || !surface()->texture() || region->empty()) {
-        LLog::warning("当前surface不满足自定义绘制条件, 使用窗口默认绘制方法");
+        //LLog::warning("当前surface不满足自定义绘制条件, 使用窗口默认绘制方法");
         LSurfaceView::paintEvent(params);
         return;
     }
@@ -107,7 +108,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     const LSize &physical_size = out->sizeB();     // 物理缓冲区尺寸, e.g., 3840x2160
 
     // 定义圆角半径(逻辑像素, 需要根据实际分辨率放大)
-    const float cornerRadius = 8.f; // TODO: 圆角半径, 可以从配置文件读取
+    const float cornerRadius = 1.f; // TODO: 圆角半径, 可以从配置文件读取
     const float borderWidth = 1.f;  // 边框粗细
 
     shader->setUniform("u_texture", 0);

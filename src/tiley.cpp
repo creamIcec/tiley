@@ -42,7 +42,8 @@ tiley::LaunchArgs setupParams(int argc, char* argv[]){
 int main(int argc, char* argv[]){
 
     tiley::LaunchArgs args = setupParams(argc, argv);
-
+    // 设置桌面环境名称为我们的合成器名字
+    setenv("XDG_CURRENT_DESKTOP", "Tiley", 1);
     // 启用Louvre的调试输出
     // 等级数字参考LLog::init()中的说明
     setenv("LOUVRE_DEBUG", args.enableDebug ? "4" : "1", 0);
@@ -56,11 +57,14 @@ int main(int argc, char* argv[]){
     setenv("QT_QPA_PLATFORM", "wayland-egl", 1);
     // 特殊: 启用GDK的WAYLAND支持
     setenv("GDK_BACKEND", "wayland", 1);
-
-    // TODO: 怎么获得自己是几号?
+    // 当嵌套运行时, 启用wayland后端
     setenv("LOUVRE_WAYLAND_DISPLAY", "wayland-2", 0);
 
     Louvre::LLauncher::startDaemon();
+    
+    if(args.startupCMD){
+        tiley::TileyServer::getInstance().populateStartupCMD(std::string("/bin/sh -c ").append(args.startupCMD));
+    }
 
     tiley::TileyCompositor compositor;
 
@@ -69,25 +73,21 @@ int main(int argc, char* argv[]){
         return EXIT_FAILURE;
     }
 
+    // 设置服务器在嵌套模式下的名称
+    if(getenv("WAYLAND_DISPLAY") != nullptr){
+        // TODO
+    }
+
     // 加载服务器需要的资源
+    // 着色器脚本
     tiley::TileyServer::getInstance().initOpenGLResources();
-
-    if(args.startupCMD){
-        Louvre::LLauncher::launch(std::string("/bin/sh -c ").append(args.startupCMD));
-    }
-
-    // TODO: 从配置判断是否启用waybar
-    // TODO: 启动waybar带参数
-    // TODO: hyprland: 配置文件exec-once
-    bool waybar = true;
-    if(waybar){
-        Louvre::LLauncher::launch("waybar");
-    }
+    // 键盘快捷键映射表注册
+    tiley::TileyServer::getInstance().initKeyEventHandlers();
     
     //***************启动****************
     // 主循环
     while(compositor.state() != LCompositor::Uninitialized){
-        compositor.processLoop(-1);
+        compositor.processLoop(100);
     }
 
     // 释放服务器资源
