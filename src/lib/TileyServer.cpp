@@ -5,13 +5,13 @@
 #include <LLog.h>
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/input/ShortcutManager.hpp"
 #include "src/lib/scene/Scene.hpp"
 #include "TileyCompositor.hpp"
 #include "Utils.hpp"
 
 using namespace tiley;
 
-// 静态成员初始化
 std::unique_ptr<TileyServer, TileyServer::ServerDeleter> TileyServer::INSTANCE = nullptr;
 std::once_flag TileyServer::onceFlag;
 
@@ -31,6 +31,10 @@ Scene& TileyServer::scene() noexcept{
 
 LayerView* TileyServer::layers() noexcept{
     return scene().layers;
+}
+
+void TileyServer::populateStartupCMD(std::string cmd){
+    startUpCMD.push_back(cmd);   
 }
 
 void TileyServer::initOpenGLResources(){
@@ -111,4 +115,9 @@ void TileyServer::uninitOpenGLResources(){
     m_roundedCornerShader.reset();
     glDeleteBuffers(1, &m_quadVBO);
     glDeleteBuffers(1, &m_quadEBO);
+}
+
+void TileyServer::initKeyEventHandlers(){
+    auto& shortcutManager = ShortcutManager::getInstance();
+    shortcutManager.initializeHandlers();
 }

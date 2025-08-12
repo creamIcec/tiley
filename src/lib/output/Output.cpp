@@ -11,7 +11,6 @@
 #include <LRegion.h>
 #include <LOpenGL.h>
 #include <LCursor.h>
-#include <variant>
 
 #include "LContentType.h"
 #include "LLog.h"
@@ -41,6 +40,10 @@ void Output::initializeGL(){
     TileyServer& server = TileyServer::getInstance();
 
     LLog::debug("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
+
+    // 0. BUG修复: 防止在嵌套模式下不断出现无响应的问题, 暂时的一个workaround
+    // 禁用垂直同步
+    enableVSync(false);
 
     // 1. 交给scene, 计算需要显示在这块显示屏上的部分
     server.scene().handleInitializeGL(this);
@@ -199,8 +202,8 @@ void Output::updateWallpaper(){
     using std::filesystem::path;
 
     // 在这里修改壁纸路径
-    path wallpaperRootPath("/home/iriseplos/.local/share/");
-    path wallpaperPath = wallpaperRootPath / "tokyo-night.jpeg";
+    path wallpaperRootPath("/home/iriseplos/projects/os/tiley/src/assets/wallpaper");
+    path wallpaperPath = wallpaperRootPath / "tiley_16x10@2x.png";
 
     LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
 

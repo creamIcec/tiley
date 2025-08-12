@@ -8,6 +8,7 @@
 #include <GLES2/gl2.h>
 #include <LOutput.h>
 #include <mutex>
+#include <vector>
 
 #include "TileyCompositor.hpp"
 
@@ -46,7 +47,12 @@ namespace tiley{
             // 初始化OpenGL渲染脚本
             void initOpenGLResources();
             void uninitOpenGLResources();
-
+            // 初始化快捷键处理器
+            void initKeyEventHandlers();
+            // 装入启动时运行的指令
+            void populateStartupCMD(std::string cmd);
+            // 获取启动时运行的指令
+            inline const std::vector<std::string> getStartupCMD() const { return startUpCMD; }
         private:
             struct ServerDeleter {
                 void operator()(TileyServer* p) const {
@@ -64,6 +70,9 @@ namespace tiley{
             TileyServer& operator=(const TileyServer&) = delete;
 
             std::unique_ptr<Shader> m_roundedCornerShader;
+            // 启动合成器时要运行的指令
+            std::vector<std::string> startUpCMD;
+
             GLuint m_quadVBO { 0 }; // 顶点缓冲对象
             GLuint m_quadEBO { 0 }; // 索引缓冲对象
     };

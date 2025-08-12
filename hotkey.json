@@ -44,5 +44,6 @@
   "alt+P": "toggle_panel",
   "ctrl+1": "goto_ws_1",
   "ctrl+2": "goto_ws_2",
-  "ctrl+3": "goto_ws_3"
+  "ctrl+3": "goto_ws_3",
+  "ctrl+shift+ESC": "quit_compositor"
 }

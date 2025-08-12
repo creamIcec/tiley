@@ -54,38 +54,11 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
 }
 
 void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
-    static bool initialized = false;
-    if (!initialized) {
-        ShortcutManager& mgr = ShortcutManager::instance();
-        mgr.init("/home/iriseplos/projects/os/tiley/hotkey.json");
-
-        //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
-        mgr.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
-        mgr.registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
-        mgr.registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
-
-        // 注册工作区切换，理论上可以注册最大工作区的数量呢
-        mgr.registerHandler("goto_ws_1", [](auto){ 
-            LLog::log("执行: goto_ws_1");
-            TileyWindowStateManager::getInstance().switchWorkspace(0);
-        });
-        mgr.registerHandler("goto_ws_2", [](auto){ 
-             LLog::log("执行: goto_ws_2"); 
-            TileyWindowStateManager::getInstance().switchWorkspace(1);
-        });
-        mgr.registerHandler("goto_ws_3", [](auto){ 
-            LLog::log("执行: goto_ws_3"); 
-            TileyWindowStateManager::getInstance().switchWorkspace(2);
-        });
-     
-        initialized = true;
-        LLog::debug("快捷键系统初始化完成（模块化）");
-    }
 
     std::string combo = buildComboFromEvent(event, this);
     if(!combo.empty()){
         LLog::debug("按键组合: %s", combo.c_str());
-        if(ShortcutManager::instance().tryDispatch(combo)){
+        if(ShortcutManager::getInstance().tryDispatch(combo)){
             return; // 命中后吞掉，不走默认逻辑
         }
     }

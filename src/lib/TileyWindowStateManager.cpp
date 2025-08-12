@@ -27,13 +27,14 @@
 using namespace tiley;
 
 //找底层窗口
+/*
 static Surface* findFirstParentToplevelSurface(Surface* surface){
     Surface* iterator = surface;
     while(iterator != nullptr && surface->toplevel() == nullptr){
         if(surface == nullptr){
             // TODO: 原因?
              //那这里不应该用iterator进行判断吗
-            /*
+            
              while (iterator) {
         // 如果这个 Surface 已经是顶层了，就直接返回
         if (iterator->toplevel()) {
@@ -47,7 +48,7 @@ static Surface* findFirstParentToplevelSurface(Surface* surface){
     return nullptr;
 }
             
-            */
+            
             LLog::log("无法找到一个surface的父窗口");
             return nullptr;
         }
@@ -55,6 +56,7 @@ static Surface* findFirstParentToplevelSurface(Surface* surface){
     }
     return iterator;
 }
+*/
 
 UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
     if(!container){

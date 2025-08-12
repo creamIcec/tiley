@@ -2,7 +2,9 @@
 #include "LNamespaces.h"
 #include <GLES2/gl2.h>
 #include <LLog.h>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 
 using namespace tiley;
 using namespace Louvre;
@@ -65,12 +67,10 @@ void Shader::setUniform(const char* name, const LPointF& value) {
     glUniform2f(glGetUniformLocation(m_programID, name), value.x(), value.y());
 }
 
-void Shader::setUniform(const char* name, const glm::vec3 vec3){
+void Shader::setUniform(const char* name, const glm::vec3& vec3){
     glUniform3f(glGetUniformLocation(m_programID, name), vec3[0], vec3[1], vec3[2]);
 }
 
-/*
-void Shader::setUniform(const char* name, const Louvre::LMatrix& value) {
-    glUniformMatrix4fv(glGetUniformLocation(m_programID, name), 1, GL_FALSE, &value.m[0]);
+void Shader::setUniform(const char* name, const glm::mat4& mat4) {
+    glUniformMatrix4fv(glGetUniformLocation(m_programID, name), 1, GL_FALSE, glm::value_ptr(mat4));
 }
-*/

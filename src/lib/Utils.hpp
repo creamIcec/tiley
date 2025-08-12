@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <LLog.h>
 
-std::string getShaderPath(const std::string& shaderName) {
+inline std::string getShaderPath(const std::string& shaderName) {
     // 路径 1: 优先检查开发环境的路径
     // 使用 std::filesystem::path 来拼接，这是最安全、跨平台的方式
     std::filesystem::path dev_path = SHADER_SOURCE_DIR;
