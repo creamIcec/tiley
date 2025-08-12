@@ -6,10 +6,16 @@
 
 # proj340 Tiley 相关技术文档，ppt，视频
 
-- [技术文档（PDF）](./技术文档1.0.pdf)
-- [演示文稿（PPTX）](./Tiley-1.2.pptx)
-- 视频链接：通过网盘分享的文件：录屏.mp4
-  链接: https://pan.baidu.com/s/1aF10zWQo6cW9d0q3TJlKhw?pwd=58c7 提取码: 58c7
+- [技术文档(PDF)](./Tiley-技术文档-0.1.0a.pdf)
+- [演示文稿(暂未更新)(PPTX)](./Tiley-1.2.pptx)
+- 演示视频链接:
+
+链接: https://pan.baidu.com/s/1P__T47lkNGlG0-V_-5qkZA?pwd=pj5k 提取码: pj5k
+
+其中:
+
+- `Tiley-showcase.mp4` 是实际运行视频
+- `TilingWindowManager.mp4` 是算法演示视频
 
 ![Tiley Theme](./assets/tiley_wallpaper.png)
 
