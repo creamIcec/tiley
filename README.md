@@ -4,6 +4,13 @@
 
 </center>
 
+# proj340 Tiley 相关技术文档，ppt，视频
+
+- [技术文档（PDF）](./技术文档1.0.pdf)
+- [演示文稿（PPTX）](./Tiley-1.2.pptx)
+- 视频链接：通过网盘分享的文件：录屏.mp4
+  链接: https://pan.baidu.com/s/1aF10zWQo6cW9d0q3TJlKhw?pwd=58c7 提取码: 58c7
+
 ![Tiley Theme](./assets/tiley_wallpaper.png)
 
 欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **Louvre** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 合成器。
