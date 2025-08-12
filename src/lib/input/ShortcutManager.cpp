@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <LLog.h>
+#include "LNamespaces.h"
 #include "src/lib/TileyWindowStateManager.hpp"
 
 using json = nlohmann::json;
@@ -70,6 +71,9 @@ void ShortcutManager::initializeHandlers(){
     shortcutManager.registerHandler("goto_ws_3", [&windowStateManager](auto){ 
         LLog::log("执行: goto_ws_3"); 
         windowStateManager.switchWorkspace(2);
+    });
+    shortcutManager.registerHandler("quit_compositor", [](auto){
+        compositor()->finish();
     });
 
     LLog::debug("快捷键系统初始化完成（模块化）");

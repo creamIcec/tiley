@@ -46,8 +46,10 @@ void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
 
+    /*
     LSurfaceView::paintEvent(params);
     return;
+    */
 
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
@@ -58,7 +60,8 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     TileyServer &server = TileyServer::getInstance();
     Shader *shader = server.roundedCornerShader();
     // 获取需要重绘的区域
-    LRegion *region = params.region;   
+    LRegion *region = params.region;
+    LOutput* output = params.painter->imp()->output;
 
     // 如果没有着色器或者窗口没有纹理, 也使用默认绘制方法
     if (!shader || !surface() || !surface()->texture() || region->empty()) {
@@ -89,7 +92,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     glActiveTexture(GL_TEXTURE0);
     // TODO: 由于Louvre的多线程特性, 一个texture的buffer不是线程共享的, 而是每个屏幕一个对象。这里需要用更好的方式获取当前屏幕
     // 我们暂时传入nullptr, 默认指定为主线程(main thread)的buffer
-    glBindTexture(GL_TEXTURE_2D, surface()->texture()->id(nullptr));
+    glBindTexture(GL_TEXTURE_2D, surface()->texture()->id(output));
     glBindBuffer(GL_ARRAY_BUFFER, server.quadVBO());
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, server.quadEBO());
 

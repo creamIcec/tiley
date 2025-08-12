@@ -48,7 +48,20 @@ int main(int argc, char* argv[]){
     // 等级数字参考LLog::init()中的说明
     setenv("LOUVRE_DEBUG", args.enableDebug ? "4" : "1", 0);
     // 启用SRM的调试输出
-    setenv("SRM_DEBUG", "1", 0);
+    setenv("SRM_DEBUG", args.enableDebug ? "4" : "1", 0);
+
+    /* Enable triple buffering when using the DRM backend (provides a smoother
+     * experience but consumes more CPU) */
+    setenv("SRM_RENDER_MODE_ITSELF_FB_COUNT", "3", 0);
+
+    /* Same but for non-primary GPUs */
+    setenv("SRM_RENDER_MODE_PRIME_FB_COUNT", "3", 0);
+    setenv("SRM_RENDER_MODE_DUMB_FB_COUNT", "3", 0);
+    setenv("SRM_RENDER_MODE_CPU_FB_COUNT", "3", 0);
+
+    /* Force OpenGL buffer allocation instead of GBM when using the DRM backend
+     */
+    setenv("SRM_FORCE_GL_ALLOCATION", "1", 0);
 
     // TODO: 随着时间的推移, 这个列表应该会得到扩充, 以期支持越来越多的不同框架的软件
     // 特殊: 启用Firefox的WAYLAND支持

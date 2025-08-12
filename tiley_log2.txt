@@ -1,0 +1,271 @@
+[32mLouvre debug:[0m [LLauncher::startDaemon] LLauncher daemon started successfully with PID: 871091.
+[32mLouvre debug:[0m [LCompositorPrivate::loadGraphicBackend] Graphic backend loaded successfully (/usr/local/lib/Louvre/backends/graphic/drm.so).
+[32mLouvre debug:[0m [LSeatPrivate::initLibseat] Using libseat.
+[32mSRM debug:[0m [core] SRM version 0.13.0-1.
+[32mSRM debug:[0m [core] Custom Scanout Enabled: YES.
+[32mSRM debug:[0m [core] Cursor Planes Enabled: YES.
+[32mSRM debug:[0m [core] Force Legacy Cursor IOCTLs: YES.
+[32mSRM debug:[0m [card1] Is Boot VGA: YES.
+[32mSRM debug:[0m [card1] Is DRM Master: YES.
+[32mSRM debug:[0m [card1] DRM Driver: nvidia-drm.
+[32mSRM debug:[0m [card1] EGL Version: 1.5.
+[32mSRM debug:[0m [card1] EGL Vendor: NVIDIA.
+[32mSRM debug:[0m [card1] EGL Driver: nvidia.
+[32mSRM debug:[0m [card1] Has glEGLImageTargetTexture2DOES: YES.
+[32mSRM debug:[0m [card1] Has glEGLImageTargetRenderbufferStorageOES: YES.
+[32mSRM debug:[0m [card1] Has EGL Android Fence Sync: YES.
+[31mSRM error:[0m [card1] srmDeviceInitializeTestGBMSurface: Incomplete GL framebuffer.
+[33mSRM warning:[0m [card1] srmDeviceInitializeTestGBMSurface: Fallback to GL texture.
+[32mLouvre debug:[0m [LCompositorPrivate::initGraphicBackend] Graphic backend initialized successfully.
+[32mLouvre debug:[0m [LCompositorPrivate::ThreadData] Data created for thread 8547189241199860754.
+[32mLouvre debug:[0m [LGlobal] wp_drm_lease_device_v1 created.
+[32mLouvre debug:[0m [LCompositorPrivate::initDMAFeedback] DMA Feedback formats table created successfully.
+[32mLouvre debug:[0m [LCompositorPrivate::loadInputBackend] Input backend loaded successfully (/usr/local/lib/Louvre/backends/input/libinput.so).
+[32mLouvre debug:[0m [LCompositorPrivate::initInputBackend] Input backend initialized successfully.
+[32mLouvre debug:[0m [LGlobal] wl_compositor created.
+[32mLouvre debug:[0m [LGlobal] wl_seat created.
+[32mLouvre debug:[0m [LGlobal] zwp_relative_pointer_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwp_pointer_constraints_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwp_pointer_gestures_v1 created.
+[32mLouvre debug:[0m [LGlobal] wl_data_device_manager created.
+[32mLouvre debug:[0m [LGlobal] wl_subcompositor created.
+[32mLouvre debug:[0m [LGlobal] xdg_wm_base created.
+[32mLouvre debug:[0m [LGlobal] zwlr_foreign_toplevel_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] ext_foreign_toplevel_list_v1 created.
+[32mLouvre debug:[0m [LGlobal] zxdg_output_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] zxdg_decoration_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_fractional_scale_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwlr_gamma_control_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwp_linux_dmabuf_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_presentation created.
+[32mLouvre debug:[0m [LGlobal] ext_session_lock_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_tearing_control_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_viewporter created.
+[32mLouvre debug:[0m [LGlobal] zwlr_screencopy_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] ext_foreign_toplevel_image_capture_source_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] ext_output_image_capture_source_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwlr_layer_shell_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_single_pixel_buffer_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] wp_content_type_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] ext_idle_notifier_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwp_idle_inhibit_manager_v1 created.
+[32mLouvre debug:[0m [LGlobal] xdg_activation_v1 created.
+[32mLouvre debug:[0m [LGlobal] zwlr_output_manager_v1 created.
+[32mLouvre debug:[0m [屏幕id: 138] 屏幕尺寸: 2560x1600
+[32mLouvre debug:[0m [屏幕id: 138] 屏幕模式: 2560x1600 @ 60.00 Hz
+[32mLouvre debug:[0m [屏幕id: 138] 屏幕模式: 2560x1600 @ 165.00 Hz
+[32mLouvre debug:[0m [屏幕id: 138] 使用显示模式: 2560x1600 @ 165.00 Hz
+[32mSRM debug:[0m [card1] [eDP-1] Gamma Size: 1024.
+[32mSRM debug:[0m [card1] [eDP-1] Rendering Mode: ITSELF.
+[32mSRM debug:[0m [card1] [eDP-1] Using format: XR24 - BLOCK_LINEAR_2D,HEIGHT=5,KIND=6,GEN=2,SECTOR=1,COMPRESSION=0.
+[32mSRM debug:[0m [card1] [eDP-1] [ITSELF MODE] Using EGL context priority: HIGH.
+[32mSRM debug:[0m [card1] [eDP-1] [ITSELF MODE] Buffering: 3.
+[32mLouvre debug:[0m [LCompositorPrivate::ThreadData] Data created for thread 6437308880475008462.
+[32mLouvre debug:[0m [LGlobal] wl_output created.
+[32mLouvre debug:[0m 新的屏幕插入, id: 138 。
+[32mLouvre debug:[0m [屏幕id: 138] 初始化要在该屏幕上渲染的窗口。
+[32mSRM debug:[0m [card1] [eDP-1] Initialized.
+[32mLouvre debug:[0m [LLauncher::launch] Command waybar executed successfuly. PID: 871102.
+[32mLouvre debug:[0m 快捷键载入: print -> screenshot_to_clipboard
+[32mLouvre debug:[0m 快捷键载入: alt+# -> move_window_to_workspace
+[32mLouvre debug:[0m 快捷键载入: alt+arrowleft -> workspace_left
+[32mLouvre debug:[0m 快捷键载入: alt+arrowright -> workspace_right
+[32mLouvre debug:[0m 快捷键载入: alt+d -> toggle_maximize
+[32mLouvre debug:[0m 快捷键载入: alt+f -> fullscreen_toggle
+[32mLouvre debug:[0m 快捷键载入: alt+p -> toggle_panel
+[32mLouvre debug:[0m 快捷键载入: alt+print -> screenshot_to_file
+[32mLouvre debug:[0m 快捷键载入: alt+r -> record_region
+[32mLouvre debug:[0m 快捷键载入: alt+s -> pin_window
+[32mLouvre debug:[0m 快捷键载入: alt+shift+f -> native_fullscreen
+[32mLouvre debug:[0m 快捷键载入: alt+space -> toggle_floating
+[32mLouvre debug:[0m 快捷键载入: alt+t -> change_wallpaper
+[32mLouvre debug:[0m 快捷键载入: alt+wheeldown -> move_window_right_ws
+[32mLouvre debug:[0m 快捷键载入: alt+wheelup -> move_window_left_ws
+[32mLouvre debug:[0m 快捷键载入: ctrl+# -> goto_workspace
+[32mLouvre debug:[0m 快捷键载入: ctrl+. -> emoji_picker
+[32mLouvre debug:[0m 快捷键载入: ctrl+1 -> goto_ws_1
+[32mLouvre debug:[0m 快捷键载入: ctrl+2 -> goto_ws_2
+[32mLouvre debug:[0m 快捷键载入: ctrl+3 -> goto_ws_3
+[32mLouvre debug:[0m 快捷键载入: ctrl+arrowdown -> focus_down
+[32mLouvre debug:[0m 快捷键载入: ctrl+arrowleft -> focus_left
+[32mLouvre debug:[0m 快捷键载入: ctrl+arrowup -> focus_up
+[32mLouvre debug:[0m 快捷键载入: ctrl+l -> lock_screen
+[32mLouvre debug:[0m 快捷键载入: ctrl+lmb -> move_window
+[32mLouvre debug:[0m 快捷键载入: ctrl+minus -> resize_decrease
+[32mLouvre debug:[0m 快捷键载入: ctrl+plus -> resize_increase
+[32mLouvre debug:[0m 快捷键载入: ctrl+q -> close_window
+[32mLouvre debug:[0m 快捷键载入: ctrl+rmb -> resize_window
+[32mLouvre debug:[0m 快捷键载入: ctrl+right -> focus_right
+[32mLouvre debug:[0m 快捷键载入: ctrl+s -> workspace_special
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+arrowdown -> swap_down
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+arrowleft -> swap_left
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+arrowright -> swap_right
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+arrowup -> swap_up
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+c -> color_picker
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+l -> suspend_system
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+q -> kill_window
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+r -> record_screen_audio
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+rmb -> ai_response
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+t -> ocr_to_clipboard
+[32mLouvre debug:[0m 快捷键载入: ctrl+space -> launch_app_launcher
+[32mLouvre debug:[0m 快捷键载入: ctrl+v -> paste_clipboard_history
+[32mLouvre debug:[0m 快捷键载入: ctrl+wheeldown -> workspace_next
+[32mLouvre debug:[0m 快捷键载入: ctrl+wheelup -> workspace_prev
+[32mLouvre debug:[0m 快捷键载入: ctrl+shift+esc -> quit_compositor
+[32mLouvre debug:[0m 快捷键载入: ctrl+t -> launch_terminal
+[32mLouvre debug:[0m 快捷键系统初始化完成�[2025-08-10 23:46:26.375] [info] Using configuration file /etc/xdg/waybar/config.jsonc
+[2025-08-10 23:46:26.378] [info] Discovered appearance 'dark'
+[2025-08-10 23:46:26.378] [info] Using CSS file /etc/xdg/waybar/style.css
+[2025-08-10 23:46:26.383] [warning] module sway/workspaces: Disabling module "sway/workspaces", Socket path is empty
+[2025-08-10 23:46:26.385] [warning] module sway/mode: Disabling module "sway/mode", Socket path is empty
+[2025-08-10 23:46:26.386] [warning] module sway/scratchpad: Disabling module "sway/scratchpad", Socket path is empty
+[2025-08-10 23:46:26.387] [warning] 'swap-icon-label' must be a bool.
+[2025-08-10 23:46:26.389] [error] media stopped unexpectedly, is it endless?
+[2025-08-10 23:46:26.389] [warning] module sway/window: Disabling module "sway/window", Socket path is empty
+[2025-08-10 23:46:26.648] [info] Found device BY Tech Gaming Keyboard at '/dev/input/event10'
+[2025-08-10 23:46:26.683] [info] Found device ITE Tech. Inc. ITE Device(8910) Keyboard at '/dev/input/event7'
+[2025-08-10 23:46:26.726] [info] Found device Logitech USB Receiver Keyboard at '/dev/input/event5'
+[2025-08-10 23:46:26.766] [info] Found device AT Translated Set 2 keyboard at '/dev/input/event3'
+[2025-08-10 23:46:26.843] [warning] module sway/language: Disabling module "sway/language", Socket path is empty
+[2025-08-10 23:46:26.844] [warning] No battery named BAT2
+[2025-08-10 23:46:26.844] [warning] Error while creating the menu : Failed to expand file: $HOME/.config/waybar/power_menu.xml. Menu popup not activated.
+[2025-08-10 23:46:26.971] [error] Failed to query power-profiles-daemon via dbus: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name is not activatable
+[2025-08-10 23:46:27.093] [info] Bar configured (width: 2560, height: 30) for output: eDP-1
+[2025-08-10 23:46:27.093] [error] Item '': No icon name or pixmap given.
+[2025-08-10 23:46:27.119] [error] Item '': No icon name or pixmap given.
+�模块化）
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 鼠标下没有窗口surface, 已设置活动容器为空
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m [LLauncher::launch] Command weston-terminal executed successfuly. PID: 871198.
+[32mLouvre debug:[0m 接收到配置请求
+[32mLouvre debug:[0m 客户端偏好: 0
+[32mLouvre debug:[0m 添加窗口, surface位置: (0,0)
+[32mLouvre debug:[0m 显示了一个普通窗口。surface地址: 1703585152, 层次: 2
+[32mLouvre debug:[0m 初始化容器View, 对齐surface
+[32mLouvre debug:[0m surface位置: (0,0), 大小: (726x563)
+[32mLouvre debug:[0m containerView: nativePos: (0,0)
+[32mLouvre debug:[0m containerView: pos: (0,0)
+[32mLouvre debug:[0m [getInsertTargetTiledContainer]: 返回工作区根节点
+[32mLouvre debug:[0m 只有桌面节点, 仅插入窗口
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+[32mLouvre debug:[0m 设置上一个活动容器为新打开的窗口容器
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+当前重新布局工作区: 0
+[32mLouvre debug:[0m 执行重新布局... ws=0, nodes=2
+[32mLouvre debug:[0m 重新布局
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 1, 比例是: 1.000000, 尺寸是: 2560x1570
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 2560x1570, 位置是:(0,30)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 容器数量: 2
+[32mLouvre debug:[0m 布局容器数量: 2
+[32mLouvre debug:[0m 重新布局成功。
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m [LLauncher::launch] Command weston-terminal executed successfuly. PID: 871425.
+[32mLouvre debug:[0m 接收到配置请求
+[32mLouvre debug:[0m 客户端偏好: 0
+[32mLouvre debug:[0m 添加窗口, surface位置: (0,0)
+[32mLouvre debug:[0m 显示了一个普通窗口。surface地址: 1702015856, 层次: 2
+[32mLouvre debug:[0m 初始化容器View, 对齐surface
+[32mLouvre debug:[0m surface位置: (0,0), 大小: (726x563)
+[32mLouvre debug:[0m containerView: nativePos: (0,0)
+[32mLouvre debug:[0m containerView: pos: (0,0)
+[32mLouvre debug:[0m [getInsertTargetTiledContainer]: 返回工作区 0 上一个活动的Container
+[32mLouvre debug:[0m 鼠标位置有窗口容器
+[32mLouvre debug:[0m 0, 30, 2560, -455042368
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+[32mLouvre debug:[0m 设置上一个活动容器为新打开的窗口容器
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+当前重新布局工作区: 0
+[32mLouvre debug:[0m 执行重新布局... ws=0, nodes=4
+[32mLouvre debug:[0m 重新布局
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 1, 比例是: 1.000000, 尺寸是: 2560x1570
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 1, 比例是: 0.500000, 尺寸是: 2560x1570
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 1280x1570, 位置是:(0,30)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 1280x1570, 位置是:(1280,30)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 容器数量: 4
+[32mLouvre debug:[0m 布局容器数量: 4
+[32mLouvre debug:[0m 重新布局成功。
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m 按键组合: f1
+[32mLouvre debug:[0m [keyEvent]: 尝试切换窗口浮动
+[32mLouvre debug:[0m [LLauncher::launch] Command weston-terminal executed successfuly. PID: 871678.
+[32mLouvre debug:[0m 接收到配置请求
+[32mLouvre debug:[0m 客户端偏好: 0
+[32mLouvre debug:[0m 添加窗口, surface位置: (0,0)
+[32mLouvre debug:[0m 显示了一个普通窗口。surface地址: 1704149440, 层次: 2
+[32mLouvre debug:[0m 初始化容器View, 对齐surface
+[32mLouvre debug:[0m surface位置: (0,0), 大小: (726x563)
+[32mLouvre debug:[0m containerView: nativePos: (0,0)
+[32mLouvre debug:[0m containerView: pos: (0,0)
+[32mLouvre debug:[0m [getInsertTargetTiledContainer]: 返回工作区 0 上一个活动的Container
+[32mLouvre debug:[0m 鼠标位置有窗口容器
+[32mLouvre debug:[0m 0, 30, 1280, -455042368
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+[32mLouvre debug:[0m 设置上一个活动容器为新打开的窗口容器
+[32mLouvre debug:[0m 窗口进入平铺: 启用containerView
+当前重新布局工作区: 0
+[32mLouvre debug:[0m 执行重新布局... ws=0, nodes=6
+[32mLouvre debug:[0m 重新布局
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 1, 比例是: 1.000000, 尺寸是: 2560x1570
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 1, 比例是: 0.500000, 尺寸是: 2560x1570
+[32mLouvre debug:[0m 我是分割容器, 我的分割是: 2, 比例是: 0.500000, 尺寸是: 1280x1570
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 1280x785, 位置是:(0,30)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 1280x785, 位置是:(0,815)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 我是窗口, 我获得的大小是: 1280x1570, 位置是:(1280,30)
+[32mLouvre debug:[0m containerView的children数量: 1
+[32mLouvre debug:[0m 容器数量: 6
+[32mLouvre debug:[0m 布局容器数量: 6
+[32mLouvre debug:[0m 重新布局成功。
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已设置活动容器为聚焦窗口的容器
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:[0m 已将插入活动目标更新为鼠标处的平铺窗口
+[32mLouvre debug:[0m 聚焦发生改变
+[32mLouvre debug:
