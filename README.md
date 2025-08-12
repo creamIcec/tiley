@@ -6,7 +6,7 @@
 
 ![Tiley Theme](./assets/tiley_wallpaper.png)
 
-欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **wlroots** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 复合器。
+欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **Louvre** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 合成器。
 
 ![Tiley Architecture](./assets/tiley-architecture.png)
 
@@ -18,7 +18,7 @@
 
 ### 1. 克隆仓库
 
-首先，克隆`tiley`的主仓库, 并初始化`wlroots`子模块:
+首先，克隆`tiley`的主仓库, 并初始化子模块:
 
 ```bash
 git clone [https://github.com/creamIcec/tiley.git](https://github.com/creamIcec/tiley.git)
@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 ### 2. 安装依赖
 
-`tiley`依赖于`wlroots`及其相关的`Wayland`生态系统库。
+`tiley`依赖于`Louvre`及其相关的`Wayland`生态系统库。
 这里如果你选择自己构建`wlroots`, 那你需要下面这些`wlroots`的依赖:
 
 **核心依赖**
