@@ -1,7 +1,11 @@
-# private design documents
+# archive & backup
 
-design/design_private.md
+archive/
+backup/
+bin/
+
 subprojects/
+
 # folders
 
 refer
@@ -20,3 +24,20 @@ bin/*.so
 # editor configurations
 
 .vscode
+
+# animation presentations & scripts
+
+*.mp4
+*.py
+*.pyc
+presentation/
+
+# logs
+
+tiley_log.txt
+tiley_log1.txt
+tiley_log2.txt
+
+# tree maker
+
+tree-maker/
