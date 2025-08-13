@@ -7,6 +7,7 @@
 #include <getopt.h>
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/ipc/IPCManager.hpp"
 #include "src/lib/types.hpp"
 
 // 设置启动参数, 具体含义在LaunchArgs结构体中说明
@@ -96,6 +97,9 @@ int main(int argc, char* argv[]){
     tiley::TileyServer::getInstance().initOpenGLResources();
     // 键盘快捷键映射表注册
     tiley::TileyServer::getInstance().initKeyEventHandlers();
+    // 初始化其他需要的资源
+    // 进程间通信管理类初始化
+    tiley::IPCManager::getInstance().initialize();
     
     //***************启动****************
     // 主循环

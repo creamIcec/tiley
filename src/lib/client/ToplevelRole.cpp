@@ -12,7 +12,6 @@
 
 using namespace tiley;
 
-
 ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
 {
     //由Louvre提供，用于计算允许的移动范围。
@@ -31,12 +30,12 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
         // 移动范围限制 = 屏幕范围 - 底部50像素
         session->setConstraints(constraints);
 
-        // 新增: 阻止客户端的默认只用按下左键就可以移动的行为, 这个函数是最合适的位置? 
+        // 阻止客户端的默认只用按下左键就可以移动的行为, 这个函数是最合适的位置? 
         if(!TileyServer::getInstance().is_compositor_modifier_down){
             stopMoveSession(false);
         }
     });
-    
+
     //同理，但是是限制屏幕大小
     resizeSession().setOnBeforeUpdateCallback([](LToplevelResizeSession *session)
     {
@@ -79,43 +78,8 @@ void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
 
 //重载窗口属性变化函数，驱动平铺驱点。
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
-
     //LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);
-    
-    /*
-    // 为了确保鼠标下面的窗口已经更新, 在接收到状态改变信号之后再设置活动容器
-    Surface* surface = static_cast<Surface*>(seat()->pointer()->surfaceAt(cursor()->pos()));
-
-    TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
-
-    if(!surface){
-        LLog::debug("鼠标位置没有窗口, 更新活动容器为空");
-        manager.setActiveContainer(nullptr);
-        return;
-    }
-
-    if(surface->toplevel()){
-
-        if(changes.check(WindowGeometryChanged)){
-            // 调试: 打印窗口大小信息
-            // printWindowAreaInfo(surface->toplevel());
-        }
-
-        ToplevelRole* window = surface->tl();
-
-        if(!manager.isTiledWindow(window)){
-            // 如果现在鼠标所在位置不是平铺窗口, 则不改变状态
-            LLog::debug("鼠标位置不是平铺窗口, 不更新活动容器");
-            return;
-        }
-
-        if(window && window->container){
-            manager.setActiveContainer(window->container);
-            //LLog::log("已设置活动容器为状态改变后窗口下的容器");
-        }
-    }
-    */
 };
 
 //服务端向客户端下发配置请求

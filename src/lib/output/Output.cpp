@@ -42,8 +42,10 @@ void Output::initializeGL(){
     LLog::debug("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
 
     // 0. BUG修复: 防止在嵌套模式下不断出现无响应的问题, 暂时的一个workaround
-    // 禁用垂直同步
-    enableVSync(false);
+    // 在嵌套模式下, 禁用垂直同步
+    if(compositor()->graphicBackendId() == LGraphicBackendWayland){
+        enableVSync(false);
+    }
 
     // 1. 交给scene, 计算需要显示在这块显示屏上的部分
     server.scene().handleInitializeGL(this);
@@ -78,6 +80,8 @@ void Output::initializeGL(){
             weakRef->fadeInView.setParent(nullptr);
         }
     });
+
+    updateWallpaper();
 
     //TODO: 5.缩放
 
@@ -118,6 +122,8 @@ void Output::paintGL(){
 void Output::moveGL(){
    TileyServer& server = TileyServer::getInstance();
    server.scene().handleMoveGL(this);
+
+   updateWallpaper();
 };
 
 // resizeGL被设计成会在屏幕刚插入的时候也调用一次。
@@ -203,7 +209,7 @@ void Output::updateWallpaper(){
 
     // 在这里修改壁纸路径
     path wallpaperRootPath("/home/iriseplos/projects/os/tiley/src/assets/wallpaper");
-    path wallpaperPath = wallpaperRootPath / "tiley_16x10@2x.png";
+    path wallpaperPath = wallpaperRootPath / "forrest.png";
 
     LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
 

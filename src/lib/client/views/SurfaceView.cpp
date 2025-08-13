@@ -1,11 +1,10 @@
-
 #include "SurfaceView.hpp"
-#include "LSurfaceView.h"
+
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
 
 #include <GLES2/gl2.h>
-#include <cstdlib>
+#include <algorithm>
 #include <glm/fwd.hpp>
 #define GLM_FORCE_RADIANS // 确保 glm 使用弧度，与 OpenGL 标准一致
 #include <glm/glm.hpp>
@@ -17,39 +16,39 @@
 #include <LNamespaces.h>
 #include <LPainter.h>
 #include <private/LPainterPrivate.h>
+#include <LToplevelMoveSession.h>
+#include <LSurfaceView.h>
+#include <LSurface.h>
 
 using namespace tiley;
 
 // 必须在SurfaceView的构造函数中就初始化对应的父亲层级关系
 // 由于我们不知道surface何时提交到合成器, 如果在mappingChanged中才现场setParent的话太晚, 因为orderChanged比mappingChanged更早触发
 // 在orderChanged里面又要对view进行排序。所以我们必须在orderChanged前(甚至所有surface相关提交操作之前)就把父级关系设置好
-
 SurfaceView::SurfaceView(Surface* surface) noexcept : 
-LSurfaceView((LSurface*) surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){
+LSurfaceView((LSurface*)surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){}
 
-    this->setColorFactor({1.0,1.0,1.0,0.9});
-
-}
-
-void SurfaceView::pointerButtonEvent(const LPointerButtonEvent &event){
-
-    LLog::log("鼠标点击");
-
-    L_UNUSED(event);
-}
-
-void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
-    L_UNUSED(event);
-    LLog::log("鼠标进入");
-};
-
+SurfaceView::~SurfaceView() noexcept{}
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
+    // 如果自己是正在移动的窗口的SurfaceView
+    auto moveSessions = seat()->toplevelMoveSessions();
+    auto iterator = std::find_if(moveSessions.begin(), moveSessions.end(), [this](auto session){
+        auto surface = static_cast<Surface*>(session->toplevel()->surface());
+        if(surface->getSurfaceView() == this){
+            return true;   
+        }
+        return false;
+    });
 
-    /*
+    if(iterator != moveSessions.end()){
+        this->setColorFactor({1.0f,1.0f,1.0f,0.8f});
+    }else{
+        this->setColorFactor({1.0f,1.0f,1.0f,1.0f});
+    }
+    
     LSurfaceView::paintEvent(params);
     return;
-    */
 
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
@@ -71,6 +70,12 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     }
 
     // TODO: 将当前该surface可见的屏幕都执行一遍
+
+    if(surface()->outputs().empty()){
+        // 如果为空, 说明当前outputs可能处于被重置中的状态(例如, 屏幕物理属性发生改变, 期间没有outputs)
+        return;
+    }
+
     LOutput *out = surface()->outputs()[0];
 
     if(!out){

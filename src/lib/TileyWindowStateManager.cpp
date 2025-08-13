@@ -8,6 +8,7 @@
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/input/Pointer.hpp"
+#include "src/lib/ipc/IPCManager.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/output/Output.hpp"
@@ -25,38 +26,6 @@
 #include <memory>
 #include <functional> 
 using namespace tiley;
-
-//找底层窗口
-/*
-static Surface* findFirstParentToplevelSurface(Surface* surface){
-    Surface* iterator = surface;
-    while(iterator != nullptr && surface->toplevel() == nullptr){
-        if(surface == nullptr){
-            // TODO: 原因?
-             //那这里不应该用iterator进行判断吗
-            
-             while (iterator) {
-        // 如果这个 Surface 已经是顶层了，就直接返回
-        if (iterator->toplevel()) {
-            return iteratorr;
-        }
-        // 否则沿着 parent() 指针往上找
-        iterator = static_cast<Surface*>(iterator->parent());
-    }
-    // 找到顶层前就走到根了，打个日志，返回 nullptr
-    LLog::log("无法找到一个surface的父窗口");
-    return nullptr;
-}
-            
-            
-            LLog::log("无法找到一个surface的父窗口");
-            return nullptr;
-        }
-        iterator = (Surface*)iterator->parent();
-    }
-    return iterator;
-}
-*/
 
 UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
     if(!container){
@@ -323,7 +292,7 @@ bool TileyWindowStateManager::attachTile(LToplevelRole* window){
     return inserted;
 }
 
-// 如何移除(remove)?
+// 移除一个平铺层窗口, 如果该窗口有兄弟节点, 则返回。
 // 1. 由于关闭可以连带进行, 我们必须传入目标窗口。只使用鼠标位置是不可靠
 Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
@@ -648,6 +617,9 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
 
     // 激活
     window->configureState(window->pendingConfiguration().state | LToplevelRole::Activated);
+    seat()->pointer()->setFocus(window->surface());
+    seat()->keyboard()->setFocus(window->surface());
+    
     return true;
 }
 
@@ -744,49 +716,7 @@ Container* TileyWindowStateManager::_getFirstWindowContainer(Container* containe
 
     return nullptr;
 }
-/*
-// 重新计算布局。需要外部在合适的时候手动触发
-bool TileyWindowStateManager::recalculate(){
 
-     // TODO: 实现多工作区全部重排, 但考虑性能 vs 准确性
-     // 目前就0号工作区
-     UInt32 workspace = CURRENT_WORKSPACE;
-     Container* root = workspaceRoots[workspace];
-
-     // 如果工作区没有窗口
-     if(!root->child1 && !root->child2){
-        LLog::debug("工作区没有窗口, 无需重排平铺。");
-        return false;
-     }
-
-     //printContainerHierachy(workspace);
-
-     Output* rootOutput = static_cast<ToplevelRole*>((getFirstWindowContainer(workspace)->window))->output;
-
-     // TODO: 更为健壮的机制
-     if(!rootOutput){
-         LLog::warning("[recalculate]: 重排的工作区: %d, 其第一个窗口节点没有对应的显示器信息, 放弃重排。", workspace);
-         return false;
-     }
-
-     // 屏幕可用区域。会减去不可占用的区域, 例如顶栏等。
-     const LRect& availableGeometry = rootOutput->availableGeometry();
-
-     bool reflowSuccess = false;
-     LLog::debug("执行重新布局...");
-     
-     reflow(0, availableGeometry, reflowSuccess);
-     if(reflowSuccess){
-         LLog::debug("重新布局成功。");
-         return true;
-     }else{
-         LLog::debug("重新布局失败, 可能有容器被意外修改。");
-         return false;
-    }
-
-    LLog::debug("重新布局失败。未知原因。");
-    return false;
-}*/
 bool TileyWindowStateManager::recalculate(){
     // 用当前工作区
     UInt32 workspace = CURRENT_WORKSPACE;
@@ -979,7 +909,7 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
     }
 
     // 二阶段, 未命中缓存, 回退到鼠标位置查找
-    auto filter = [this](LSurface* s) -> bool{
+    auto filter = [this](LSurface* s){
         
         auto surface = static_cast<Surface*>(s);
 
@@ -1136,6 +1066,8 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
 
     auto seat = Louvre::seat();
     // 如果目标工作区活动窗口存在, 则直接切换焦点过去, 不用先清空再设置到新的哦
+
+    // TODO: why nullptr?
     if(activeContainer && activeContainer->window){
         if (seat->keyboard()) seat->keyboard()->setFocus(activeContainer->window->surface());
         if (seat->pointer())  seat->pointer()->setFocus(activeContainer->window->surface());
@@ -1150,6 +1082,12 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
     // repaint 所有输出，重新绘制
     for (auto out : Louvre::compositor()->outputs())
         out->repaint();
+
+    // IPC通信, 发送工作区切换的信息到相关外部客户端
+    IPCManager::getInstance().broadcastWorkspaceUpdate(CURRENT_WORKSPACE, WORKSPACES);
+
+    LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
+    return true;
 
     LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
     return true;

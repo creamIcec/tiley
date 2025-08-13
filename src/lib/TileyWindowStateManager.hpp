@@ -23,6 +23,10 @@ namespace tiley{
 namespace tiley{
     class TileyWindowStateManager{
         public:
+
+            // 默认工作区初始数量
+            static const int WORKSPACES = 10;
+
             static TileyWindowStateManager& getInstance();
             // insertTile: 只传入待插入的容器的版本, 是一般情况: 在鼠标位置插入。
             bool insertTile(UInt32 workspace, Container* newWindowContainer, Float32 splitRatio);
@@ -86,27 +90,28 @@ namespace tiley{
             // 获取第一个窗口的递归函数。
             Container* _getFirstWindowContainer(Container* container);
 
-            // 工作区最大数量
-            static const int WORKSPACES = 10;
+            
             
             //当前工作区的索引
             UInt32 CURRENT_WORKSPACE=0;
-            //递归去把一个容器树设置为不可见（切换工作区）
-            void setWindowVisible(ToplevelRole* window, bool visible);
-            //
-            static UInt32 countContainersOfWorkspace(const Container* root);
-            // 目前活动的Container, 作为平铺算法在当前工作区下的操作依据
-            
+
             // 单一来源: workspaceActiveContainers. 更新顺序: workspaceActiveContainers -> activeContainer;
             // 访问当前工作区的仍然是activeContainer
             // TOOD: 仅使用workspaceActiveContainers[index], 删除activeContainer
-
             // 注意: 需要保持和workspaceActiveContainers的同步
             Container* activeContainer;
             // 各个工作区最后活动的Container, 作为平铺算法在指定工作区下的操作依据
             std::vector<Container*> workspaceActiveContainers{WORKSPACES};
             // 各个工作区的平铺根节点Container, 作为平铺算法仅仅需要获取根节点时的操作依据
             std::vector<Container*> workspaceRoots{WORKSPACES};
+
+            // 递归去把一个窗口及其子窗口切换可见性（切换工作区）
+            void setWindowVisible(ToplevelRole* window, bool visible);
+            //
+            static UInt32 countContainersOfWorkspace(const Container* root);
+            // 目前活动的Container, 作为平铺算法在当前工作区下的操作依据
+            
+
 
             // 目前一共的container数量, 作为校验使用, 可以检测出平铺过程中出现意外导致container数量不一致。TODO: 自动重新计算数量
             UInt32 containerCount = 0;

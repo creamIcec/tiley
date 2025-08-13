@@ -37,11 +37,11 @@ configure_file(
 )
 
 xkbcommon_dep = dependency('xkbcommon', required: true)
-
 louvre_dep = dependency('Louvre', version: '>=2.18.1')
 pixman_dep = dependency('pixman-1')
 libinput_dep = dependency('libinput')
 sdbus = dependency(['libsystemd', 'libelogind', 'basu'])
+wayland_server_dep = dependency('wayland-server') 
 
 
 source_root = 'src'
@@ -71,7 +71,7 @@ subdir('src')
 exe = executable(
   'tiley',
   all_tiley_sources,
-  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus,xkbcommon_dep],
+  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus, xkbcommon_dep, wayland_server_dep],
   install : true,
   include_directories: common_includes
 )

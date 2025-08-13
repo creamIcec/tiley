@@ -1,6 +1,3 @@
-#include "Keyboard.hpp"
-#include "ShortcutManager.hpp"
-
 #include <linux/input-event-codes.h>
 
 #include <LPointer.h>
@@ -10,11 +7,13 @@
 #include <LKeyboard.h>
 #include <LKeyboardKeyEvent.h>
 #include <LNamespaces.h>
+#include <LSessionLockManager.h>
+#include <LDND.h>
 
+#include "Keyboard.hpp"
+#include "ShortcutManager.hpp"
 #include "src/lib/TileyServer.hpp"
-#include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/core/UserAction.hpp"
-#include "src/lib/surface/Surface.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -55,39 +54,41 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
 
 void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
 
-    std::string combo = buildComboFromEvent(event, this);
-    if(!combo.empty()){
-        LLog::debug("按键组合: %s", combo.c_str());
-        if(ShortcutManager::getInstance().tryDispatch(combo)){
-            return; // 命中后吞掉，不走默认逻辑
-        }
-    }
+    // 父类部分处理逻辑下移
+    const bool L_CTRL      { isKeyCodePressed(KEY_LEFTCTRL)  };
+    const bool L_SHIFT     { isKeyCodePressed(KEY_LEFTSHIFT) };
 
-    LLog::debug("[keyEvent]: 尝试切换窗口浮动");
+    const bool sessionLocked { sessionLockManager()->state() != LSessionLockManager::Unlocked };
+ 
+    // 将按键发送给客户端
+    sendKeyEvent(event);
 
-    //  旧逻辑（alt+space ）
-    TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
-    TileyServer& server = TileyServer::getInstance();
+    if (L_CTRL && !L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::Copy); }
+    else if (!L_CTRL && L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::Move); }
+    else if (!L_CTRL && !L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::NoAction); }
+ 
+    // 如果锁屏, 直接结束
+    if (sessionLocked) { return; }
 
     bool altDown = isModActive(XKB_MOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE);
-    server.is_compositor_modifier_down = altDown;
 
-    if(server.is_compositor_modifier_down){
-        if(event.state() == Louvre::LKeyboardKeyEvent::Pressed && event.keyCode() == KEY_SPACE){
-            LLog::debug("检测到合成器修饰键+空格按下。尝试切换窗口堆叠状态...");
-            Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
-            if(surface){
-                Surface* targetSurface = static_cast<Surface*>(surface);
-                if(targetSurface->tl()){
-                    manager.toggleStackWindow(targetSurface->tl());
-                }
-            }
-        }
-    } else {
+    TileyServer& server = TileyServer::getInstance();
+    server.is_compositor_modifier_down = altDown;
+    
+    if(!altDown){
         stopResizeSession(true);
         stopMoveSession(true);
     }
 
-    // 继续默认行为（发送给客户端等）
-    LKeyboard::keyEvent(event);
+    if(event.state() == Louvre::LKeyboardKeyEvent::Pressed) {
+        std::string combo = buildComboFromEvent(event, this);
+
+        if(!combo.empty()){
+            LLog::debug("按键组合: %s", combo.c_str());
+            ShortcutManager::getInstance().tryDispatch(combo);
+        }
+
+        if (L_CTRL) { seat()->dnd()->setPreferredAction(LDND::Copy); }
+        else if (L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::Move); }
+    }
 }

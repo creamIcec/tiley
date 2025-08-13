@@ -8,8 +8,13 @@
 #include <sstream>
 #include <algorithm>
 #include <chrono>
+
 #include <LLog.h>
-#include "LNamespaces.h"
+#include <LNamespaces.h>
+#include <LCursor.h>
+#include <LClient.h>
+#include <LLauncher.h>
+
 #include "src/lib/TileyWindowStateManager.hpp"
 
 using json = nlohmann::json;
@@ -55,9 +60,54 @@ void ShortcutManager::initializeHandlers(){
     shortcutManager.init("/home/iriseplos/projects/os/tiley/hotkey.json");
 
     //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
-    shortcutManager.registerHandler("launch_terminal",    [](auto){ LLog::log("执行: launch_terminal"); });
+    shortcutManager.registerHandler("launch_terminal", [](auto){ 
+        LLog::log("执行: launch_terminal"); 
+        const bool L_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_LEFTCTRL)  };
+        const bool R_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_RIGHTCTRL) };
+        const bool L_SHIFT { seat()->keyboard()->isKeyCodePressed(KEY_LEFTSHIFT) };
+        const bool L_ALT   { seat()->keyboard()->isKeyCodePressed(KEY_LEFTALT)   };
+        const bool mods    { L_ALT || L_SHIFT || L_CTRL || R_CTRL };
+        if(!mods){
+            LLauncher::launch("weston-terminal");
+        }
+    });
     shortcutManager.registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
     shortcutManager.registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
+    shortcutManager.registerHandler("toggle_floating", [&windowStateManager](auto){
+        LLog::debug("执行: toggle_floating");
+        Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
+        if(surface){
+            Surface* targetSurface = static_cast<Surface*>(surface);
+            if(targetSurface->tl()){
+                windowStateManager.toggleStackWindow(targetSurface->tl());
+            }
+        }
+    });
+    shortcutManager.registerHandler("close_window", [](auto){
+        LLog::log("执行: close_window");
+        if (seat()->keyboard()->focus()){
+            seat()->keyboard()->focus()->client()->destroyLater();
+        }
+    });
+    shortcutManager.registerHandler("screenshot",[](auto){
+        if (cursor()->output() && cursor()->output()->bufferTexture(0)){
+            std::filesystem::path path { getenvString("HOME") };
+
+            if (path.empty())
+                return;
+
+            path /= "Desktop/Louvre_Screenshoot_";
+
+            char timeString[32];
+            const auto now { std::chrono::system_clock::now() };
+            const auto time { std::chrono::system_clock::to_time_t(now) };
+            std::strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S.png", std::localtime(&time));
+
+            path += timeString;
+
+            cursor()->output()->bufferTexture(0)->save(path);
+        }
+    });
 
     // 注册工作区切换，理论上可以注册最大工作区的数量呢
     shortcutManager.registerHandler("goto_ws_1", [&windowStateManager](auto){ 
@@ -93,7 +143,7 @@ void ShortcutManager::resetHandlers(){
 
 //通过对应事件调用对应函数
 bool ShortcutManager::tryDispatch(const std::string& combo){
-    std::lock_guard lock(mutex_);
+    //std::lock_guard lock(mutex_);
     auto it = comboToAction_.find(combo);
     if (it == comboToAction_.end())
         return false;
@@ -102,7 +152,7 @@ bool ShortcutManager::tryDispatch(const std::string& combo){
     if (hit != handlers_.end()){
         hit->second(combo);
     } else {
-        LLog::warning("快捷键动作未注册: %s (combo=%s)", actionName.c_str(), combo.c_str());
+        //LLog::warning("快捷键动作未注册: %s (combo=%s)", actionName.c_str(), combo.c_str());
         return false;  //未注册则不命中
     }
     return true;
