@@ -17,7 +17,7 @@
 #include <LNamespaces.h>
 #include <LPainter.h>
 #include <private/LPainterPrivate.h>
-
+#include"src/lib/test/PerformanceMonitor.hpp"
 using namespace tiley;
 
 // 必须在SurfaceView的构造函数中就初始化对应的父亲层级关系
@@ -45,12 +45,16 @@ void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
 
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
-
-    //LSurfaceView::paintEvent(params);
-
+    
+   // LSurfaceView::paintEvent(params);
+   // return;
+ tiley::setPerfmonPath("surfaceview", "/home/zero/tiley/src/lib/test/test_performance.txt");
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
+        // performanceMonitor.renderStart();  // 开始记录渲染时间
         LSurfaceView::paintEvent(params);
+       // performanceMonitor.renderEnd();  // 结束记录渲染时间
+    //performanceMonitor.recordFrame(); // 记录当前帧的数据
         return;
     }
 
@@ -61,8 +65,9 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
 
     // 如果没有着色器或者窗口没有纹理, 也使用默认绘制方法
     if (!shader || !surface() || !surface()->texture() || region->empty()) {
-        LLog::warning("当前surface不满足自定义绘制条件, 使用窗口默认绘制方法");
+    
         LSurfaceView::paintEvent(params);
+
         return;
     }
 

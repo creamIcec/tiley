@@ -1,0 +1,4 @@
+FPS: 63.4064, CPU(s): 0.050235, CPU/FPS Ratio: 0.00079227, Memory(MB): 82.2188, Avg Render Time (ms): 0.17462
+FPS: 5.87677, CPU(s): 0.087195, CPU/FPS Ratio: 0.0148372, Memory(MB): 86.4375, Avg Render Time (ms): 0.189328
+FPS: 0.00885475, CPU(s): 4.31949, CPU/FPS Ratio: 487.816, Memory(MB): 86.4375, Avg Render Time (ms): 0.189991
+FPS: 0.0118048, CPU(s): 4.31949, CPU/FPS Ratio: 365.908, Memory(MB): 88.9805, Avg Render Time (ms): 0.191348

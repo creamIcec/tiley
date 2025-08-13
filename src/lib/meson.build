@@ -12,7 +12,9 @@ lib_sources = files(
     'scene/Scene.cpp',
     'surface/Surface.cpp',
     'core/Container.cpp',
-    'core/UserAction.cpp'
+    'core/UserAction.cpp',
+    'test/PerformanceMonitor.cpp',
+    'test/PerfmonRegistry.cpp'
 )
 
 dep_sources = lib_sources + client_sources

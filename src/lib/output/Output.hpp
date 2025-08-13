@@ -4,10 +4,11 @@
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
-
+#include "src/lib/test/PerfmonRegistry.hpp"
 #include <LOutput.h>
 #include <LSolidColorView.h>
 #include <LTextureView.h>
+#include "src/lib/test/PerformanceMonitor.hpp" 
 
 using namespace Louvre;
 using namespace tiley;

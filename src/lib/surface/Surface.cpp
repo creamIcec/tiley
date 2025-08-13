@@ -18,7 +18,7 @@
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
-
+#include"src/lib/test/PerformanceMonitor.hpp"
 using namespace Louvre;
 using namespace tiley;
 

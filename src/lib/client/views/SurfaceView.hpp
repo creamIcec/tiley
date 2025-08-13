@@ -1,8 +1,8 @@
 #pragma once
 
 #include <LSurfaceView.h>
+#include "src/lib/test/PerfmonRegistry.hpp"
 #include "src/lib/surface/Surface.hpp"
-
 using namespace Louvre;
 
 namespace tiley {
@@ -20,5 +20,6 @@ namespace tiley{
             void paintEvent(const PaintEventParams& params) noexcept override;
             const LRegion * translucentRegion() const noexcept override;
     };
+   PerformanceMonitor& perfmon(); 
 
 }

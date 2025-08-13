@@ -81,7 +81,7 @@ void Output::initializeGL(){
 }
 
 void Output::paintGL(){
-
+tiley::setPerfmonPath("test", "/home/zero/tiley/src/lib/test/test_1.txt");
     // 查找全屏窗口
     Surface* fullscreenSurface{ searchFullscreenSurface() };
 
@@ -105,7 +105,11 @@ void Output::paintGL(){
     // 和wlroots的最大不同: 我们可以自己编写handlePaintGL函数来自己控制渲染过程。
     // 注意: 在这里传入this, 是指当前屏幕。在Louvre中, 每个屏幕都是一个对象, 因此我们需要让scene知道现在的屏幕是哪个
     // TODO: 在scene中判断屏幕, 分配不同的容器树根节点
+    tiley::perfmon("test").renderStart();
+
     server.scene().handlePaintGL(this);
+    tiley::perfmon("test").renderEnd();
+    tiley::perfmon("test").recordFrame();
 
     for(LScreenshotRequest * req : screenshotRequests()){
         req->accept(true);
