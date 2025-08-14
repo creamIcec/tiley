@@ -8,6 +8,7 @@
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/core/Container.hpp"
 #include "src/lib/input/Pointer.hpp"
+#include "src/lib/ipc/IPCManager.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/output/Output.hpp"
@@ -25,38 +26,6 @@
 #include <memory>
 #include <functional> 
 using namespace tiley;
-
-//找底层窗口
-/*
-static Surface* findFirstParentToplevelSurface(Surface* surface){
-    Surface* iterator = surface;
-    while(iterator != nullptr && surface->toplevel() == nullptr){
-        if(surface == nullptr){
-            // TODO: 原因?
-             //那这里不应该用iterator进行判断吗
-            
-             while (iterator) {
-        // 如果这个 Surface 已经是顶层了，就直接返回
-        if (iterator->toplevel()) {
-            return iteratorr;
-        }
-        // 否则沿着 parent() 指针往上找
-        iterator = static_cast<Surface*>(iterator->parent());
-    }
-    // 找到顶层前就走到根了，打个日志，返回 nullptr
-    LLog::log("无法找到一个surface的父窗口");
-    return nullptr;
-}
-            
-            
-            LLog::log("无法找到一个surface的父窗口");
-            return nullptr;
-        }
-        iterator = (Surface*)iterator->parent();
-    }
-    return iterator;
-}
-*/
 
 UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
     if(!container){
@@ -323,7 +292,7 @@ bool TileyWindowStateManager::attachTile(LToplevelRole* window){
     return inserted;
 }
 
-// 如何移除(remove)?
+// 移除一个平铺层窗口, 如果该窗口有兄弟节点, 则返回。
 // 1. 由于关闭可以连带进行, 我们必须传入目标窗口。只使用鼠标位置是不可靠
 Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
@@ -648,6 +617,9 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
 
     // 激活
     window->configureState(window->pendingConfiguration().state | LToplevelRole::Activated);
+    seat()->pointer()->setFocus(window->surface());
+    seat()->keyboard()->setFocus(window->surface());
+    
     return true;
 }
 
@@ -744,49 +716,7 @@ Container* TileyWindowStateManager::_getFirstWindowContainer(Container* containe
 
     return nullptr;
 }
-/*
-// 重新计算布局。需要外部在合适的时候手动触发
-bool TileyWindowStateManager::recalculate(){
 
-     // TODO: 实现多工作区全部重排, 但考虑性能 vs 准确性
-     // 目前就0号工作区
-     UInt32 workspace = CURRENT_WORKSPACE;
-     Container* root = workspaceRoots[workspace];
-
-     // 如果工作区没有窗口
-     if(!root->child1 && !root->child2){
-        LLog::debug("工作区没有窗口, 无需重排平铺。");
-        return false;
-     }
-
-     //printContainerHierachy(workspace);
-
-     Output* rootOutput = static_cast<ToplevelRole*>((getFirstWindowContainer(workspace)->window))->output;
-
-     // TODO: 更为健壮的机制
-     if(!rootOutput){
-         LLog::warning("[recalculate]: 重排的工作区: %d, 其第一个窗口节点没有对应的显示器信息, 放弃重排。", workspace);
-         return false;
-     }
-
-     // 屏幕可用区域。会减去不可占用的区域, 例如顶栏等。
-     const LRect& availableGeometry = rootOutput->availableGeometry();
-
-     bool reflowSuccess = false;
-     LLog::debug("执行重新布局...");
-     
-     reflow(0, availableGeometry, reflowSuccess);
-     if(reflowSuccess){
-         LLog::debug("重新布局成功。");
-         return true;
-     }else{
-         LLog::debug("重新布局失败, 可能有容器被意外修改。");
-         return false;
-    }
-
-    LLog::debug("重新布局失败。未知原因。");
-    return false;
-}*/
 bool TileyWindowStateManager::recalculate(){
     // 用当前工作区
     UInt32 workspace = CURRENT_WORKSPACE;
@@ -979,7 +909,7 @@ Container* TileyWindowStateManager::getInsertTargetTiledContainer(UInt32 workspa
     }
 
     // 二阶段, 未命中缓存, 回退到鼠标位置查找
-    auto filter = [this](LSurface* s) -> bool{
+    auto filter = [this](LSurface* s){
         
         auto surface = static_cast<Surface*>(s);
 
@@ -1115,6 +1045,9 @@ void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visibl
 
 // 切换工作区
 bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
+
+    /*
+
     if (target >= WORKSPACES || target == CURRENT_WORKSPACE) {
         LLog::debug("switchWorkspace: 无效目标 %u 或与当前相同", target);
         return false;
@@ -1136,6 +1069,8 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
 
     auto seat = Louvre::seat();
     // 如果目标工作区活动窗口存在, 则直接切换焦点过去, 不用先清空再设置到新的哦
+
+    // TODO: why nullptr?
     if(activeContainer && activeContainer->window){
         if (seat->keyboard()) seat->keyboard()->setFocus(activeContainer->window->surface());
         if (seat->pointer())  seat->pointer()->setFocus(activeContainer->window->surface());
@@ -1151,8 +1086,53 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
     for (auto out : Louvre::compositor()->outputs())
         out->repaint();
 
+    // IPC通信, 发送工作区切换的信息到相关外部客户端
+    IPCManager::getInstance().broadcastWorkspaceUpdate(CURRENT_WORKSPACE, WORKSPACES);
+
     LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
     return true;
+
+    */
+
+    // 如果正在切换，或者目标无效，则直接返回
+    if (m_isSwitchingWorkspace || target >= WORKSPACES || target == CURRENT_WORKSPACE) {
+        return false;
+    }
+
+    LLog::debug("开始切换工作区 %u -> %u", CURRENT_WORKSPACE, target);
+
+    // 设置动画状态
+    m_isSwitchingWorkspace = true;
+    m_targetWorkspace = target;
+    m_switchDirection = (target > CURRENT_WORKSPACE) ? -1 : 1; // 目标 > 当前，向左滑
+
+    // 清空上次动画的残留（以防万一）
+    m_slidingOutWindows.clear();
+    m_slidingInWindows.clear();
+
+    // 重新计算一次布局，确保所有窗口的 targetRect 是正确的
+    recalculate();
+
+    // 填充要滑出和滑入的窗口列表
+    for(auto* surface : Louvre::compositor()->surfaces()){
+        if(surface->toplevel()){
+            auto* window = static_cast<ToplevelRole*>(surface->toplevel());
+            if (window->workspaceId == CURRENT_WORKSPACE) {
+                m_slidingOutWindows.push_back(window);
+            } else if (window->workspaceId == target) {
+                m_slidingInWindows.push_back(window);
+                // 【关键】让即将滑入的窗口提前可见，但它们的位置会在动画开始时被设置到屏幕外
+                setWindowVisible(window, true);
+            }
+        }
+    }
+
+    // 配置并启动动画
+    m_workspaceSwitchAnimation.setDuration(250); // 250ms 动画时长
+    m_workspaceSwitchAnimation.start();
+
+    return true;
+
 }
 
 TileyWindowStateManager& TileyWindowStateManager::getInstance(){
@@ -1185,6 +1165,85 @@ TileyWindowStateManager::TileyWindowStateManager()
         workspaceRoots[i] = root;
     }
     containerCount += 1;
+
+    // 初始化切换工作区动画
+    m_workspaceSwitchAnimation.setOnUpdateCallback([this](Louvre::LAnimation* anim) {
+            // 1. 获取线性的动画进度 (0.0 to 1.0)
+        const Float64 linearValue = anim->value();
+
+        // 2. 【核心】应用 EaseOut (正弦) 缓动函数
+        //    这会将线性的进度转换为非线性的、开始快结束慢的平滑曲线
+        const Float64 easedValue = sin(linearValue * M_PI / 2.0);
+
+        // 获取主输出设备
+        auto* output = Louvre::compositor()->outputs().front();
+        if (!output) return;
+
+        const int screenWidth = output->size().w();
+
+        // 3. 在所有位置计算中使用我们处理过的 easedValue
+        
+        // 更新滑出窗口的位置
+        for (auto* window : m_slidingOutWindows) {
+            if (window->container && window->container->getContainerView()) {
+                const auto& originalRect = window->container->geometry;
+                int newX = originalRect.x() + (m_switchDirection * screenWidth * easedValue); // <-- 使用 easedValue
+                window->container->getContainerView()->setPos(newX, originalRect.y());
+            }
+        }
+
+        // 更新滑入窗口的位置
+        for (auto* window : m_slidingInWindows) {
+            if (window->container && window->container->getContainerView()) {
+                const auto& targetRect = window->container->geometry;
+                int startX = targetRect.x() - (m_switchDirection * screenWidth);
+                int newX = startX + (m_switchDirection * screenWidth * easedValue); // <-- 使用 easedValue
+                window->container->getContainerView()->setPos(newX, targetRect.y());
+            }
+        }
+        
+        output->repaint();
+    });
+
+    m_workspaceSwitchAnimation.setOnFinishCallback([this](Louvre::LAnimation*) {
+        // 动画结束，执行最终的状态切换和清理工作
+        
+        // 1. 隐藏所有滑出的窗口，并重置它们的位置
+        for (auto* window : m_slidingOutWindows) {
+            setWindowVisible(window, false);
+            if (window->container && window->container->getContainerView()) {
+                window->container->getContainerView()->setPos(window->container->geometry.pos());
+            }
+        }
+
+        // 2. 确保所有滑入的窗口在它们的最终位置
+        for (auto* window : m_slidingInWindows) {
+             if (window->container && window->container->getContainerView()) {
+                window->container->getContainerView()->setPos(window->container->geometry.pos());
+            }
+        }
+
+        // 3. 更新工作区状态 (这部分逻辑从旧的 switchWorkspace 移过来)
+        CURRENT_WORKSPACE = m_targetWorkspace;
+        activeContainer = workspaceActiveContainers[CURRENT_WORKSPACE];
+
+        auto seat = Louvre::seat();
+        if(activeContainer && activeContainer->window){
+            seat->keyboard()->setFocus(activeContainer->window->surface());
+        } else {
+            seat->keyboard()->setFocus(nullptr);
+        }
+
+        // 4. 发送 IPC 消息
+        IPCManager::getInstance().broadcastWorkspaceUpdate(CURRENT_WORKSPACE, WORKSPACES);
+        
+        // 5. 清理状态
+        m_isSwitchingWorkspace = false;
+        m_slidingOutWindows.clear();
+        m_slidingInWindows.clear();
+
+        LLog::debug("切换到工作区 %u 动画完成", CURRENT_WORKSPACE);
+    });
 }
 
 //删除对应根节点

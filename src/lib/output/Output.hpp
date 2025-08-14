@@ -4,6 +4,7 @@
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 
 #include <LOutput.h>
 #include <LSolidColorView.h>
@@ -60,10 +61,10 @@ namespace tiley{
 
             // 壁纸
             void updateWallpaper();
-            
+            Louvre::LTextureView& wallpaperView() { return m_wallpaperView; }
             // 打印壁纸信息
             void printWallpaperInfo();
-            
-            LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
+        private:
+            LTextureView m_wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
     };
 }

@@ -103,7 +103,7 @@ void TileyCompositor::initialized(){
     // TODO: hyprland: 配置文件exec-once
     bool waybar = true;
     if(waybar){
-        Louvre::LLauncher::launch("waybar");
+        //Louvre::LLauncher::launch("export SWAYSOCK=/tmp/tiley-ipc.sock; waybar");
     }
 
     const std::vector<std::string>& cmds = TileyServer::getInstance().getStartupCMD();

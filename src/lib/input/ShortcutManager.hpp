@@ -47,6 +47,8 @@ namespace tiley {
             static std::unique_ptr<ShortcutManager, ShortcutManagerDeleter> INSTANCE;
             static std::once_flag onceFlag;
 
+            void registerWorkspacesHandler();
+
             void loadFromFile(const std::string& path);
             void startWatcher(const std::string& path);
 

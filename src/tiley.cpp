@@ -5,8 +5,11 @@
 #include <cstdlib>
 
 #include <getopt.h>
+#include <signal.h>
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/ipc/IPCManager.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include "src/lib/types.hpp"
 
 // 设置启动参数, 具体含义在LaunchArgs结构体中说明
@@ -40,7 +43,6 @@ tiley::LaunchArgs setupParams(int argc, char* argv[]){
 }
 
 int main(int argc, char* argv[]){
-
     tiley::LaunchArgs args = setupParams(argc, argv);
     // 设置桌面环境名称为我们的合成器名字
     setenv("XDG_CURRENT_DESKTOP", "Tiley", 1);
@@ -96,6 +98,10 @@ int main(int argc, char* argv[]){
     tiley::TileyServer::getInstance().initOpenGLResources();
     // 键盘快捷键映射表注册
     tiley::TileyServer::getInstance().initKeyEventHandlers();
+    // 进程间通信管理类初始化
+    tiley::IPCManager::getInstance().initialize();
+    // 壁纸管理器初始化
+    tiley::WallpaperManager::getInstance().initialize();
     
     //***************启动****************
     // 主循环

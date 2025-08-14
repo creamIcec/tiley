@@ -10,25 +10,53 @@ project(
   ],
 )
 
-
 fs = import('fs')
 
-# 安装后的着色器目录
-install_shader_dir = get_option('datadir') / meson.project_name() / 'shaders'
-
-# 开发时的着色器目录
+# 安装后的目录
+install_asset_dir = get_option('datadir') / meson.project_name() / 'assets'
+install_config_dir = get_option('datadir') / meson.project_name() / 'config'
+# 开发时的目录
 source_shader_dir = join_paths(meson.project_source_root(), 'src/assets/shaders')
+source_asset_dir = join_paths(meson.project_source_root(), 'src/assets')
+source_config_dir = join_paths(meson.project_source_root(), 'src/config')
 
 # 程序安装数据
+# shader
 install_data(
     'src/assets/shaders/rounded_corners.vert',
     'src/assets/shaders/rounded_corners.frag',
-    install_dir: install_shader_dir
+    install_dir: install_asset_dir / 'shaders'
+)
+# 壁纸
+install_data(
+    'src/assets/wallpaper/tiley_16x10@2x.png',
+    install_dir: install_asset_dir / 'wallpaper'
+)
+# 快捷键列表
+install_data(
+    'src/config/hotkey.json',
+    install_dir: install_config_dir
 )
 
 conf_data = configuration_data()
-conf_data.set('SHADER_INSTALL_DIR', install_shader_dir)
+conf_data.set('SHADER_INSTALL_DIR', join_paths(install_asset_dir, 'shaders'))
 conf_data.set('SHADER_SOURCE_DIR', source_shader_dir)
+conf_data.set(
+    'DEFAULT_WALLPAPER_INSTALL_PATH',
+    join_paths(install_asset_dir, 'wallpaper/tiley_16x10@2x.png')
+)
+conf_data.set(
+    'DEFAULT_WALLPAPER_SOURCE_PATH',
+    join_paths(source_asset_dir, 'wallpaper/tiley_16x10@2x.png')
+)
+conf_data.set(
+    'DEFAULT_HOTKEY_INSTALL_PATH',
+    join_paths(install_config_dir, 'hotkey.json')
+)
+conf_data.set(
+    'DEFAULT_HOTKEY_SOURCE_PATH',
+    join_paths(source_config_dir, 'hotkey.json')
+)
 
 configure_file(
     input: 'src/config.h.in',
@@ -37,12 +65,11 @@ configure_file(
 )
 
 xkbcommon_dep = dependency('xkbcommon', required: true)
-
 louvre_dep = dependency('Louvre', version: '>=2.18.1')
 pixman_dep = dependency('pixman-1')
 libinput_dep = dependency('libinput')
 sdbus = dependency(['libsystemd', 'libelogind', 'basu'])
-
+wayland_server_dep = dependency('wayland-server') 
 
 source_root = 'src'
 
@@ -71,7 +98,7 @@ subdir('src')
 exe = executable(
   'tiley',
   all_tiley_sources,
-  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus,xkbcommon_dep],
+  dependencies : [louvre_dep, pixman_dep, libinput_dep, sdbus, xkbcommon_dep, wayland_server_dep],
   install : true,
   include_directories: common_includes
 )
