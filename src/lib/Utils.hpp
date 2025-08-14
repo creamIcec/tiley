@@ -12,4 +12,7 @@ namespace tiley{
             return start * (1.0f - a) + end * a;
         }
     }
+
+    std::string getDefaultWallpaperPath();
+    std::string getHotkeyConfigPath();
 }

@@ -12,6 +12,7 @@
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/core/Container.hpp"
 #include "types.hpp"
+#include <LAnimation.h>
 
 using namespace Louvre;
 
@@ -76,8 +77,6 @@ namespace tiley{
             void printContainerHierachy(UInt32 workspace);
             // printContainerHierachy的递归函数
             void _printContainerHierachy(Container* current);
-            
-            
             // 全局记录工作区, 再也不用分散在各处了
             // TODO: 我们需要这个成员始终反映用户意图。也就是说, 无论在哪儿调用, 当前工作区始终是那个函数想要的。怎么做?
            // UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
@@ -89,9 +88,6 @@ namespace tiley{
             void _reflow(Container* container, const LRect& areaRemain, UInt32& accumulateCount);
             // 获取第一个窗口的递归函数。
             Container* _getFirstWindowContainer(Container* container);
-
-            
-            
             //当前工作区的索引
             UInt32 CURRENT_WORKSPACE=0;
 
@@ -107,12 +103,7 @@ namespace tiley{
 
             // 递归去把一个窗口及其子窗口切换可见性（切换工作区）
             void setWindowVisible(ToplevelRole* window, bool visible);
-            //
             static UInt32 countContainersOfWorkspace(const Container* root);
-            // 目前活动的Container, 作为平铺算法在当前工作区下的操作依据
-            
-
-
             // 目前一共的container数量, 作为校验使用, 可以检测出平铺过程中出现意外导致container数量不一致。TODO: 自动重新计算数量
             UInt32 containerCount = 0;
             // 窗口缓存区。包含所有窗口, 不只是平铺的
@@ -124,6 +115,13 @@ namespace tiley{
             double initialVerticalRatio;         // 垂直目标的初始分割比例
             Container* resizingHorizontalTarget; // 正在调整的水平目标
             Container* resizingVerticalTarget;   // 正在调整的垂直目标
+            // 切换工作区动画
+            LAnimation m_workspaceSwitchAnimation;
+            std::list<ToplevelRole*> m_slidingOutWindows;
+            std::list<ToplevelRole*> m_slidingInWindows;
+            bool m_isSwitchingWorkspace = false;
+            int m_switchDirection = 0; // -1 表示向左滑, 1 表示向右滑
+            UInt32 m_targetWorkspace = 0;
             struct WindowStateManagerDeleter {
                 void operator()(TileyWindowStateManager* p) const {
                     delete p;

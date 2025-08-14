@@ -6,6 +6,10 @@
 #include <string>
 #include <wayland-server-core.h>
 
+#include <LNamespaces.h>
+
+using namespace Louvre;
+
 namespace tiley {
 
     class IPCManager {
@@ -16,6 +20,11 @@ namespace tiley {
                 struct wl_event_source* read_event_source = nullptr;
             };
 
+            struct IPCMessage {
+                uint32_t type;
+                std::string payload;
+            };
+
             struct IPCManagerDeleter {
                 void operator()(IPCManager* ptr) const {
                     delete ptr;
@@ -24,8 +33,7 @@ namespace tiley {
 
             static IPCManager& getInstance();
             void initialize();
-            void broadcastWorkspaceUpdate(uint32_t current_workspace, uint32_t total_workspaces);
-
+            void broadcastWorkspaceUpdate(UInt32 currentWorkspace, UInt32 totalWorkspaces, IPCClient* targetClient = nullptr);
         private:
             IPCManager();
             ~IPCManager();
@@ -40,8 +48,10 @@ namespace tiley {
             static int handleNewConnection(int fd, uint32_t mask, void* data);
             static int handleClientMessage(int fd, uint32_t mask, void* data);
 
-            void handleMessage(IPCClient& client, uint32_t type, const std::string& payload);
+            void handleMessage(IPCClient& client, const IPCMessage& message);
             void handleGetWorkspaces(IPCClient& client);
+            void handleGetTree(IPCClient& client);
+            void handleGetOutputs(IPCClient& client);
             void handleSubscribe(IPCClient& client, const std::string& payload);
             void sendMessage(IPCClient& client, const std::string& message);
             void disconnectClient(IPCClient& client);

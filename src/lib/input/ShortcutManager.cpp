@@ -16,6 +16,7 @@
 #include <LLauncher.h>
 
 #include "src/lib/TileyWindowStateManager.hpp"
+#include "src/lib/Utils.hpp"
 
 using json = nlohmann::json;
 using namespace tiley;
@@ -52,15 +53,19 @@ void ShortcutManager::init(const std::string& jsonPath){
 void ShortcutManager::initializeHandlers(){
     // 首先重置
     resetHandlers();
-    
-    ShortcutManager& shortcutManager = ShortcutManager::getInstance();
     TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
 
-    // TODO: 动态加载
-    shortcutManager.init("/home/iriseplos/projects/os/tiley/hotkey.json");
+    std::string hotkeyPath = getHotkeyConfigPath();
+
+    if (hotkeyPath.empty() || !std::filesystem::exists(hotkeyPath)) {
+        LLog::error("[ShortcutManager] 无法找到任何有效的快捷键配置文件。");
+        return;
+    }
+
+    init(hotkeyPath);
 
     //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
-    shortcutManager.registerHandler("launch_terminal", [](auto){ 
+    registerHandler("launch_terminal", [](auto){ 
         LLog::log("执行: launch_terminal"); 
         const bool L_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_LEFTCTRL)  };
         const bool R_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_RIGHTCTRL) };
@@ -71,9 +76,9 @@ void ShortcutManager::initializeHandlers(){
             LLauncher::launch("weston-terminal");
         }
     });
-    shortcutManager.registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
-    shortcutManager.registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
-    shortcutManager.registerHandler("toggle_floating", [&windowStateManager](auto){
+    registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
+    registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
+    registerHandler("toggle_floating", [&windowStateManager](auto){
         LLog::debug("执行: toggle_floating");
         Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
         if(surface){
@@ -83,13 +88,13 @@ void ShortcutManager::initializeHandlers(){
             }
         }
     });
-    shortcutManager.registerHandler("close_window", [](auto){
+    registerHandler("close_window", [](auto){
         LLog::log("执行: close_window");
         if (seat()->keyboard()->focus()){
             seat()->keyboard()->focus()->client()->destroyLater();
         }
     });
-    shortcutManager.registerHandler("screenshot",[](auto){
+    registerHandler("screenshot",[](auto){
         if (cursor()->output() && cursor()->output()->bufferTexture(0)){
             std::filesystem::path path { getenvString("HOME") };
 
@@ -108,25 +113,69 @@ void ShortcutManager::initializeHandlers(){
             cursor()->output()->bufferTexture(0)->save(path);
         }
     });
+    registerWorkspacesHandler();
+    registerHandler("quit_compositor", [](auto){
+        compositor()->finish();
+    });
+    registerHandler("change_wallpaper", [](auto){
+        WallpaperManager::getInstance().selectAndSetNewWallpaper();
+    });
+    LLog::debug("快捷键系统初始化完成（模块化）");
+}
 
+void ShortcutManager::registerWorkspacesHandler(){
+
+    TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
     // 注册工作区切换，理论上可以注册最大工作区的数量呢
-    shortcutManager.registerHandler("goto_ws_1", [&windowStateManager](auto){ 
+    registerHandler("goto_ws_1", [&windowStateManager](auto){ 
         LLog::log("执行: goto_ws_1");
         windowStateManager.switchWorkspace(0);
     });
-    shortcutManager.registerHandler("goto_ws_2", [&windowStateManager](auto){ 
+
+    registerHandler("goto_ws_2", [&windowStateManager](auto){ 
         LLog::log("执行: goto_ws_2"); 
         windowStateManager.switchWorkspace(1);
     });
-    shortcutManager.registerHandler("goto_ws_3", [&windowStateManager](auto){ 
+    
+    registerHandler("goto_ws_3", [&windowStateManager](auto){ 
         LLog::log("执行: goto_ws_3"); 
         windowStateManager.switchWorkspace(2);
     });
-    shortcutManager.registerHandler("quit_compositor", [](auto){
-        compositor()->finish();
+    
+    registerHandler("goto_ws_4", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_4"); 
+        windowStateManager.switchWorkspace(3);
     });
-
-    LLog::debug("快捷键系统初始化完成（模块化）");
+    
+    registerHandler("goto_ws_5", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_5"); 
+        windowStateManager.switchWorkspace(4);
+    });
+    
+    registerHandler("goto_ws_6", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_6"); 
+        windowStateManager.switchWorkspace(5);
+    });
+    
+    registerHandler("goto_ws_7", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_7"); 
+        windowStateManager.switchWorkspace(6);
+    });
+    
+    registerHandler("goto_ws_8", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_8"); 
+        windowStateManager.switchWorkspace(7);
+    });
+    
+    registerHandler("goto_ws_9", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_9"); 
+        windowStateManager.switchWorkspace(8);
+    });
+    
+    registerHandler("goto_ws_10", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_10"); 
+        windowStateManager.switchWorkspace(9);
+    });
 }
 
 //绑定对应功能函数，TODO:后续可以继续绑定其它各种功能函数
