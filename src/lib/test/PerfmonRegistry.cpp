@@ -24,6 +24,7 @@ PerformanceMonitor& perfmon(const std::string& tag) {
     auto it = g_registry.find(tag);
     if (it == g_registry.end()) {
         // 解析路径（先看覆盖，其次用默认规则）
+        //TODO:可以根据名字来自动创建文件目录
         std::string path;
         auto pit = g_path_override.find(tag);
         if (pit != g_path_override.end()) {
@@ -38,6 +39,7 @@ PerformanceMonitor& perfmon(const std::string& tag) {
     return *(it->second);
 }
 
+//TODO:可动态更新路径。
 void setPerfmonPath(const std::string& tag, const std::string& path) {
     std::lock_guard<std::mutex> lk(g_mu);
     g_path_override[tag] = path;

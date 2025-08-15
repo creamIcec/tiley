@@ -33,8 +33,7 @@ void stopMoveSession(bool recalculateLayout){
                     if(attached){
                         // 如果插入成功, 重新组织并重新布局
                         manager.reapplyWindowState(window);
-                        manager.reca
-                        lculate();
+                        manager.recalculate();
                     }
                 }
             }

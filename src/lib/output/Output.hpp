@@ -66,5 +66,8 @@ namespace tiley{
             void printWallpaperInfo();
             
             LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
-    };
+            //便于测试
+            std::string perfTag_;
+            PerformanceMonitor* perfMon_ = nullptr; 
+        };
 }
