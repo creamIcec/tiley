@@ -26,14 +26,14 @@ WallpaperManager& WallpaperManager::getInstance() {
 
 // 构造与析构
 WallpaperManager::WallpaperManager() {
-    // 设置定时器的回调函数，它会在每次触发时调用 checkDialogStatus
+    // 设置定时器的回调函数,它会在每次触发时调用 checkDialogStatus
     m_dialogCheckTimer.setCallback([this](Louvre::LTimer*){
         this->checkDialogStatus();
     });
 }
 
 WallpaperManager::~WallpaperManager() {
-    // 析构时确保定时器停止，并清理可能残留的文件
+    // 析构时确保定时器停止,并清理可能残留的文件
     if (m_dialogCheckTimer.running()) {
         m_dialogCheckTimer.stop();
         unlink(m_dialogLockFilePath.c_str());
@@ -44,7 +44,7 @@ WallpaperManager::~WallpaperManager() {
 void WallpaperManager::initialize() {
     const char* homeDir = getenv("HOME");
     if (!homeDir) {
-        LLog::fatal("无法获取 HOME 目录，无法确定配置文件路径。");
+        LLog::fatal("无法获取 HOME 目录,无法确定配置文件路径。");
         return;
     }
     // 2. 构建配置文件路径
@@ -62,8 +62,8 @@ void WallpaperManager::initialize() {
 void WallpaperManager::checkDialogStatus() {
     // 检查“锁文件”是否存在
     if (access(m_dialogLockFilePath.c_str(), F_OK) == -1) {
-        // 文件不存在，说明 kdialog 已经结束
-        LLog::log("[WallpaperManager] 锁文件消失，对话框已关闭。");
+        // 文件不存在,说明 kdialog 已经结束
+        LLog::log("[WallpaperManager] 锁文件消失,对话框已关闭。");
 
         // 1. 停止定时器
         m_dialogCheckTimer.stop();
@@ -102,7 +102,7 @@ void WallpaperManager::loadConfig() {
     } else {
         // 【修改】使用我们的新函数获取默认路径
         m_wallpaperPath = getDefaultWallpaperPath();
-        LLog::warning("[WallpaperManager] 无法加载配置或配置为空，使用默认壁纸: %s", m_wallpaperPath.c_str());
+        LLog::warning("[WallpaperManager] 无法加载配置或配置为空,使用默认壁纸: %s", m_wallpaperPath.c_str());
         saveConfig();
     }
 }
@@ -146,9 +146,9 @@ void WallpaperManager::selectAndSetNewWallpaper() {
     LLog::debug("[WallpaperManager] 执行命令: %s", cmd.c_str());
     Louvre::LLauncher::launch(cmd);
 
-    // 启动定时器，每 500 毫秒检查一次状态
+    // 启动定时器,每 500 毫秒检查一次状态
     m_dialogCheckTimer.start(500);
-    LLog::log("[WallpaperManager] 文件选择器已启动，开始轮询状态...");
+    LLog::log("[WallpaperManager] 文件选择器已启动,开始轮询状态...");
 }
 
 void WallpaperManager::applyToOutput(Louvre::LOutput* _output) {

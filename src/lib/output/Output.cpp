@@ -119,7 +119,7 @@ void Output::paintGL(){
     // TODO: 在scene中判断屏幕, 分配不同的容器树根节点
     bool usedDirect = false;
     if (fullscreenSurface && tryDirectScanout(fullscreenSurface)) {
-        usedDirect = true; // 直连扫描成功，这帧没有 CPU 绘制
+        usedDirect = true; // 直连扫描成功,这帧没有 CPU 绘制
     } else {
         perfMon_->renderStart();
         server.scene().handlePaintGL(this);
@@ -135,7 +135,7 @@ void Output::paintGL(){
 
     // 判断壁纸是否需要更新
     if (WallpaperManager::getInstance().wallpaperChanged()) {
-        // 重置标志，避免重复更新
+        // 重置标志,避免重复更新
         // 在正确的渲染线程中执行更新操作
         updateWallpaper();
     }

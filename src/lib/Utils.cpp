@@ -6,7 +6,7 @@ using namespace Louvre;
 
 std::string tiley::getShaderPath(const std::string &shaderName){
     // 路径 1: 优先检查开发环境的路径
-    // 使用 std::filesystem::path 来拼接，这是最安全、跨平台的方式
+    // 使用 std::filesystem::path 来拼接,这是最安全、跨平台的方式
     std::filesystem::path dev_path = SHADER_SOURCE_DIR;
     dev_path /= shaderName;
 
@@ -14,7 +14,7 @@ std::string tiley::getShaderPath(const std::string &shaderName){
         return dev_path.string();
     }
 
-    // 路径 2: 如果开发路径找不到，再检查安装后的系统路径
+    // 路径 2: 如果开发路径找不到,再检查安装后的系统路径
     std::filesystem::path install_path = SHADER_INSTALL_DIR;
     install_path /= shaderName;
 
@@ -43,7 +43,7 @@ std::string tiley::getHotkeyConfigPath() {
     // 1. 确定用户配置路径
     const char* homeDir = getenv("HOME");
     if (!homeDir) {
-        LLog::warning("[ShortcutManager] 无法获取 HOME 目录，跳过用户配置。");
+        LLog::warning("[ShortcutManager] 无法获取 HOME 目录,跳过用户配置。");
     }
     
     std::filesystem::path userConfigPath;
@@ -63,17 +63,17 @@ std::string tiley::getHotkeyConfigPath() {
         LLog::log("[ShortcutManager] 找到用户快捷键配置: %s", userConfigPath.c_str());
         return userConfigPath;
     } else {
-        LLog::log("[ShortcutManager] 未找到用户配置，使用默认配置: %s", defaultConfigPath.c_str());
+        LLog::log("[ShortcutManager] 未找到用户配置,使用默认配置: %s", defaultConfigPath.c_str());
         
         // 【关键的用户体验提升】
-        // 如果默认配置存在，而用户配置不存在，则自动为用户创建一份
+        // 如果默认配置存在,而用户配置不存在,则自动为用户创建一份
         if (homeDir && std::filesystem::exists(defaultConfigPath)) {
             try {
                 // 确保目标目录存在
                 std::filesystem::create_directories(userConfigPath.parent_path());
                 // 复制文件
                 std::filesystem::copy_file(defaultConfigPath, userConfigPath);
-                LLog::log("[ShortcutManager] 已将默认配置复制到 %s，方便用户修改。", userConfigPath.c_str());
+                LLog::log("[ShortcutManager] 已将默认配置复制到 %s,方便用户修改。", userConfigPath.c_str());
             } catch (const std::filesystem::filesystem_error& e) {
                 LLog::error("[ShortcutManager] 复制默认配置失败: %s", e.what());
             }

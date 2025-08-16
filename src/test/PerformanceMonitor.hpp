@@ -1,5 +1,4 @@
-#ifndef PERFORMANCE_MONITOR_HPP
-#define PERFORMANCE_MONITOR_HPP
+#pragma once
 
 #include <chrono>
 #include <string>
@@ -30,5 +29,3 @@ private:
     std::vector<double> frame_times_;
     std::vector<double> render_durations_;
 };
-
-#endif // PERFORMANCE_MONITOR_HPP

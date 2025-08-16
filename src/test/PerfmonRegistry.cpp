@@ -1,5 +1,5 @@
-#include "src/lib/test/PerfmonRegistry.hpp"
-#include "src/lib/test/PerformanceMonitor.hpp"
+#include "PerfmonRegistry.hpp"
+#include "PerformanceMonitor.hpp"
 
 #include <unordered_map>
 #include <memory>
@@ -23,7 +23,7 @@ PerformanceMonitor& perfmon(const std::string& tag) {
 
     auto it = g_registry.find(tag);
     if (it == g_registry.end()) {
-        // 解析路径（先看覆盖，其次用默认规则）
+        // 解析路径（先看覆盖,其次用默认规则）
         //TODO:可以根据名字来自动创建文件目录
         std::string path;
         auto pit = g_path_override.find(tag);
@@ -44,7 +44,7 @@ void setPerfmonPath(const std::string& tag, const std::string& path) {
     std::lock_guard<std::mutex> lk(g_mu);
     g_path_override[tag] = path;
 
-    // 若实例已存在，立刻更新其路径
+    // 若实例已存在,立刻更新其路径
     auto it = g_registry.find(tag);
     if (it != g_registry.end() && it->second) {
         it->second->setPath(path);

@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/ipc/IPCManager.hpp"
 #include "src/lib/client/WallpaperManager.hpp"
 #include "src/lib/types.hpp"
@@ -82,8 +83,6 @@ int main(int argc, char* argv[]){
     tiley::TileyServer::getInstance().initOpenGLResources();
     // 键盘快捷键映射表注册
     tiley::TileyServer::getInstance().initKeyEventHandlers();
-    // 进程间通信管理类初始化
-    tiley::IPCManager::getInstance().initialize();
     // 壁纸管理器初始化
     tiley::WallpaperManager::getInstance().initialize();
     
@@ -102,6 +101,11 @@ int main(int argc, char* argv[]){
     if(getenv("WAYLAND_DISPLAY") != nullptr){
         // TODO
     }
+
+    // 窗口管理器初始化
+    tiley::TileyWindowStateManager::getInstance().initialize();
+    // 进程间通信管理类初始化
+    tiley::IPCManager::getInstance().initialize();
 
     //***************启动****************
     // 主循环

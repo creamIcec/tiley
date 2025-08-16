@@ -14,7 +14,7 @@ using namespace tiley;
 
 ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
 {
-    //由Louvre提供，用于计算允许的移动范围。
+    //由Louvre提供,用于计算允许的移动范围。
     moveSession().setOnBeforeUpdateCallback([](LToplevelMoveSession *session)
     {
         LMargins constraints { session->toplevel()->calculateConstraintsFromOutput(cursor()->output()) };
@@ -36,7 +36,7 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
         }
     });
 
-    //同理，但是是限制屏幕大小
+    //同理,但是是限制屏幕大小
     resizeSession().setOnBeforeUpdateCallback([](LToplevelResizeSession *session)
     {
         // 更改大小也限制在屏幕范围内
@@ -76,7 +76,7 @@ void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
     );
 }
 
-//重载窗口属性变化函数，驱动平铺驱点。
+//重载窗口属性变化函数,驱动平铺驱点。
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
     //LLog::log("窗口状态改变");
     LToplevelRole::atomsChanged(changes, prev);

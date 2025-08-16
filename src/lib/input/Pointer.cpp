@@ -32,10 +32,10 @@ using namespace tiley;
 
 LSurface* Pointer::surfaceAtWithFilter(const LPoint& point, const std::function<bool (LSurface*)> &filter){
     retry:
-    // 保留 Louvre 的健壮性设计，防止在遍历时列表被修改
+    // 保留 Louvre 的健壮性设计,防止在遍历时列表被修改
     compositor()->imp()->surfacesListChanged = false;
 
-    // 从 rbegin() 到 rend() 是逆序遍历，即从最顶层的窗口开始
+    // 从 rbegin() 到 rend() 是逆序遍历,即从最顶层的窗口开始
     for (auto it = compositor()->surfaces().rbegin(); it != compositor()->surfaces().rend(); ++it)
     {
         LSurface *s = *it;
@@ -46,18 +46,18 @@ LSurface* Pointer::surfaceAtWithFilter(const LPoint& point, const std::function<
             // 几何检查：鼠标指针是否在该窗口的输入区域内？
             if (s->inputRegion().containsPoint(point - s->rolePos()))
             {
-                // 关键一步：在确认几何位置匹配后，执行我们自定义的 lambda 过滤器
+                // 关键一步：在确认几何位置匹配后,执行我们自定义的 lambda 过滤器
                 if (filter(s))
                 {
-                    // 如果过滤器返回 true，说明我们找到了完美的匹配！
+                    // 如果过滤器返回 true,说明我们找到了完美的匹配！
                     return s;
                 }
-                // 如果过滤器返回 false，我们什么也不做，继续循环，
+                // 如果过滤器返回 false,我们什么也不做,继续循环,
                 // 查找这个窗口下面的、同样在该坐标点、且可能满足条件的窗口。
             }
         }
 
-        // 再次检查列表是否被修改，如果被修改，就从头再来一次
+        // 再次检查列表是否被修改,如果被修改,就从头再来一次
         if (compositor()->imp()->surfacesListChanged)
             goto retry;
     }

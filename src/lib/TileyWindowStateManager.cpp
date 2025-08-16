@@ -1,4 +1,5 @@
 #include "TileyWindowStateManager.hpp"
+#include "LAnimation.h"
 #include "LBitset.h"
 #include "LEdge.h"
 #include "LSurface.h"
@@ -110,7 +111,7 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
         parent->child2 = splitContainer;
         splitContainer->parent = parent;
     }else{
-        // TODO: 可能有意外嘛?   这里测试的时候可以看看，逻辑上感觉没问题
+        // TODO: 可能有意外嘛?   这里测试的时候可以看看,逻辑上感觉没问题
     }
 
     // 4. 挂载窗口
@@ -128,12 +129,12 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
     }
 
     if (before) {
-        // 鼠标在“前半区”：新窗口 child1，原窗口 child2
+        // 鼠标在“前半区”：新窗口 child1,原窗口 child2
         splitContainer->child1 = newWindowContainer;
         splitContainer->child2 = targetContainer;
         //LLog::debug("前半区");
     } else {
-        // 鼠标在“后半区”：原窗口 child1，新窗口 child2
+        // 鼠标在“后半区”：原窗口 child1,新窗口 child2
         splitContainer->child1 = targetContainer;
         splitContainer->child2 = newWindowContainer;
         //LLog::debug("后半区");
@@ -186,7 +187,7 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
         SPLIT_TYPE split = size.w() >= size.h() ? SPLIT_H : SPLIT_V; 
         return insertTile(workspace, newWindowContainer, activeContainer, split, splitRatio);
     }
-    // TODO: 其他鼠标没有聚焦的情况，比如呢？
+    // TODO: 其他鼠标没有聚焦的情况,比如呢？
     //
 
     LLog::error("[insertTile]: 插入失败, 未知情况。");
@@ -258,7 +259,7 @@ Container* TileyWindowStateManager::detachTile(LToplevelRole* window, FLOATING_R
     }
 
     // 清理所有被移除的容器
-    containerToDetach->parent = nullptr; // 断开连接，好习惯
+    containerToDetach->parent = nullptr; // 断开连接,好习惯
     containerToDetach->floating_reason = reason;
     delete parent; // 删除旧的分割容器
     parent = nullptr;
@@ -370,7 +371,7 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
     }
 
     // 清理所有被移除的容器
-    containerToRemove->parent = nullptr; // 断开连接，好习惯
+    containerToRemove->parent = nullptr; // 断开连接,好习惯
     delete parent; // 删除旧的分割容器
     delete containerToRemove; // 删除被关闭窗口的容器
     parent = nullptr;
@@ -412,7 +413,7 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
     bool resized = false;
     LPointF mouseDelta = cursorPos - initialCursorPos;
 
-    // 如果有水平目标，根据鼠标水平移动量调整
+    // 如果有水平目标,根据鼠标水平移动量调整
     if (resizingHorizontalTarget) {
         double totalWidth = resizingHorizontalTarget->geometry.w();
         if (totalWidth >= 1) {
@@ -423,7 +424,7 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
         }
     }
 
-    // 如果有垂直目标，根据鼠标垂直移动量调整
+    // 如果有垂直目标,根据鼠标垂直移动量调整
     if (resizingVerticalTarget) {
         double totalHeight = resizingVerticalTarget->geometry.h();
         if (totalHeight >= 1) {
@@ -838,7 +839,7 @@ bool TileyWindowStateManager::recalculate(){
         rootOutput = static_cast<Output*>(cursor()->output());
     }
     if (!rootOutput) {
-        LLog::warning("[recalculate]: 工作区 %u 找不到有效输出，放弃重排。", workspace);
+        LLog::warning("[recalculate]: 工作区 %u 找不到有效输出,放弃重排。", workspace);
         return false;
     }
 
@@ -867,7 +868,7 @@ UInt32 TileyWindowStateManager::countContainersOfWorkspace(const Container* root
     UInt32 n = 0;
     std::function<void(const Container*)> dfs = [&](const Container* c){
         if (!c) return;
-        // 和 _reflow 对齐：无论是窗口容器还是分割容器，节点本身都计数
+        // 和 _reflow 对齐：无论是窗口容器还是分割容器,节点本身都计数
         ++n;
         dfs(c->child1);
         dfs(c->child2);
@@ -1048,7 +1049,7 @@ void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visibl
 // 切换工作区
 bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
 
-    // 如果正在切换，或者目标无效，则直接返回
+    // 如果正在切换,或者目标无效,则直接返回
     if (m_isSwitchingWorkspace || target >= WORKSPACES || target == CURRENT_WORKSPACE) {
         return false;
     }
@@ -1058,13 +1059,13 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
     // 设置动画状态
     m_isSwitchingWorkspace = true;
     m_targetWorkspace = target;
-    m_switchDirection = (target > CURRENT_WORKSPACE) ? -1 : 1; // 目标 > 当前，向左滑
+    m_switchDirection = (target > CURRENT_WORKSPACE) ? -1 : 1; // 目标 > 当前,向左滑
 
     // 清空上次动画的残留（以防万一）
     m_slidingOutWindows.clear();
     m_slidingInWindows.clear();
 
-    // 重新计算一次布局，确保所有窗口的 targetRect 是正确的
+    // 重新计算一次布局,确保所有窗口的 targetRect 是正确的
     recalculate();
 
     // 填充要滑出和滑入的窗口列表
@@ -1075,53 +1076,25 @@ bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
                 m_slidingOutWindows.push_back(window);
             } else if (window->workspaceId == target) {
                 m_slidingInWindows.push_back(window);
-                // 【关键】让即将滑入的窗口提前可见，但它们的位置会在动画开始时被设置到屏幕外
+                // 【关键】让即将滑入的窗口提前可见,但它们的位置会在动画开始时被设置到屏幕外
                 setWindowVisible(window, true);
             }
         }
     }
 
     // 配置并启动动画
-    m_workspaceSwitchAnimation.setDuration(250); // 250ms 动画时长
-    m_workspaceSwitchAnimation.start();
+    m_workspaceSwitchAnimation->setDuration(250); // 250ms 动画时长
+    m_workspaceSwitchAnimation->start();
 
     return true;
 
 }
 
-TileyWindowStateManager& TileyWindowStateManager::getInstance(){
-    std::call_once(onceFlag, [](){
-        INSTANCE.reset(new TileyWindowStateManager());
-    });
-    return *INSTANCE;
-}
-
-std::unique_ptr<TileyWindowStateManager, TileyWindowStateManager::WindowStateManagerDeleter> TileyWindowStateManager::INSTANCE = nullptr;
-std::once_flag TileyWindowStateManager::onceFlag;
-/*
-TileyWindowStateManager::TileyWindowStateManager(){
-    for(int i = 0; i < WORKSPACES; i++){
-        workspaceRoots[i] = new Container();
-        workspaceRoots[i]->splitType = SPLIT_H;
-        workspaceRoots[i]->splitRatio = 1.0; // 设置为1.0表示桌面。桌面只有一个孩子窗口时, 不分割, 全屏显示
-    }
-    // 添加了根节点
-    containerCount += 1;
-}*/
-TileyWindowStateManager::TileyWindowStateManager()
-  : workspaceRoots(WORKSPACES, nullptr)
-{
-    // 为每个工作区创建一个根容器，并初始化为“桌面”状态
-    for (int i = 0; i < WORKSPACES; ++i) {
-        Container* root = new Container();
-        root->splitType = SPLIT_H;
-        root->splitRatio = 1.0f;
-        workspaceRoots[i] = root;
-    }
-    containerCount += 1;
-
+void TileyWindowStateManager::initialize(){
+    
+    m_workspaceSwitchAnimation = std::make_unique<LAnimation>();
     // 初始化切换工作区动画
-    m_workspaceSwitchAnimation.setOnUpdateCallback([this](Louvre::LAnimation* anim) {
+    m_workspaceSwitchAnimation->setOnUpdateCallback([this](Louvre::LAnimation* anim) {
             // 1. 获取线性的动画进度 (0.0 to 1.0)
         const Float64 linearValue = anim->value();
 
@@ -1159,10 +1132,10 @@ TileyWindowStateManager::TileyWindowStateManager()
         output->repaint();
     });
 
-    m_workspaceSwitchAnimation.setOnFinishCallback([this](Louvre::LAnimation*) {
-        // 动画结束，执行最终的状态切换和清理工作
+    m_workspaceSwitchAnimation->setOnFinishCallback([this](Louvre::LAnimation*) {
+        // 动画结束,执行最终的状态切换和清理工作
         
-        // 1. 隐藏所有滑出的窗口，并重置它们的位置
+        // 1. 隐藏所有滑出的窗口,并重置它们的位置
         for (auto* window : m_slidingOutWindows) {
             setWindowVisible(window, false);
             if (window->container && window->container->getContainerView()) {
@@ -1198,6 +1171,29 @@ TileyWindowStateManager::TileyWindowStateManager()
 
         LLog::debug("切换到工作区 %u 动画完成", CURRENT_WORKSPACE);
     });
+}
+
+TileyWindowStateManager& TileyWindowStateManager::getInstance(){
+    std::call_once(onceFlag, [](){
+        INSTANCE.reset(new TileyWindowStateManager());
+    });
+    return *INSTANCE;
+}
+
+std::unique_ptr<TileyWindowStateManager, TileyWindowStateManager::WindowStateManagerDeleter> TileyWindowStateManager::INSTANCE = nullptr;
+std::once_flag TileyWindowStateManager::onceFlag;
+
+TileyWindowStateManager::TileyWindowStateManager()
+  : workspaceRoots(WORKSPACES, nullptr){
+    // 为每个工作区创建一个根容器,并初始化为“桌面”状态
+    for (int i = 0; i < WORKSPACES; ++i) {
+        Container* root = new Container();
+        root->splitType = SPLIT_H;
+        root->splitRatio = 1.0f;
+        workspaceRoots[i] = root;
+    }
+    containerCount += 1;
+    
 }
 
 //删除对应根节点

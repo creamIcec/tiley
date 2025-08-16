@@ -19,14 +19,12 @@
 #include <LSceneView.h>
 #include <LTextureView.h>
 
-#include "LSolidColorView.h"
 #include "LTexture.h"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
-#include"src/lib/test/PerformanceMonitor.hpp"
 #include "src/lib/Utils.hpp"
 
 using namespace Louvre;
@@ -121,9 +119,9 @@ void Surface::startUnmappedAnimation() noexcept
     LTextureView *fadeOutView = new LTextureView(thumbnail, &server.layers()[APPLICATION_LAYER]);
 
     const LPoint initialPos = pos();
-    // 【新】我们将在这里定义动画的目标，让代码更清晰
+    // 【新】我们将在这里定义动画的目标,让代码更清晰
     constexpr Float32 FINAL_SCALE_RATIO = 0.7f; // 可配置的目标缩放比例
-    constexpr UInt32 ANIMATION_MS = 150;       // 动画可以更快一些，感觉更清脆
+    constexpr UInt32 ANIMATION_MS = 150;       // 动画可以更快一些,感觉更清脆
 
     fadeOutView->setPos(initialPos);
     fadeOutView->enableParentOffset(false);
@@ -135,23 +133,23 @@ void Surface::startUnmappedAnimation() noexcept
     LAnimation::oneShot(ANIMATION_MS, 
         [fadeOutView, initialPos, FINAL_SCALE_RATIO](LAnimation *animation) {
             
-            // 【修改 1】使用更平滑的 "Ease-In-Out" 缓动函数
-            // 这会让动画的开始和结束都感觉非常自然，没有突兀感
+            // 使用更平滑的 "Ease-In-Out" 缓动函数
+            // 这会让动画的开始和结束都感觉非常自然,没有突兀感
             const Float32 ease = (1.f - cosf(animation->value() * M_PI)) * 0.5f;
 
-            // 【修改 2】重新计算缩放插值
-            // 我们使用自己的 lerp 函数，将动画进程(ease: 0->1)映射到缩放范围(1.0f -> 0.8f)
+            // 重新计算缩放插值
+            // 我们使用自己的 lerp 函数,将动画进程(ease: 0->1)映射到缩放范围(1.0f -> 0.8f)
             const float scaleFactor = tiley::math::lerp(1.f, FINAL_SCALE_RATIO, ease);
             fadeOutView->setScalingVector(scaleFactor);
             
-            // 【修改 3】重新计算位置插值
-            // 目标位置不再是中心点，而是根据缩放比例计算出的新位置
+            // 重新计算位置插值
+            // 目标位置不再是中心点,而是根据缩放比例计算出的新位置
             // 这样能确保窗口的中心在动画过程中保持不动
             const LPoint currentPos = initialPos + (fadeOutView->size() * (1.f - scaleFactor)) / 2;
             fadeOutView->setPos(currentPos);
             
-            // 【保持不变】透明度插值
-            // 让窗口在缩小的同时，完全淡出。这会产生一个非常干净的收尾效果。
+            // 透明度插值
+            // 让窗口在缩小的同时, 完全淡出。这会产生一个非常干净的收尾效果。
             const float opacity = 1.f - ease;
             fadeOutView->setOpacity(opacity);
 

@@ -79,7 +79,8 @@ namespace tiley{
             void _printContainerHierachy(Container* current);
             // 全局记录工作区, 再也不用分散在各处了
             // TODO: 我们需要这个成员始终反映用户意图。也就是说, 无论在哪儿调用, 当前工作区始终是那个函数想要的。怎么做?
-           // UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
+            // UInt32 CURRENT_WORKSPACE = DEFAULT_WORKSPACE;
+            void initialize();
 
         private:
             // reflow: 在给定的region作为最大显示区域的情况下进行重新布局
@@ -116,7 +117,8 @@ namespace tiley{
             Container* resizingHorizontalTarget; // 正在调整的水平目标
             Container* resizingVerticalTarget;   // 正在调整的垂直目标
             // 切换工作区动画
-            LAnimation m_workspaceSwitchAnimation;
+            std::unique_ptr<LAnimation> m_workspaceSwitchAnimation;
+            
             std::list<ToplevelRole*> m_slidingOutWindows;
             std::list<ToplevelRole*> m_slidingInWindows;
             bool m_isSwitchingWorkspace = false;

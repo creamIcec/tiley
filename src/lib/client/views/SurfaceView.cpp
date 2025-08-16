@@ -6,7 +6,7 @@
 #include <GLES2/gl2.h>
 #include <algorithm>
 #include <glm/fwd.hpp>
-#define GLM_FORCE_RADIANS // 确保 glm 使用弧度，与 OpenGL 标准一致
+#define GLM_FORCE_RADIANS // 确保 glm 使用弧度,与 OpenGL 标准一致
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> // 包含 glm::translate, glm::rotate, glm::scale
 #include <glm/gtc/type_ptr.hpp>         // 包含 glm::value_ptr
@@ -16,8 +16,6 @@
 #include <LNamespaces.h>
 #include <LPainter.h>
 #include <private/LPainterPrivate.h>
-
-#include "src/lib/test/PerformanceMonitor.hpp"
 
 #include <LToplevelMoveSession.h>
 #include <LSurfaceView.h>
@@ -38,8 +36,8 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
    // LSurfaceView::paintEvent(params);
    // return;
    tiley::setPerfmonPath("surfaceview", "/home/zero/tiley/src/lib/test/test_performance.txt");
-    // 如果自己是正在移动的窗口的SurfaceView
-    auto moveSessions = seat()->toplevelMoveSessions();
+   // 如果自己是正在移动的窗口的SurfaceView
+   auto moveSessions = seat()->toplevelMoveSessions();
     auto iterator = std::find_if(moveSessions.begin(), moveSessions.end(), [this](auto session){
         auto surface = static_cast<Surface*>(session->toplevel()->surface());
         if(surface->getSurfaceView() == this){
@@ -131,7 +129,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
 
     shader->setUniform("u_texture", 0);
     shader->setUniform("u_resolution", LSizeF(size()));
-    // 传递给着色器的像素值，都需要乘以缩放比例
+    // 传递给着色器的像素值,都需要乘以缩放比例
     shader->setUniform("u_radius", cornerRadius * scale);
     shader->setUniform("u_border_width", borderWidth * scale);
     // 设置边框颜色为白色 (R=1.0, G=1.0, B=1.0)
@@ -169,7 +167,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
         // gl坐标系是从左下角开始的(和笛卡尔平面坐标系一致), 而Louvre(或者说计算机坐标系)左上角是原点, 因此需要翻转y轴
         glScissor(physical_x, physical_size.h() - (physical_y + physical_h), physical_w, physical_h);
         
-        // 在这个小小的剪裁区域内，执行我们的绘制命令
+        // 在这个小小的剪裁区域内,执行我们的绘制命令
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 

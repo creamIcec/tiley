@@ -1,4 +1,4 @@
-#include "src/lib/test/PerformanceMonitor.hpp"
+#include "PerformanceMonitor.hpp"
 
 #include <fstream>
 #include <sys/resource.h>
@@ -21,14 +21,14 @@ void PerformanceMonitor::renderStart() {
     render_start_time_= std::chrono::steady_clock::now();
 }
 
-// 记录渲染结束时间，并存储单帧渲染耗时
+// 记录渲染结束时间,并存储单帧渲染耗时
 void PerformanceMonitor::renderEnd() {
     auto render_end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> render_duration = render_end_time - render_start_time_;
     render_durations_.push_back(render_duration.count());
 }
 
-// 记录一帧，并在累积到一定数量后输出性能数据
+// 记录一帧,并在累积到一定数量后输出性能数据
 void PerformanceMonitor::recordFrame() {
     frames_++;
     auto frame_time = std::chrono::steady_clock::now();
@@ -38,7 +38,7 @@ void PerformanceMonitor::recordFrame() {
     double elapsed_seconds = elapsed.count();
 
     // ===== 空闲帧过滤 =====
-    // 如果两帧间隔超过阈值(0.5秒)，认为是 idle，不计入 FPS 统计
+    // 如果两帧间隔超过阈值(0.5秒),认为是 idle,不计入 FPS 统计
     constexpr double idle_threshold_seconds = 0.5;
     if (elapsed_seconds <= idle_threshold_seconds) {
         frame_times_.push_back(elapsed_seconds);

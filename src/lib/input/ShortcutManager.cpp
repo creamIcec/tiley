@@ -21,7 +21,7 @@
 using json = nlohmann::json;
 using namespace tiley;
 
-//每200m才真正重置一次，防止多时间频繁修改
+//每200m才真正重置一次,防止多时间频繁修改
 static constexpr auto kDebounceMs = 200;
 
 std::unique_ptr<ShortcutManager, ShortcutManager::ShortcutManagerDeleter> ShortcutManager::INSTANCE = nullptr;
@@ -126,7 +126,7 @@ void ShortcutManager::initializeHandlers(){
 void ShortcutManager::registerWorkspacesHandler(){
 
     TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
-    // 注册工作区切换，理论上可以注册最大工作区的数量呢
+    // 注册工作区切换,理论上可以注册最大工作区的数量呢
     registerHandler("goto_ws_1", [&windowStateManager](auto){ 
         LLog::log("执行: goto_ws_1");
         windowStateManager.switchWorkspace(0);
@@ -178,7 +178,7 @@ void ShortcutManager::registerWorkspacesHandler(){
     });
 }
 
-//绑定对应功能函数，TODO:后续可以继续绑定其它各种功能函数
+//绑定对应功能函数,TODO:后续可以继续绑定其它各种功能函数
 void ShortcutManager::registerHandler(const std::string& actionName, ShortcutHandler handler){
     std::lock_guard lock(mutex_);
     handlers_[actionName] = std::move(handler);
@@ -297,7 +297,7 @@ void ShortcutManager::startWatcher(const std::string& path){
                     if(ev->mask & (IN_MODIFY | IN_CLOSE_WRITE)){
                         auto now = std::chrono::steady_clock::now();
                         if(now - last >= std::chrono::milliseconds(kDebounceMs)){
-                            LLog::debug("检测到快捷键配置变化，重新加载");
+                            LLog::debug("检测到快捷键配置变化,重新加载");
                             {
                                 std::lock_guard lock(mutex_);
                                 loadFromFile(path);

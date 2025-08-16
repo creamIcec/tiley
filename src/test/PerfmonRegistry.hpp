@@ -5,7 +5,7 @@ class PerformanceMonitor;
 
 namespace tiley {
 
-// 获取指定“标签”的监视器实例（不存在则按创建），这里方便一个文件存储对应的性能
+// 获取指定“标签”的监视器实例（不存在则按创建）,这里方便一个文件存储对应的性能
 PerformanceMonitor& perfmon(const std::string& tag);
 
 // 覆盖某个标签的输出文件路径

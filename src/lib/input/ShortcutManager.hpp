@@ -21,10 +21,10 @@ namespace tiley {
             /// 注册某个 action 的 handler
             void registerHandler(const std::string& actionName, ShortcutHandler handler);
 
-            /// 试着调度 combo（规范化后的），命中则执行并返回 true
+            /// 试着调度 combo（规范化后的）,命中则执行并返回 true
             bool tryDispatch(const std::string& combo);
 
-            /// 规范化 raw combo，比如 "Ctrl+Shift+T" -> "ctrl+shift+t"
+            /// 规范化 raw combo,比如 "Ctrl+Shift+T" -> "ctrl+shift+t"
             static std::string normalizeCombo(const std::string& raw);
 
             void initializeHandlers();

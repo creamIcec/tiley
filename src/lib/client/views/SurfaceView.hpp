@@ -1,7 +1,7 @@
 #pragma once
 
 #include <LSurfaceView.h>
-#include "src/lib/test/PerfmonRegistry.hpp"
+#include "src/test/PerfmonRegistry.hpp"
 #include "src/lib/surface/Surface.hpp"
 using namespace Louvre;
 
