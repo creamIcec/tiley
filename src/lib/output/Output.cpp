@@ -123,7 +123,7 @@ void Output::paintGL(){
     } else {
         perfMon_->renderStart();
         server.scene().handlePaintGL(this);
-        LLog::debug("这是测试");
+        //LLog::debug("这是测试");
         perfMon_->renderEnd();
     }
 
