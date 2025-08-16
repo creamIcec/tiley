@@ -1,21 +1,68 @@
 #include "TileyCompositor.hpp"
 #include "LCompositor.h"
+#include "LNamespaces.h"
 #include "TileyServer.hpp"
 #include "src/lib/client/Client.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/input/Keyboard.hpp"
 #include "src/lib/input/Pointer.hpp"
+#include "src/lib/input/Seat.hpp"
 #include "src/lib/output/Output.hpp"
 #include "src/lib/surface/Surface.hpp"
 
 #include <LTransform.h>
 #include <LLog.h>
+#include <LOutputMode.h>
+#include <LLauncher.h>
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 using namespace tiley;
 using namespace Louvre;
+
+// 静态工具函数: 获取一块屏幕的最佳整数缩放
+// TODO: 我们应该允许用户自定义
+static UInt32 getIdealScale(LOutput* output){
+    // 96这个数字的来源: 一个标准的、不需要缩放的屏幕, 其 DPI 基准被认为是 96。这个数字来自微软Windows的历史设定, 现在被广泛沿用
+    float idealScale = output->dpi() / 96.f;
+
+    // 四舍五入
+    float finalScale = roundf(idealScale);
+
+    // 保证至少为1
+    if (finalScale < 1.f) {
+        finalScale = 1.f;
+    }
+
+    return finalScale;
+}
+
+// 静态工具函数: 获取一块屏幕的最佳显示模式(主要是刷新率)
+static LOutputMode* getBestDisplayMode(LOutput* output){
+    LOutputMode *bestMode = nullptr;
+    const LSize &physicalSize = output->size();
+    LLog::debug("[屏幕id: %u] 屏幕尺寸: %dx%d", output->id(), physicalSize.w(), physicalSize.h());
+
+    for (LOutputMode *mode : output->modes()){
+        LLog::debug("[屏幕id: %u] 屏幕模式: %dx%d @ %.2f Hz", output->id(), physicalSize.w(), physicalSize.h(), mode->refreshRate() / 1000.f);
+        if (mode->sizeB() == physicalSize){
+            if (!bestMode || mode->refreshRate() > bestMode->refreshRate()){
+                bestMode = mode;
+            }
+        }
+    }
+
+    if (bestMode){
+        LLog::debug("[屏幕id: %u] 使用显示模式: %dx%d @ %.2f Hz",
+                   output->id(), bestMode->sizeB().w(), bestMode->sizeB().h(), bestMode->refreshRate() / 1000.f);
+        return bestMode;
+    }
+
+    return nullptr;
+}
 
 void TileyCompositor::initialized(){
     setenv("WAYLAND_DISPLAY", getenv("LOUVRE_WAYLAND_DISPLAY"), 1);
@@ -31,9 +78,15 @@ void TileyCompositor::initialized(){
     // Seat中的显示器是所有的(包括已配置和未配置的, 此时刚启动肯定都没有配置)
     // 如果要只获得已经配置的显示器, 使用LCompositor::seat(1)
     for(LOutput* output : server.seat()->outputs()){
-        // 根据DPI处理屏幕缩放比例: 当DPI >= 200 时自动设置成2倍放大
-        // TODO: 我们应该允许用户自定义
-        output->setScale(output->dpi() >= 200 ? 2.f : 1.f);
+        LOutputMode* bestMode = getBestDisplayMode(output);
+        /*
+        if(bestMode){
+            output->setMode(bestMode);
+        }else{
+            LLog::warning("[屏幕id: %u] 警告: 未找到合适的显示模式, 使用屏幕默认模式");
+        }
+        */
+        output->setScale(getIdealScale(output));
         // 正常显示, 不旋转也不翻转
         output->setTransform(LTransform::Normal);
         // 按照从左到右配置显示器, 每一个显示器都在上一个的右边
@@ -45,8 +98,19 @@ void TileyCompositor::initialized(){
         output->repaint();
     }
 
-    //TODO: 启动顶栏
+    // TODO: 从配置判断是否启用waybar
+    // TODO: 启动waybar带参数
+    // TODO: hyprland: 配置文件exec-once
+    bool waybar = true;
+    if(waybar){
+        //Louvre::LLauncher::launch("export SWAYSOCK=/tmp/tiley-ipc.sock; waybar");
+    }
 
+    const std::vector<std::string>& cmds = TileyServer::getInstance().getStartupCMD();
+    for(auto cmd : cmds){
+        LLog::debug("启动指令: %s", cmd.c_str());
+        Louvre::LLauncher::launch(cmd);
+    }
 }
 
 void TileyCompositor::uninitialized(){
@@ -69,26 +133,26 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
     }
 
     if (objectType == LFactoryObject::Type::LSurface){
-        // TODO: 实现Surface对象
         return new Surface(params);
     }
+    
     // 以下的"角色"指代的就是不同surface的功能了。
     // 单纯的surface只是一块表面, 对于后端而言没有功能, 需要分配一个角色(是窗口? 是锁屏? 是弹出界面? 是光标的图标?), 后端才知道如何操作它
     // 这是之前我们在使用wlroots时没注意的, "toplevel"被我们直接当成了"窗口"本身, 但实际上不是, "toplevel"是一套抽象的控制方法, 
     // 用于控制类型为"窗口"的surface
     if (objectType == LFactoryObject::Type::LToplevelRole){
-        // TODO: 实现toplevel角色(注意: 和以前的"toplevel"结构体不是一个东西, 之前的应该概念有误, toplevel不是"窗口", 而是一个surface的角色)
         return new ToplevelRole(params);
     }
     if (objectType == LFactoryObject::Type::LKeyboard){
-        // TODO: 实现键盘支持
         return new Keyboard(params);
     }
     if (objectType == LFactoryObject::Type::LPointer){
-        // TODO: 实现鼠标设备支持
         return new Pointer(params);
     }
-
+    if (objectType == LFactoryObject::Type::LSeat){
+        // TODO: 实现Seat, 和wlroots一样, seat用于定义一个完整的用户操作环境("一个座位"), 至少包含一个键盘, 一个显示器
+        return new Seat(params);
+    }
     // TODO: 随着代码的迁移越来越完善, 下方需要继承的类逐渐完成继承, 就将这行逐渐往下移动, 直到所有需要继承的类都完成继承后, 标志着我们大功告成。
     return LCompositor::createObjectRequest(objectType, params);
 
@@ -104,9 +168,7 @@ LFactoryObject* TileyCompositor::createObjectRequest(LFactoryObject::Type object
     if (objectType == LFactoryObject::Type::LDNDIconRole){
         // TODO: 实现拖拽图标角色。拖拽图标就是我们用鼠标拖动一个文件到另一个窗口时跟随鼠标显示的那个文件图标
     }
-    if (objectType == LFactoryObject::Type::LSeat){
-        // TODO: 实现Seat, 和wlroots一样, seat用于定义一个完整的用户操作环境("一个座位"), 至少包含一个键盘, 一个显示器
-    }
+
 
     if (objectType == LFactoryObject::Type::LTouch){
         // TODO: 实现触摸支持

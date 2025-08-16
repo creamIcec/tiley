@@ -5,6 +5,7 @@
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
 #include "src/lib/test/PerfmonRegistry.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include <LOutput.h>
 #include <LSolidColorView.h>
 #include <LTextureView.h>
@@ -61,13 +62,16 @@ namespace tiley{
 
             // 壁纸
             void updateWallpaper();
-            
+            Louvre::LTextureView& wallpaperView() { return m_wallpaperView; }
             // 打印壁纸信息
             void printWallpaperInfo();
-            
-            LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
+      
             //便于测试
             std::string perfTag_;
             PerformanceMonitor* perfMon_ = nullptr; 
         };
+
+        private:
+            LTextureView m_wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
+    };
 }

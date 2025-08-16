@@ -15,6 +15,8 @@ lib_sources = files(
     'core/UserAction.cpp',
     'test/PerformanceMonitor.cpp',
     'test/PerfmonRegistry.cpp'
+    'ipc/IPCManager.cpp',
+    'Utils.cpp'
 )
 
 dep_sources = lib_sources + client_sources

@@ -1,11 +1,10 @@
-
 #include "SurfaceView.hpp"
-#include "LSurfaceView.h"
+
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
 
 #include <GLES2/gl2.h>
-#include <cstdlib>
+#include <algorithm>
 #include <glm/fwd.hpp>
 #define GLM_FORCE_RADIANS // 确保 glm 使用弧度，与 OpenGL 标准一致
 #include <glm/glm.hpp>
@@ -17,38 +16,47 @@
 #include <LNamespaces.h>
 #include <LPainter.h>
 #include <private/LPainterPrivate.h>
-#include"src/lib/test/PerformanceMonitor.hpp"
+
+#include "src/lib/test/PerformanceMonitor.hpp"
+
+#include <LToplevelMoveSession.h>
+#include <LSurfaceView.h>
+#include <LSurface.h>
+
 using namespace tiley;
 
 // 必须在SurfaceView的构造函数中就初始化对应的父亲层级关系
 // 由于我们不知道surface何时提交到合成器, 如果在mappingChanged中才现场setParent的话太晚, 因为orderChanged比mappingChanged更早触发
 // 在orderChanged里面又要对view进行排序。所以我们必须在orderChanged前(甚至所有surface相关提交操作之前)就把父级关系设置好
-
 SurfaceView::SurfaceView(Surface* surface) noexcept : 
-LSurfaceView((LSurface*) surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){
+LSurfaceView((LSurface*)surface, &TileyServer::getInstance().layers()[APPLICATION_LAYER]){}
 
-    this->setColorFactor({1.0,1.0,1.0,0.9});
-
-}
-
-void SurfaceView::pointerButtonEvent(const LPointerButtonEvent &event){
-
-    LLog::log("鼠标点击");
-
-    L_UNUSED(event);
-}
-
-void SurfaceView::pointerEnterEvent (const LPointerEnterEvent &event){
-    L_UNUSED(event);
-    LLog::log("鼠标进入");
-};
-
+SurfaceView::~SurfaceView() noexcept{}
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     
    // LSurfaceView::paintEvent(params);
    // return;
- tiley::setPerfmonPath("surfaceview", "/home/zero/tiley/src/lib/test/test_performance.txt");
+   tiley::setPerfmonPath("surfaceview", "/home/zero/tiley/src/lib/test/test_performance.txt");
+    // 如果自己是正在移动的窗口的SurfaceView
+    auto moveSessions = seat()->toplevelMoveSessions();
+    auto iterator = std::find_if(moveSessions.begin(), moveSessions.end(), [this](auto session){
+        auto surface = static_cast<Surface*>(session->toplevel()->surface());
+        if(surface->getSurfaceView() == this){
+            return true;   
+        }
+        return false;
+    });
+
+    if(iterator != moveSessions.end()){
+        this->setColorFactor({1.0f,1.0f,1.0f,0.8f});
+    }else{
+        this->setColorFactor({1.0f,1.0f,1.0f,1.0f});
+    }
+    
+    LSurfaceView::paintEvent(params);
+    return;
+  
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
         // performanceMonitor.renderStart();  // 开始记录渲染时间
@@ -61,17 +69,23 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     TileyServer &server = TileyServer::getInstance();
     Shader *shader = server.roundedCornerShader();
     // 获取需要重绘的区域
-    LRegion *region = params.region;   
+    LRegion *region = params.region;
+    LOutput* output = params.painter->imp()->output;
 
     // 如果没有着色器或者窗口没有纹理, 也使用默认绘制方法
     if (!shader || !surface() || !surface()->texture() || region->empty()) {
-    
+        //LLog::warning("当前surface不满足自定义绘制条件, 使用窗口默认绘制方法");
         LSurfaceView::paintEvent(params);
-
         return;
     }
 
     // TODO: 将当前该surface可见的屏幕都执行一遍
+
+    if(surface()->outputs().empty()){
+        // 如果为空, 说明当前outputs可能处于被重置中的状态(例如, 屏幕物理属性发生改变, 期间没有outputs)
+        return;
+    }
+
     LOutput *out = surface()->outputs()[0];
 
     if(!out){
@@ -93,7 +107,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     glActiveTexture(GL_TEXTURE0);
     // TODO: 由于Louvre的多线程特性, 一个texture的buffer不是线程共享的, 而是每个屏幕一个对象。这里需要用更好的方式获取当前屏幕
     // 我们暂时传入nullptr, 默认指定为主线程(main thread)的buffer
-    glBindTexture(GL_TEXTURE_2D, surface()->texture()->id(nullptr));
+    glBindTexture(GL_TEXTURE_2D, surface()->texture()->id(output));
     glBindBuffer(GL_ARRAY_BUFFER, server.quadVBO());
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, server.quadEBO());
 
@@ -112,7 +126,7 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     const LSize &physical_size = out->sizeB();     // 物理缓冲区尺寸, e.g., 3840x2160
 
     // 定义圆角半径(逻辑像素, 需要根据实际分辨率放大)
-    const float cornerRadius = 8.f; // TODO: 圆角半径, 可以从配置文件读取
+    const float cornerRadius = 1.f; // TODO: 圆角半径, 可以从配置文件读取
     const float borderWidth = 1.f;  // 边框粗细
 
     shader->setUniform("u_texture", 0);

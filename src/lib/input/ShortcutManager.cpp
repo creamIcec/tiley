@@ -8,8 +8,15 @@
 #include <sstream>
 #include <algorithm>
 #include <chrono>
+
 #include <LLog.h>
-#include "src/lib/TileyServer.hpp"
+#include <LNamespaces.h>
+#include <LCursor.h>
+#include <LClient.h>
+#include <LLauncher.h>
+
+#include "src/lib/TileyWindowStateManager.hpp"
+#include "src/lib/Utils.hpp"
 
 using json = nlohmann::json;
 using namespace tiley;
@@ -17,9 +24,14 @@ using namespace tiley;
 //每200m才真正重置一次，防止多时间频繁修改
 static constexpr auto kDebounceMs = 200;
 
-ShortcutManager& ShortcutManager::instance(){
-    static ShortcutManager inst;
-    return inst;
+std::unique_ptr<ShortcutManager, ShortcutManager::ShortcutManagerDeleter> ShortcutManager::INSTANCE = nullptr;
+std::once_flag ShortcutManager::onceFlag;
+
+ShortcutManager& ShortcutManager::getInstance(){
+    std::call_once(onceFlag, [](){
+        INSTANCE.reset(new ShortcutManager());
+    });
+    return *INSTANCE;
 }
 
 ShortcutManager::ShortcutManager() : stopWatcher_(false) {}
@@ -38,15 +50,149 @@ void ShortcutManager::init(const std::string& jsonPath){
     startWatcher(jsonPath);
 }
 
+void ShortcutManager::initializeHandlers(){
+    // 首先重置
+    resetHandlers();
+    TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
+
+    std::string hotkeyPath = getHotkeyConfigPath();
+
+    if (hotkeyPath.empty() || !std::filesystem::exists(hotkeyPath)) {
+        LLog::error("[ShortcutManager] 无法找到任何有效的快捷键配置文件。");
+        return;
+    }
+
+    init(hotkeyPath);
+
+    //注册测试用默认命令TOFO:在Handle里封装各个功能函数然后在此调用。
+    registerHandler("launch_terminal", [](auto){ 
+        LLog::log("执行: launch_terminal"); 
+        const bool L_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_LEFTCTRL)  };
+        const bool R_CTRL  { seat()->keyboard()->isKeyCodePressed(KEY_RIGHTCTRL) };
+        const bool L_SHIFT { seat()->keyboard()->isKeyCodePressed(KEY_LEFTSHIFT) };
+        const bool L_ALT   { seat()->keyboard()->isKeyCodePressed(KEY_LEFTALT)   };
+        const bool mods    { L_ALT || L_SHIFT || L_CTRL || R_CTRL };
+        if(!mods){
+            LLauncher::launch("weston-terminal");
+        }
+    });
+    registerHandler("launch_app_launcher",[](auto){ LLog::log("执行: launch_app_launcher"); });
+    registerHandler("change_wallpaper",   [](auto){ LLog::log("执行: change_wallpaper"); });
+    registerHandler("toggle_floating", [&windowStateManager](auto){
+        LLog::debug("执行: toggle_floating");
+        Louvre::LSurface* surface = seat()->pointer()->surfaceAt(cursor()->pos());
+        if(surface){
+            Surface* targetSurface = static_cast<Surface*>(surface);
+            if(targetSurface->tl()){
+                windowStateManager.toggleStackWindow(targetSurface->tl());
+            }
+        }
+    });
+    registerHandler("close_window", [](auto){
+        LLog::log("执行: close_window");
+        if (seat()->keyboard()->focus()){
+            seat()->keyboard()->focus()->client()->destroyLater();
+        }
+    });
+    registerHandler("screenshot",[](auto){
+        if (cursor()->output() && cursor()->output()->bufferTexture(0)){
+            std::filesystem::path path { getenvString("HOME") };
+
+            if (path.empty())
+                return;
+
+            path /= "Desktop/Louvre_Screenshoot_";
+
+            char timeString[32];
+            const auto now { std::chrono::system_clock::now() };
+            const auto time { std::chrono::system_clock::to_time_t(now) };
+            std::strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S.png", std::localtime(&time));
+
+            path += timeString;
+
+            cursor()->output()->bufferTexture(0)->save(path);
+        }
+    });
+    registerWorkspacesHandler();
+    registerHandler("quit_compositor", [](auto){
+        compositor()->finish();
+    });
+    registerHandler("change_wallpaper", [](auto){
+        WallpaperManager::getInstance().selectAndSetNewWallpaper();
+    });
+    LLog::debug("快捷键系统初始化完成（模块化）");
+}
+
+void ShortcutManager::registerWorkspacesHandler(){
+
+    TileyWindowStateManager& windowStateManager = TileyWindowStateManager::getInstance();
+    // 注册工作区切换，理论上可以注册最大工作区的数量呢
+    registerHandler("goto_ws_1", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_1");
+        windowStateManager.switchWorkspace(0);
+    });
+
+    registerHandler("goto_ws_2", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_2"); 
+        windowStateManager.switchWorkspace(1);
+    });
+    
+    registerHandler("goto_ws_3", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_3"); 
+        windowStateManager.switchWorkspace(2);
+    });
+    
+    registerHandler("goto_ws_4", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_4"); 
+        windowStateManager.switchWorkspace(3);
+    });
+    
+    registerHandler("goto_ws_5", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_5"); 
+        windowStateManager.switchWorkspace(4);
+    });
+    
+    registerHandler("goto_ws_6", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_6"); 
+        windowStateManager.switchWorkspace(5);
+    });
+    
+    registerHandler("goto_ws_7", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_7"); 
+        windowStateManager.switchWorkspace(6);
+    });
+    
+    registerHandler("goto_ws_8", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_8"); 
+        windowStateManager.switchWorkspace(7);
+    });
+    
+    registerHandler("goto_ws_9", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_9"); 
+        windowStateManager.switchWorkspace(8);
+    });
+    
+    registerHandler("goto_ws_10", [&windowStateManager](auto){ 
+        LLog::log("执行: goto_ws_10"); 
+        windowStateManager.switchWorkspace(9);
+    });
+}
+
 //绑定对应功能函数，TODO:后续可以继续绑定其它各种功能函数
 void ShortcutManager::registerHandler(const std::string& actionName, ShortcutHandler handler){
     std::lock_guard lock(mutex_);
     handlers_[actionName] = std::move(handler);
 }
 
+void ShortcutManager::resetHandlers(){
+    std::lock_guard lock(mutex_);
+    std::map<std::string, ShortcutHandler> empty;
+    handlers_.swap(empty);
+}
+
 //通过对应事件调用对应函数
 bool ShortcutManager::tryDispatch(const std::string& combo){
-    std::lock_guard lock(mutex_);
+    //std::lock_guard lock(mutex_);
     auto it = comboToAction_.find(combo);
     if (it == comboToAction_.end())
         return false;
@@ -55,7 +201,7 @@ bool ShortcutManager::tryDispatch(const std::string& combo){
     if (hit != handlers_.end()){
         hit->second(combo);
     } else {
-        LLog::warning("快捷键动作未注册: %s (combo=%s)", actionName.c_str(), combo.c_str());
+        //LLog::warning("快捷键动作未注册: %s (combo=%s)", actionName.c_str(), combo.c_str());
         return false;  //未注册则不命中
     }
     return true;
