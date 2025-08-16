@@ -76,6 +76,16 @@ int main(int argc, char* argv[]){
     setenv("LOUVRE_WAYLAND_DISPLAY", "wayland-2", 0);
 
     Louvre::LLauncher::startDaemon();
+
+    // 加载服务器需要的资源
+    // 着色器脚本
+    tiley::TileyServer::getInstance().initOpenGLResources();
+    // 键盘快捷键映射表注册
+    tiley::TileyServer::getInstance().initKeyEventHandlers();
+    // 进程间通信管理类初始化
+    tiley::IPCManager::getInstance().initialize();
+    // 壁纸管理器初始化
+    tiley::WallpaperManager::getInstance().initialize();
     
     if(args.startupCMD){
         tiley::TileyServer::getInstance().populateStartupCMD(std::string("/bin/sh -c ").append(args.startupCMD));
@@ -93,16 +103,6 @@ int main(int argc, char* argv[]){
         // TODO
     }
 
-    // 加载服务器需要的资源
-    // 着色器脚本
-    tiley::TileyServer::getInstance().initOpenGLResources();
-    // 键盘快捷键映射表注册
-    tiley::TileyServer::getInstance().initKeyEventHandlers();
-    // 进程间通信管理类初始化
-    tiley::IPCManager::getInstance().initialize();
-    // 壁纸管理器初始化
-    tiley::WallpaperManager::getInstance().initialize();
-    
     //***************启动****************
     // 主循环
     while(compositor.state() != LCompositor::Uninitialized){

@@ -46,7 +46,7 @@ namespace tiley {
             static std::unique_ptr<WallpaperManager, WallpaperManagerDeleter> INSTANCE;
             static std::once_flag onceFlag;
             
-            // 【新】定时器回调函数
+            // 定时器回调函数
             void checkDialogStatus();
 
             // 壁纸更新时置为true
@@ -55,7 +55,7 @@ namespace tiley {
             std::string m_configPath;
             std::string m_wallpaperPath;
 
-            // 【新】用 LTimer 和锁文件路径代替 PID 和信号源
+            // 用 LTimer 和锁文件路径代替 PID 和信号源
             Louvre::LTimer m_dialogCheckTimer;
             std::string m_dialogLockFilePath;
             std::string m_dialogResultFilePath;

@@ -495,6 +495,101 @@ void TileyWindowStateManager::reflow(UInt32 workspace, const LRect& region, bool
     }
 }
 
+void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRemain, UInt32& accumulateCount){
+
+    if (container == nullptr) { 
+        return;
+    }
+
+    container->geometry = areaRemain;
+
+    // 间隔大小
+    const Int32 GAP = 5;
+
+    // 1. 判断我是窗口(叶子)还是分割容器
+    if(container->window){
+        LLog::debug("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
+        // 我是窗口
+        
+        // 2. 如果我是窗口, 获取areaRemain, 分别调整surface大小/位置
+        
+        Surface* surface = static_cast<Surface*>(container->window->surface());
+        
+        // TODO: 心跳检测逻辑问题
+        /*
+        ToplevelRole* toplevel = static_cast<ToplevelRole*>(container->window);
+        if (toplevel->pendingConfiguration().serial != 0 &&
+            toplevel->serial() != toplevel->pendingConfiguration().serial){
+            LLog::debug("客户端仍在处理序列号 %u, 本次跳过配置", toplevel->pendingConfiguration().serial);
+            return;
+        }
+        */
+        
+        if(surface->mapped()){
+            // 窗口空隙实现
+            const LRect& areaWithGaps = areaRemain;
+
+            LRect areaForWindow = {
+                areaWithGaps.x() + GAP,
+                areaWithGaps.y() + GAP,
+                areaWithGaps.w() - GAP * 2,
+                areaWithGaps.h() - GAP * 2
+            };
+
+            // 如果窗口太小, 就不留空隙了, 避免负数宽高
+            if (areaForWindow.w() < 50) areaForWindow.setW(50);
+            if (areaForWindow.h() < 50) areaForWindow.setH(50);
+
+            // 3. 显示部分调整为“内部区域”
+            container->containerView->setPos(areaForWindow.pos());
+            container->containerView->setSize(areaForWindow.size());
+
+            // 3. 请求客户端也调整为“内部区域”
+            surface->setPos(areaRemain.pos());
+            container->window->configureSize(areaForWindow.size());
+            container->window->setExtraGeometry({GAP, GAP, GAP, GAP});
+            
+            LLog::debug("containerView的children数量: %zu", container->containerView->children().size());
+            SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
+
+            const LRect& windowGeometry = container->window->windowGeometry();
+
+            // 如果窗口不支持服务端装饰, 并且windowGeometry有偏移(确实画了客户端装饰)
+            if(!container->window->supportServerSideDecorations() && (windowGeometry.x() > 0 || windowGeometry.y() > 0)){
+                // 则说明它大概率会无论如何都要画自己的装饰, 我们移动customPos, 将装饰部分移动到外边(不影响布局的位置)
+                surfaceView->setCustomPos(-windowGeometry.x(), -windowGeometry.y());
+            }
+
+            compositor()->repaintAllOutputs();
+        }
+
+        accumulateCount += 1;
+    // 3. 如果我是分割容器
+    }else if(!container->window){
+
+        LRect area1, area2;
+        // 横向分割
+        LLog::debug("我是分割容器, 我的分割是: %d, 比例是: %f, 尺寸是: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
+        if(container->splitType == SPLIT_H){
+            Int32 child1Width = (Int32)(areaRemain.width() * (container->splitRatio));
+            Int32 child2Width = (Int32)(areaRemain.width() - child1Width);
+            // TODO: 浮点数误差
+            area1 = {areaRemain.x(),areaRemain.y(),child1Width,areaRemain.height()};
+            area2 = {areaRemain.x() + child1Width, areaRemain.y(), child2Width, areaRemain.height()};
+        }else if(container->splitType == SPLIT_V){
+            Int32 child1Height = (Int32)(areaRemain.height() * (container->splitRatio));
+            Int32 child2Height = (Int32)(areaRemain.height() - child1Height);
+            area1 = {areaRemain.x(),areaRemain.y(), areaRemain.width(), child1Height};
+            area2 = {areaRemain.x(),areaRemain.y() + child1Height,areaRemain.width(), child2Height};
+        }
+
+        accumulateCount += 1;
+
+        _reflow(container->child1, area1, accumulateCount);
+        _reflow(container->child2, area2, accumulateCount);
+    }
+}
+
 bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &container){
 
     if(!window){
@@ -783,100 +878,7 @@ UInt32 TileyWindowStateManager::countContainersOfWorkspace(const Container* root
 }
 
 
-void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRemain, UInt32& accumulateCount){
 
-    if (container == nullptr) { 
-        return;
-    }
-
-    container->geometry = areaRemain;
-
-    // 间隔大小
-    const Int32 GAP = 5;
-
-    // 1. 判断我是窗口(叶子)还是分割容器
-    if(container->window){
-        LLog::debug("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
-        // 我是窗口
-        
-        // 2. 如果我是窗口, 获取areaRemain, 分别调整surface大小/位置
-        
-        Surface* surface = static_cast<Surface*>(container->window->surface());
-        
-        // TODO: 心跳检测逻辑问题
-        /*
-        ToplevelRole* toplevel = static_cast<ToplevelRole*>(container->window);
-        if (toplevel->pendingConfiguration().serial != 0 &&
-            toplevel->serial() != toplevel->pendingConfiguration().serial){
-            LLog::debug("客户端仍在处理序列号 %u, 本次跳过配置", toplevel->pendingConfiguration().serial);
-            return;
-        }
-        */
-        
-        if(surface->mapped()){
-            // 窗口空隙实现
-            const LRect& areaWithGaps = areaRemain;
-
-            LRect areaForWindow = {
-                areaWithGaps.x() + GAP,
-                areaWithGaps.y() + GAP,
-                areaWithGaps.w() - GAP * 2,
-                areaWithGaps.h() - GAP * 2
-            };
-
-            // 如果窗口太小, 就不留空隙了, 避免负数宽高
-            if (areaForWindow.w() < 50) areaForWindow.setW(50);
-            if (areaForWindow.h() < 50) areaForWindow.setH(50);
-
-            // 3. 显示部分调整为“内部区域”
-            container->containerView->setPos(areaForWindow.pos());
-            container->containerView->setSize(areaForWindow.size());
-
-            // 3. 请求客户端也调整为“内部区域”
-            surface->setPos(areaRemain.pos());
-            container->window->configureSize(areaForWindow.size());
-            container->window->setExtraGeometry({GAP, GAP, GAP, GAP});
-            
-            LLog::debug("containerView的children数量: %zu", container->containerView->children().size());
-            SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
-
-            const LRect& windowGeometry = container->window->windowGeometry();
-
-            // 如果窗口不支持服务端装饰, 并且windowGeometry有偏移(确实画了客户端装饰)
-            if(!container->window->supportServerSideDecorations() && (windowGeometry.x() > 0 || windowGeometry.y() > 0)){
-                // 则说明它大概率会无论如何都要画自己的装饰, 我们移动customPos, 将装饰部分移动到外边(不影响布局的位置)
-                surfaceView->setCustomPos(-windowGeometry.x(), -windowGeometry.y());
-            }
-
-            compositor()->repaintAllOutputs();
-        }
-
-        accumulateCount += 1;
-    // 3. 如果我是分割容器
-    }else if(!container->window){
-
-        LRect area1, area2;
-        // 横向分割
-        LLog::debug("我是分割容器, 我的分割是: %d, 比例是: %f, 尺寸是: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
-        if(container->splitType == SPLIT_H){
-            Int32 child1Width = (Int32)(areaRemain.width() * (container->splitRatio));
-            Int32 child2Width = (Int32)(areaRemain.width() - child1Width);
-            // TODO: 浮点数误差
-            area1 = {areaRemain.x(),areaRemain.y(),child1Width,areaRemain.height()};
-            area2 = {areaRemain.x() + child1Width, areaRemain.y(), child2Width, areaRemain.height()};
-        }else if(container->splitType == SPLIT_V){
-            Int32 child1Height = (Int32)(areaRemain.height() * (container->splitRatio));
-            Int32 child2Height = (Int32)(areaRemain.height() - child1Height);
-            area1 = {areaRemain.x(),areaRemain.y(), areaRemain.width(), child1Height};
-            area2 = {areaRemain.x(),areaRemain.y() + child1Height,areaRemain.width(), child2Height};
-        }
-
-        accumulateCount += 1;
-
-        _reflow(container->child1, area1, accumulateCount);
-        _reflow(container->child2, area2, accumulateCount);
-    }
-}
 
 // 获取下一个要显示的平铺窗口的插入目标容器
 // 该函数调用时将静态保存鼠标位置和"锁定"目标显示器, 也就是存储目标容器为一个内部状态
@@ -1045,54 +1047,6 @@ void TileyWindowStateManager::setWindowVisible(ToplevelRole* window, bool visibl
 
 // 切换工作区
 bool TileyWindowStateManager::switchWorkspace(UInt32 target) {
-
-    /*
-
-    if (target >= WORKSPACES || target == CURRENT_WORKSPACE) {
-        LLog::debug("switchWorkspace: 无效目标 %u 或与当前相同", target);
-        return false;
-    }
-
-    // 隐藏所有属于旧工作区的窗口, 并显示新工作区的所有窗口
-    for(auto surface : compositor()->surfaces()){
-        if(surface->toplevel()){
-            auto window = static_cast<ToplevelRole*>(surface->toplevel());
-            bool shouldBeVisible = (window->workspaceId == target);
-            // 一键切换可见性
-            setWindowVisible(window, shouldBeVisible);
-        }
-    }
-
-    //更新索引
-    CURRENT_WORKSPACE = target;
-    activeContainer = workspaceActiveContainers[CURRENT_WORKSPACE];
-
-    auto seat = Louvre::seat();
-    // 如果目标工作区活动窗口存在, 则直接切换焦点过去, 不用先清空再设置到新的哦
-
-    // TODO: why nullptr?
-    if(activeContainer && activeContainer->window){
-        if (seat->keyboard()) seat->keyboard()->setFocus(activeContainer->window->surface());
-        if (seat->pointer())  seat->pointer()->setFocus(activeContainer->window->surface());
-    }else{
-        if (seat->keyboard()) seat->keyboard()->setFocus(nullptr);
-        if (seat->pointer())  seat->pointer()->setFocus(nullptr);
-    }
-
-    // 重排与重绘
-    // 只对当前区的布局执行一次 recalculate()，TODO:这里为什么会报错（重新布局失败）呢，有点不理解
-    recalculate();
-    // repaint 所有输出，重新绘制
-    for (auto out : Louvre::compositor()->outputs())
-        out->repaint();
-
-    // IPC通信, 发送工作区切换的信息到相关外部客户端
-    IPCManager::getInstance().broadcastWorkspaceUpdate(CURRENT_WORKSPACE, WORKSPACES);
-
-    LLog::debug("切换到工作区 %u 完成", CURRENT_WORKSPACE);
-    return true;
-
-    */
 
     // 如果正在切换，或者目标无效，则直接返回
     if (m_isSwitchingWorkspace || target >= WORKSPACES || target == CURRENT_WORKSPACE) {

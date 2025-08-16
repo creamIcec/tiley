@@ -1,4 +1,3 @@
-#include "Output.hpp"
 #include <LLayout.h>
 #include <LNamespaces.h>
 #include <LWeak.h>
@@ -11,9 +10,10 @@
 #include <LRegion.h>
 #include <LOpenGL.h>
 #include <LCursor.h>
+#include <LContentType.h>
+#include <LLog.h>
 
-#include "LContentType.h"
-#include "LLog.h"
+#include "Output.hpp"
 
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/client/ToplevelRole.hpp"

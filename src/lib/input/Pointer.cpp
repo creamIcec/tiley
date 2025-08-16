@@ -472,7 +472,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         }
     }
  
-    // 触发重绘(硬件合成不被支持? 什么意思? 为什么其他地方repaintOutputs不考虑这个?)
+    // 触发重绘
     // Schedule repaint on outputs that intersect with the cursor where hardware composition is not supported.
     cursor()->repaintOutputs(true);
  

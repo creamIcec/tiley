@@ -37,7 +37,7 @@ namespace tiley{
             Container* removeTile(LToplevelRole* window);
             // detach: 将一个容器从容器树中分离, 用于浮动窗口/移动窗口等操作。
             Container* detachTile(LToplevelRole* window, FLOATING_REASON reason = MOVING);
-            //切换到指定工作区（0-10）
+            //切换到指定工作区(0-10)
             bool switchWorkspace(UInt32 target);
             // 获取当前工作区
             UInt32 currentWorkspace() const { return CURRENT_WORKSPACE; }
