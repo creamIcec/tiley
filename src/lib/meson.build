@@ -13,6 +13,8 @@ lib_sources = files(
     'surface/Surface.cpp',
     'core/Container.cpp',
     'core/UserAction.cpp',
+    'test/PerformanceMonitor.cpp',
+    'test/PerfmonRegistry.cpp'
     'ipc/IPCManager.cpp',
     'Utils.cpp'
 )

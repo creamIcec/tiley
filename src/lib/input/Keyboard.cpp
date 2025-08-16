@@ -53,7 +53,6 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
 }
 
 void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
-
     // 父类部分处理逻辑下移
     const bool L_CTRL      { isKeyCodePressed(KEY_LEFTCTRL)  };
     const bool L_SHIFT     { isKeyCodePressed(KEY_LEFTSHIFT) };

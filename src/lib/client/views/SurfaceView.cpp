@@ -16,6 +16,9 @@
 #include <LNamespaces.h>
 #include <LPainter.h>
 #include <private/LPainterPrivate.h>
+
+#include "src/lib/test/PerformanceMonitor.hpp"
+
 #include <LToplevelMoveSession.h>
 #include <LSurfaceView.h>
 #include <LSurface.h>
@@ -31,6 +34,10 @@ LSurfaceView((LSurface*)surface, &TileyServer::getInstance().layers()[APPLICATIO
 SurfaceView::~SurfaceView() noexcept{}
 
 void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
+    
+   // LSurfaceView::paintEvent(params);
+   // return;
+   tiley::setPerfmonPath("surfaceview", "/home/zero/tiley/src/lib/test/test_performance.txt");
     // 如果自己是正在移动的窗口的SurfaceView
     auto moveSessions = seat()->toplevelMoveSessions();
     auto iterator = std::find_if(moveSessions.begin(), moveSessions.end(), [this](auto session){
@@ -49,10 +56,13 @@ void SurfaceView::paintEvent(const PaintEventParams& params) noexcept{
     
     LSurfaceView::paintEvent(params);
     return;
-
+  
     // 如果不是窗口, 使用默认绘制方法
     if(surface() && !surface()->toplevel()){
+        // performanceMonitor.renderStart();  // 开始记录渲染时间
         LSurfaceView::paintEvent(params);
+       // performanceMonitor.renderEnd();  // 结束记录渲染时间
+    //performanceMonitor.recordFrame(); // 记录当前帧的数据
         return;
     }
 
