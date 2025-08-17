@@ -4,13 +4,14 @@
 
 </center>
 
-# proj340 Tiley 相关技术文档，ppt，视频
+# proj340 Tiley 相关技术文档，视频
 
-- [技术文档(PDF)](./Tiley-技术文档-0.1.0a.pdf)
-- [演示文稿(暂未更新)(PPTX)](./Tiley-1.2.pptx)
+- [技术文档(PDF)](./Tiley-技术文档-0.1.0b.pdf)
 - 演示视频链接:
 
 链接: https://pan.baidu.com/s/1P__T47lkNGlG0-V_-5qkZA?pwd=pj5k 提取码: pj5k
+
+- 演示 PPT 将单独提交
 
 其中:
 
