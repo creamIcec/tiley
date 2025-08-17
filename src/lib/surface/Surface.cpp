@@ -1,5 +1,7 @@
 #include "Surface.hpp"
 
+#include <cmath>
+
 #include <LLog.h>
 #include <LCursor.h>
 #include <LSubsurfaceRole.h>
@@ -12,12 +14,18 @@
 #include <LView.h>
 #include <LExclusiveZone.h>
 #include <LMargins.h>
+#include <LAnimation.h>
+#include <LRegion.h>
+#include <LSceneView.h>
+#include <LTextureView.h>
 
+#include "LTexture.h"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/TileyWindowStateManager.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/types.hpp"
+#include "src/lib/Utils.hpp"
 
 using namespace Louvre;
 using namespace tiley;
@@ -38,6 +46,164 @@ std::string getEnumName(LSurface::Role value) {
     }
 }
 
+LTexture* Surface::renderThumbnail(LRegion* transRegion){
+    LBox box { getView()->boundingBox() };
+
+    minimizeStartRect = LRect(box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1);
+
+    LSceneView tmpView(minimizeStartRect.size(), 1);
+    tmpView.setPos(minimizeStartRect.pos());
+
+    LView *prevParent { getView()->parent() };
+    getView()->setParent(&tmpView);
+
+
+    struct TMPList
+    {
+        LSurfaceView *view;
+        LView *parent;
+    };
+
+    std::list<TMPList> tmpChildren;
+
+    Surface *next { this };
+    while ((next = (Surface*)next->nextSurface()))
+    {
+        if (next->parent() == this && next->subsurface())
+        {
+            tmpChildren.emplace_back(next->view.get(), next->view->parent());
+            next->view->enableParentOffset(false);
+            next->view->setParent(&tmpView);
+        }
+    }
+
+    getView()->enableParentOffset(false);
+
+    tmpView.render();
+
+    if (transRegion)
+    {
+        *transRegion = *tmpView.translucentRegion();
+        transRegion->offset(LPoint() - tmpView.pos());
+    }
+
+    LTexture *renderedThumbnail { tmpView.texture()->copy() };
+    getView()->enableParentOffset(true);
+    getView()->setParent(prevParent);
+
+    while (!tmpChildren.empty())
+    {
+        tmpChildren.front().view->enableParentOffset(true);
+        tmpChildren.front().view->setParent(tmpChildren.front().parent);
+        tmpChildren.pop_front();
+    }
+
+    return renderedThumbnail;
+
+}
+
+void Surface::startUnmappedAnimation() noexcept
+{
+    if (isClosing) return;
+    isClosing = true;
+
+    view->enableAlwaysMapped(true);
+    LTexture* thumbnail = renderThumbnail();
+
+    if (!thumbnail) {
+        view->enableAlwaysMapped(false);
+        return;
+    }
+
+    auto& server = TileyServer::getInstance();
+    LTextureView *fadeOutView = new LTextureView(thumbnail, &server.layers()[APPLICATION_LAYER]);
+
+    const LPoint initialPos = pos();
+    // 【新】我们将在这里定义动画的目标,让代码更清晰
+    constexpr Float32 FINAL_SCALE_RATIO = 0.7f; // 可配置的目标缩放比例
+    constexpr UInt32 ANIMATION_MS = 150;       // 动画可以更快一些,感觉更清脆
+
+    fadeOutView->setPos(initialPos);
+    fadeOutView->enableParentOffset(false);
+    view->enableAlwaysMapped(false);
+    
+    fadeOutView->enableScaling(true);
+    LWeak<Surface> weakSelf {this};
+
+    LAnimation::oneShot(ANIMATION_MS, 
+        [fadeOutView, initialPos, FINAL_SCALE_RATIO](LAnimation *animation) {
+            
+            // 使用更平滑的 "Ease-In-Out" 缓动函数
+            // 这会让动画的开始和结束都感觉非常自然,没有突兀感
+            const Float32 ease = (1.f - cosf(animation->value() * M_PI)) * 0.5f;
+
+            // 重新计算缩放插值
+            // 我们使用自己的 lerp 函数,将动画进程(ease: 0->1)映射到缩放范围(1.0f -> 0.8f)
+            const float scaleFactor = tiley::math::lerp(1.f, FINAL_SCALE_RATIO, ease);
+            fadeOutView->setScalingVector(scaleFactor);
+            
+            // 重新计算位置插值
+            // 目标位置不再是中心点,而是根据缩放比例计算出的新位置
+            // 这样能确保窗口的中心在动画过程中保持不动
+            const LPoint currentPos = initialPos + (fadeOutView->size() * (1.f - scaleFactor)) / 2;
+            fadeOutView->setPos(currentPos);
+            
+            // 透明度插值
+            // 让窗口在缩小的同时, 完全淡出。这会产生一个非常干净的收尾效果。
+            const float opacity = 1.f - ease;
+            fadeOutView->setOpacity(opacity);
+
+            compositor()->repaintAllOutputs();
+        },
+        [fadeOutView, weakSelf](LAnimation *) { // 在 onFinish 中捕获 weakSelf 以便调用 close
+
+            if (fadeOutView) {
+                delete fadeOutView->texture();
+                delete fadeOutView;
+            }
+
+            compositor()->repaintAllOutputs();
+        }
+    );
+}
+
+
+
+Surface::Surface(const void *params) : LSurface(params){
+    fadeInAnimation.setOnUpdateCallback([this](LAnimation* animation){
+        const Float32 ease { 1.f - powf(1.f - animation->value(), 6.f) };
+        getView()->setOpacity(ease);
+
+        Surface *next = (Surface*)nextSurface();
+        while (next)
+        {
+            if (next->isSubchildOf(this) && !next->minimized())
+            {
+                next->getView()->setOpacity(ease);
+            }
+            next = (Surface*)next->nextSurface();
+        }
+        repaintOutputs();
+    });
+
+    fadeInAnimation.setOnFinishCallback([this](LAnimation*){
+        getView()->setOpacity(1.f);
+
+        Surface *next = (Surface*)nextSurface();
+
+        while (next)
+        {
+            if (next->isSubchildOf(this) && !next->minimized())
+            {
+                next->getView()->setOpacity(1.f);
+            }
+
+            next = (Surface*)next->nextSurface();
+        }
+        repaintOutputs();
+    });
+}
+
 // 获取要操作的view的方法
 // 对于正在平铺的窗口, 返回包装器; 对于目前没有平铺的窗口或其他任意角色, 返回view本身
 LView* Surface::getView() noexcept{
@@ -47,6 +213,11 @@ LView* Surface::getView() noexcept{
     }else{
         return view.get();
     }
+}
+
+// 用于需要直接访问的情况
+LSurfaceView* Surface::getSurfaceView() noexcept{
+    return view.get();
 }
 
 void Surface::printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& outputAvailable) noexcept{
@@ -93,18 +264,6 @@ void Surface::roleChanged(LBaseSurfaceRole *prevRole){
 }
 
 // orderChanged: surface的顺序发生变化。我们需要据此对应调整view的顺序。
-// 设想我们在洗牌, 屏幕上显示的是现在应该是什么牌序, 我们需要将手上的牌洗成那个顺序
-// 显示牌序: 5 1 2 4 3
-// 手上牌序: 5 1 2 4 3
-// 显示牌序变了: 1 2 3 4 5
-// 洗牌
-// 1. 对于每张牌, 找到它新的显示牌序中的离它最近前一张m(例如1在2之前, 3在4之前)
-// 2. 将这张牌放到m之后即可
-// 3. 最后洗出来的保证符合显示牌序
-// 5 1 2 4 3 -> 选中5 -> 放到4之后 -> 1 2 4 5 3 -> 选中1 -> 放到nullptr之后 -> 1 2 4 5 3
-// -> 选中2 -> 放到1之后 -> 1 2 4 5 3 -> 选中4 -> 放到3之后 -> 1 2 5 3 4 -> 选中5 -> 放到4之后 -> 1 2 3 4 5
-// 虽然每次调整顺序都会出发一次全部牌的orderChanged(会再全部排一次), 不过算是面向对象方便人编写的一个副作用吧
-// 直到最后排好序, 下一次发现没有变化了, 才会停止触发。
 void Surface::orderChanged()
 {   
     //LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
@@ -176,26 +335,38 @@ void Surface::mappingChanged(){
             manager.setActiveContainer(tiledContainer);
             LLog::debug("设置上一个活动容器为新打开的窗口容器");
             // 重新计算布局
-            manager.reapplyWindowState(tl());
             manager.recalculate();
         }
+
+        // 最后, 无论何种类型的窗口, 播放创建动画
+        fadeInAnimation.setDuration(400 * 1.5f);
+        fadeInAnimation.start();
 
     } else {
         // 如果是关闭(隐藏)了窗口
         if(toplevel()){
+            // 如果不全屏, 则播放关闭窗口动画
+            if(!toplevel()->fullscreen()){
+                startUnmappedAnimation();
+            }
             // 准备移除
-            Container* removedContainer = nullptr;
+            Container* siblingContainer = nullptr;
             // 移除窗口(包括平铺的和非平铺的都是这个方法)
-            manager.removeWindow(tl(), removedContainer);
+            manager.removeWindow(tl(), siblingContainer);
             // 如果移除的是平铺层的窗口
-            if(removedContainer != nullptr){
+            if(siblingContainer != nullptr){
                 // 重新布局
                 manager.recalculate();
             }
         }
 
+        // 从该surface上移除焦点
+        if(seat()->pointer()->focus() == this){
+            seat()->pointer()->setFocus(nullptr);
+        }
+
         // 最后, 无论是什么surface, 都将view从parent的列表中移除, 销毁view
-        getView()->setParent(nullptr);    
+        getView()->setParent(nullptr);
     }
     
 }

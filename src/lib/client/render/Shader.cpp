@@ -15,7 +15,7 @@ Shader::Shader() {
 }
 
 Shader::~Shader() {
-    // 程序销毁时，删除 OpenGL 程序对象
+    // 程序销毁时,删除 OpenGL 程序对象
     if (m_programID != 0) {
         glDeleteProgram(m_programID);
     }

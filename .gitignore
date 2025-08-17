@@ -28,7 +28,6 @@ bin/*.so
 # animation presentations & scripts
 
 *.mp4
-*.py
 *.pyc
 presentation/
 

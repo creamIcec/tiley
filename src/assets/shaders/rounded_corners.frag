@@ -1,6 +1,6 @@
 #version 100
 // Tiley compositor: rounded_corners.frag
-// 功能: 为窗口渲染圆角，并附带可配置的边框。
+// 功能: 为窗口渲染圆角,并附带可配置的边框。
 
 // GLSL ES 1.0 (OpenGL ES 2.0) 需要为浮点数指定精度
 precision mediump float;
@@ -33,7 +33,7 @@ void main() {
     float distance = sdRoundedBox(center_pos, u_resolution / 2.0 - u_radius, u_radius);
 
     // 步骤 2: 计算最终颜色(俄罗斯套娃逻辑)
-    // 首先，获取窗口纹理在当前位置的原始颜色
+    // 首先,获取窗口纹理在当前位置的原始颜色
     vec4 texColor = texture2D(u_texture, v_texcoord);
 
     // 使用 smoothstep 创建一个从“内部”到“边框”的平滑过渡
@@ -48,12 +48,12 @@ void main() {
 
     // 步骤 3: 计算最终的 Alpha 透明度 (用于抗锯齿和裁剪)
     // 使用 smoothstep 创建一个在形状最外边缘的、宽度为 1.5 像素的平滑过渡带。
-    // 这能有效地实现抗锯齿，让边缘看起来更柔和。
-    // 当 distance > 0 时，像素在形状外部，alpha 会平滑地变为 0。
+    // 这能有效地实现抗锯齿,让边缘看起来更柔和。
+    // 当 distance > 0 时,像素在形状外部,alpha 会平滑地变为 0。
     float shape_alpha = 1.0 - smoothstep(0.0, 1.5, distance);
 
     // 步骤 4: 输出最终的像素颜色
-    // 使用我们混合好的 final_color 作为 RGB 值，
-    // 并将它与窗口原始的 alpha 值和我们计算出的形状 alpha 值相乘，得到最终的透明度。
+    // 使用我们混合好的 final_color 作为 RGB 值,
+    // 并将它与窗口原始的 alpha 值和我们计算出的形状 alpha 值相乘,得到最终的透明度。
     gl_FragColor = vec4(final_color, texColor.a * shape_alpha);
 }

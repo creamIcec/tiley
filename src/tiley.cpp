@@ -5,8 +5,12 @@
 #include <cstdlib>
 
 #include <getopt.h>
+#include <signal.h>
 
 #include "src/lib/TileyServer.hpp"
+#include "src/lib/TileyWindowStateManager.hpp"
+#include "src/lib/ipc/IPCManager.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include "src/lib/types.hpp"
 
 // 设置启动参数, 具体含义在LaunchArgs结构体中说明
@@ -40,7 +44,6 @@ tiley::LaunchArgs setupParams(int argc, char* argv[]){
 }
 
 int main(int argc, char* argv[]){
-
     tiley::LaunchArgs args = setupParams(argc, argv);
     // 设置桌面环境名称为我们的合成器名字
     setenv("XDG_CURRENT_DESKTOP", "Tiley", 1);
@@ -74,6 +77,14 @@ int main(int argc, char* argv[]){
     setenv("LOUVRE_WAYLAND_DISPLAY", "wayland-2", 0);
 
     Louvre::LLauncher::startDaemon();
+
+    // 加载服务器需要的资源
+    // 着色器脚本
+    tiley::TileyServer::getInstance().initOpenGLResources();
+    // 键盘快捷键映射表注册
+    tiley::TileyServer::getInstance().initKeyEventHandlers();
+    // 壁纸管理器初始化
+    tiley::WallpaperManager::getInstance().initialize();
     
     if(args.startupCMD){
         tiley::TileyServer::getInstance().populateStartupCMD(std::string("/bin/sh -c ").append(args.startupCMD));
@@ -91,12 +102,11 @@ int main(int argc, char* argv[]){
         // TODO
     }
 
-    // 加载服务器需要的资源
-    // 着色器脚本
-    tiley::TileyServer::getInstance().initOpenGLResources();
-    // 键盘快捷键映射表注册
-    tiley::TileyServer::getInstance().initKeyEventHandlers();
-    
+    // 窗口管理器初始化
+    tiley::TileyWindowStateManager::getInstance().initialize();
+    // 进程间通信管理类初始化
+    tiley::IPCManager::getInstance().initialize();
+
     //***************启动****************
     // 主循环
     while(compositor.state() != LCompositor::Uninitialized){

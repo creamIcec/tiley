@@ -77,7 +77,7 @@ void TileyServer::initOpenGLResources(){
 
 
         // --- 2. 创建 VBO 和 EBO ---
-        // 我们只创建和填充缓冲区，不做任何状态绑定
+        // 我们只创建和填充缓冲区,不做任何状态绑定
         float vertices[] = {
             // pos      // tex
             1.f, 1.f,   1.f, 1.f, // 右下
@@ -100,7 +100,7 @@ void TileyServer::initOpenGLResources(){
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_quadEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-        // 解绑，保持 OpenGL 状态干净
+        // 解绑,保持 OpenGL 状态干净
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 

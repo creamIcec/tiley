@@ -32,6 +32,7 @@ namespace tiley{
         public:
             inline const LRect& getGeometry(){return geometry;}
             inline LLayerView* getContainerView(){ return containerView.get(); }
+            inline LToplevelRole* getWindow(){return window;}
             void printContainerWindowInfo();
             //构造函数: 传入window作为子节点, 传入空指针没有意义(no-op), 会弹出警告并直接销毁这个Container  
             Container(ToplevelRole* window);
@@ -63,7 +64,7 @@ namespace tiley{
 
             // 当是可被平铺的窗口(window.type == NORMAL)时, 该containerView一直存在; 当是容器时, 该containerView = nullptr.
 
-            // 使用unique_ptr, 伴随Container同生同死
+            // 使用unique_ptr, 和Container相同生命周期
             std::unique_ptr<LLayerView> containerView = nullptr;
 
             // 仅供自己和朋友调用, 实现上述的containerView的状态切换
@@ -77,7 +78,6 @@ namespace tiley{
             // 管理器可以访问私有成员
             friend TileyWindowStateManager;
             
-            //TODO，去封装一下左右半区的实现。
             enum class InsertHalf{
                 Undefined,
                 First,

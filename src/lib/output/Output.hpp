@@ -4,10 +4,12 @@
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/types.hpp"
-
+#include "src/test/PerfmonRegistry.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include <LOutput.h>
 #include <LSolidColorView.h>
 #include <LTextureView.h>
+#include "src/test/PerformanceMonitor.hpp" 
 
 using namespace Louvre;
 using namespace tiley;
@@ -34,7 +36,7 @@ namespace tiley{
             // 移动屏幕的index
             void moveGL() override;
 
-            // 屏幕缩放变化，尺寸变化(物理上不太可能)
+            // 屏幕缩放变化,尺寸变化(物理上不太可能)
             void resizeGL() override;
 
             // 类似wlroots中的output_destroy, 屏幕拔出
@@ -60,10 +62,15 @@ namespace tiley{
 
             // 壁纸
             void updateWallpaper();
-            
+            Louvre::LTextureView& wallpaperView() { return m_wallpaperView; }
             // 打印壁纸信息
             void printWallpaperInfo();
-            
-            LTextureView wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
+      
+            //便于测试
+            std::string perfTag_;
+            PerformanceMonitor* perfMon_ = nullptr; 
+
+        private:
+            LTextureView m_wallpaperView{nullptr, &TileyServer::getInstance().layers()[BACKGROUND_LAYER]};
     };
 }

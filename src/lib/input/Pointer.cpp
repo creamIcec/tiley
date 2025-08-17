@@ -32,10 +32,10 @@ using namespace tiley;
 
 LSurface* Pointer::surfaceAtWithFilter(const LPoint& point, const std::function<bool (LSurface*)> &filter){
     retry:
-    // 保留 Louvre 的健壮性设计，防止在遍历时列表被修改
+    // 保留 Louvre 的健壮性设计,防止在遍历时列表被修改
     compositor()->imp()->surfacesListChanged = false;
 
-    // 从 rbegin() 到 rend() 是逆序遍历，即从最顶层的窗口开始
+    // 从 rbegin() 到 rend() 是逆序遍历,即从最顶层的窗口开始
     for (auto it = compositor()->surfaces().rbegin(); it != compositor()->surfaces().rend(); ++it)
     {
         LSurface *s = *it;
@@ -46,18 +46,18 @@ LSurface* Pointer::surfaceAtWithFilter(const LPoint& point, const std::function<
             // 几何检查：鼠标指针是否在该窗口的输入区域内？
             if (s->inputRegion().containsPoint(point - s->rolePos()))
             {
-                // 关键一步：在确认几何位置匹配后，执行我们自定义的 lambda 过滤器
+                // 关键一步：在确认几何位置匹配后,执行我们自定义的 lambda 过滤器
                 if (filter(s))
                 {
-                    // 如果过滤器返回 true，说明我们找到了完美的匹配！
+                    // 如果过滤器返回 true,说明我们找到了完美的匹配！
                     return s;
                 }
-                // 如果过滤器返回 false，我们什么也不做，继续循环，
+                // 如果过滤器返回 false,我们什么也不做,继续循环,
                 // 查找这个窗口下面的、同样在该坐标点、且可能满足条件的窗口。
             }
         }
 
-        // 再次检查列表是否被修改，如果被修改，就从头再来一次
+        // 再次检查列表是否被修改,如果被修改,就从头再来一次
         if (compositor()->imp()->surfacesListChanged)
             goto retry;
     }
@@ -472,7 +472,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
         }
     }
  
-    // 触发重绘(硬件合成不被支持? 什么意思? 为什么其他地方repaintOutputs不考虑这个?)
+    // 触发重绘
     // Schedule repaint on outputs that intersect with the cursor where hardware composition is not supported.
     cursor()->repaintOutputs(true);
  
@@ -524,10 +524,10 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
     // 一个flag, 用于记录是否正在更改窗口大小
     bool activeResizing { false };
  
-    // 获取所有正在进行的窗口调整会话
+    // 获取所有正在进行的窗口调整大小会话
     for (LToplevelResizeSession *session : seat()->toplevelResizeSessions())
     {
-        // 如果不是由触摸触发的(为什么? 触摸不是同理?)
+        // 如果不是由触摸触发的
         if (session->triggeringEvent().type() != LEvent::Type::Touch)
         {
             
@@ -553,7 +553,6 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
                 // 不是平铺层的, 直接更新调整的位置
                 session->updateDragPoint(cursor()->pos());
             }
-            
         }
         
     }
@@ -565,12 +564,11 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
     // 一个flag, 用于记录是否正在移动窗口
     bool activeMoving { false };
  
-    // 获取所有正在进行的窗口更改大小会话
+    // 获取所有正在进行的窗口移动会话
     for (LToplevelMoveSession *session : seat()->toplevelMoveSessions())
     {
         // 如果不是由触摸触发的(看来作者不想处理触摸事件?)
-        if (session->triggeringEvent().type() != LEvent::Type::Touch)
-        {
+        if (session->triggeringEvent().type() != LEvent::Type::Touch){
 
             if(!TileyServer::getInstance().is_compositor_modifier_down){
                 break;
@@ -721,21 +719,5 @@ void Pointer::focusChanged(){
     // 设置活动容器
     manager.setActiveContainer(surface->tl()->container);
     LLog::debug("已设置活动容器为聚焦窗口的容器");
-
-    /*
-
-    if (!focus()->popup() && !focus()->isPopupSubchild())
-    {
-        seat()->keyboard()->setFocus(focus());
-        // Pointer focus may have changed within LKeyboard::focusChanged()
-        if (!focus())
-            return;
-    }
-
-    if (focus()->toplevel() && !focus()->toplevel()->activated()){
-        focus()->toplevel()->configureState(focus()->toplevel()->pendingConfiguration().state | LToplevelRole::Activated);
-    }
-
-    */
 
 }

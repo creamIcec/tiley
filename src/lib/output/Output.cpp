@@ -1,4 +1,3 @@
-#include "Output.hpp"
 #include <LLayout.h>
 #include <LNamespaces.h>
 #include <LWeak.h>
@@ -11,12 +10,14 @@
 #include <LRegion.h>
 #include <LOpenGL.h>
 #include <LCursor.h>
+#include <LContentType.h>
+#include <LLog.h>
 
-#include "LContentType.h"
-#include "LLog.h"
+#include "Output.hpp"
 
 #include "src/lib/TileyServer.hpp"
 #include "src/lib/client/ToplevelRole.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include "src/lib/surface/Surface.hpp"
 #include "src/lib/types.hpp"
 
@@ -24,13 +25,10 @@ using namespace Louvre;
 using namespace tiley;
 
 Output::Output(const void* params) noexcept : LOutput(params){
-
-    // 初始化一个显示屏时, 干下面的事:
-    // 1. 初始化壁纸
-
+    // 初始化一个显示屏时, 初始化壁纸:
     // LRegion是一个工具类, 用于提供一块"画布区域", 在这个区域中可以添加很多个矩形, 并可对它们进行布尔运算。
     const LRegion region;  //为壁纸分配一块区域, 使得壁纸在渲染中被考虑进去
-    this->wallpaperView.setTranslucentRegion(&region);
+    m_wallpaperView.setTranslucentRegion(&region);
 } 
 
 void Output::initializeGL(){
@@ -42,8 +40,10 @@ void Output::initializeGL(){
     LLog::debug("[屏幕id: %u] 初始化要在该屏幕上渲染的窗口。", this->id());
 
     // 0. BUG修复: 防止在嵌套模式下不断出现无响应的问题, 暂时的一个workaround
-    // 禁用垂直同步
-    enableVSync(false);
+    // 在嵌套模式下, 禁用垂直同步
+    if(compositor()->graphicBackendId() == LGraphicBackendWayland){
+        enableVSync(false);
+    }
 
     // 1. 交给scene, 计算需要显示在这块显示屏上的部分
     server.scene().handleInitializeGL(this);
@@ -79,12 +79,21 @@ void Output::initializeGL(){
         }
     });
 
+    updateWallpaper();
+
     //TODO: 5.缩放
+     perfTag_ = "test";
+    // 先设置路径
+    tiley::setPerfmonPath(perfTag_, "/home/zero/tiley/src/lib/test/test_1.txt");
+
+    // 取一次实例指针并缓存（后续帧内直接用）
+    perfMon_ = &tiley::perfmon(perfTag_);
 
 }
 
 void Output::paintGL(){
-
+  
+    tiley::setPerfmonPath("test", "/home/zero/tiley/src/lib/test/test_1.txt");
     // 查找全屏窗口
     Surface* fullscreenSurface{ searchFullscreenSurface() };
 
@@ -108,16 +117,35 @@ void Output::paintGL(){
     // 和wlroots的最大不同: 我们可以自己编写handlePaintGL函数来自己控制渲染过程。
     // 注意: 在这里传入this, 是指当前屏幕。在Louvre中, 每个屏幕都是一个对象, 因此我们需要让scene知道现在的屏幕是哪个
     // TODO: 在scene中判断屏幕, 分配不同的容器树根节点
-    server.scene().handlePaintGL(this);
+    bool usedDirect = false;
+    if (fullscreenSurface && tryDirectScanout(fullscreenSurface)) {
+        usedDirect = true; // 直连扫描成功,这帧没有 CPU 绘制
+    } else {
+        perfMon_->renderStart();
+        server.scene().handlePaintGL(this);
+        //LLog::debug("这是测试");
+        perfMon_->renderEnd();
+    }
 
     for(LScreenshotRequest * req : screenshotRequests()){
         req->accept(true);
+    }
+  
+    perfMon_->recordFrame();
+
+    // 判断壁纸是否需要更新
+    if (WallpaperManager::getInstance().wallpaperChanged()) {
+        // 重置标志,避免重复更新
+        // 在正确的渲染线程中执行更新操作
+        updateWallpaper();
     }
 };
 
 void Output::moveGL(){
    TileyServer& server = TileyServer::getInstance();
    server.scene().handleMoveGL(this);
+
+   updateWallpaper();
 };
 
 // resizeGL被设计成会在屏幕刚插入的时候也调用一次。
@@ -130,8 +158,6 @@ void Output::resizeGL(){
     TileyServer& server = TileyServer::getInstance();
     
     server.scene().handleResizeGL(this);
-
-    LLog::debug("[屏幕id: %u] 更新壁纸。", this->id());
 
     updateWallpaper();
 };
@@ -176,81 +202,6 @@ Surface* Output::searchFullscreenSurface() const noexcept{
     return nullptr;
 }
 
-void Output::printWallpaperInfo(){
-
-    LLog::log("壁纸view的尺寸: %dx%d", wallpaperView.size().w(), wallpaperView.size().h());
-    LLog::log("壁纸view的本地尺寸: %dx%d", wallpaperView.nativeSize().w(), wallpaperView.nativeSize().h());
-    LLog::log("壁纸view的父View(BackgroundLayerView)尺寸: %dx%d",wallpaperView.parent()->size().w(), wallpaperView.parent()->size().h());
-    LLog::log("壁纸view的父View(BackgroundLayerView)本地尺寸: %dx%d",wallpaperView.parent()->nativeSize().w(), wallpaperView.parent()->nativeSize().h());
-}
-
-
 void Output::updateWallpaper(){
-    // 如果已经加载了纹理...
-    if(wallpaperView.texture()){
-        if(wallpaperView.texture()->sizeB() == this->sizeB()){  //..并且纹理绝对尺寸和屏幕尺寸一样...
-            wallpaperView.setBufferScale(scale()); //...则设置相对尺寸缩放为屏幕缩放...
-            wallpaperView.setPos(pos());  //...并且和屏幕左上角对齐.
-            return;  //就结束了。
-        }
-
-        delete wallpaperView.texture();  //到了这里, 说明没有复用之前的纹理, 说明需要重新配置, 先释放内存。
-    }
-    // 假设尺寸等不一样, 就需要先将绝对尺寸转换成屏幕尺寸, 再设置缩放。而转换的算法有很多种, 是我们平时在裁剪图像(例如photoshop)时经常遇到的, 例如:
-    // 平铺, 拉伸, 填充等等
-
-    using std::filesystem::path;
-
-    // 在这里修改壁纸路径
-    path wallpaperRootPath("/home/iriseplos/projects/os/tiley/src/assets/wallpaper");
-    path wallpaperPath = wallpaperRootPath / "tiley_16x10@2x.png";
-
-    LTexture* originalWallpaper {LOpenGL::loadTexture(wallpaperPath)};
-
-    if(!originalWallpaper){
-        LLog::error("[屏幕id: %u]无法加载壁纸。请检查路径是否存在。", this->id());
-        return;
-    }else{
-        LLog::debug("壁纸加载完毕, 地址: %u", originalWallpaper);
-    }
-
-    // 下面就是具体的计算逻辑
-    // 注意: 所有计算都在buffer绝对坐标下, 最终再缩放到屏幕缩放大小。
-    const LSize& originalSizeB {originalWallpaper->sizeB()};
-    const LSize& outputSizeB {sizeB()};
-
-    // 一块矩形"蒙版", 就是我们最后采用的区域
-    LRect srcRect {0};
-
-    // 优先满足屏幕高度, 然后计算在将图片高度拉伸到屏幕高度、并且保持比例的前提下, 对应的宽度是多少。
-    const Float32 ratio = outputSizeB.h() / (Float32)originalSizeB.h();
-    const Float32 scaledWidth = originalSizeB.w() * ratio;
-
-    // 根据是否比原来的尺寸大决定
-    // 如果高度适应后, 宽度比原来大, 说明图片在左右两侧会留下黑边, 则我们需要裁剪图片的上下部分, 让图片得以继续放大, 适应屏幕
-    if(scaledWidth >= originalSizeB.w()){
-        srcRect.setW(originalSizeB.w());  //满足宽度, 裁剪上下: 取中间的区域, 分为两步:
-        // 第一步: 将蒙版框的高度按照宽度比例缩放
-        srcRect.setH(outputSizeB.h() * originalSizeB.w() / (Float32)outputSizeB.w());
-        // 第二步: 将蒙版框在图片中居中
-        srcRect.setY((originalSizeB.h() - srcRect.h()) / 2.0f);
-    }else{
-        // 反之, 则说明会在上下留下黑边, 需裁剪左右部分。
-        srcRect.setH(originalSizeB.h());
-        srcRect.setW(outputSizeB.w() * originalSizeB.h()  / (Float32)outputSizeB.h());
-        srcRect.setX((originalSizeB.w() - srcRect.w()) / 2.0f);
-    }
-
-    // 得到需要的区域之后, 设置buffer绝对大小
-    wallpaperView.setTexture(originalWallpaper->copy(sizeB(), srcRect));  
-    wallpaperView.setBufferScale(scale()); //按照屏幕缩放比例进行缩放
-
-    delete originalWallpaper; // 由于copy创建了一个新的对象, 之前的可以释放
-    wallpaperView.setPos(pos());  //和屏幕左上角位置对齐
-    wallpaperView.setDstSize(outputSizeB);
-
-    //到这里我们就完成了壁纸的加载
-
-    // 调试: 打印壁纸信息
-    // printWallpaperInfo();
+    WallpaperManager::getInstance().applyToOutput(this);
 }
