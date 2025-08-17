@@ -4,6 +4,19 @@
 
 </center>
 
+# proj340 Tiley 相关技术文档，ppt，视频
+
+- [技术文档(PDF)](./Tiley-技术文档-0.1.0a.pdf)
+- [演示文稿(暂未更新)(PPTX)](./Tiley-1.2.pptx)
+- 演示视频链接:
+
+链接: https://pan.baidu.com/s/1P__T47lkNGlG0-V_-5qkZA?pwd=pj5k 提取码: pj5k
+
+其中:
+
+- `Tiley-showcase.mp4` 是实际运行视频
+- `TilingWindowManager.mp4` 是算法演示视频
+
 ![Tiley Theme](./assets/tiley_wallpaper.png)
 
 欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **Louvre** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 合成器。
