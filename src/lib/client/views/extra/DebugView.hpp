@@ -1,5 +1,13 @@
 #pragma once
 
+#include <LLayerView.h>
+
 namespace tiley{
-    class DebugView : 
+
+    using namespace Louvre;
+
+    class DebugView : LLayerView{
+        // TODO: debugging view
+    };
+
 }

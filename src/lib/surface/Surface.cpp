@@ -46,6 +46,7 @@ std::string getEnumName(LSurface::Role value) {
     }
 }
 
+// from Louvre
 LTexture* Surface::renderThumbnail(LRegion* transRegion){
     LBox box { getView()->boundingBox() };
 
@@ -119,9 +120,10 @@ void Surface::startUnmappedAnimation() noexcept
     LTextureView *fadeOutView = new LTextureView(thumbnail, &server.layers()[APPLICATION_LAYER]);
 
     const LPoint initialPos = pos();
-    // 【新】我们将在这里定义动画的目标,让代码更清晰
-    constexpr Float32 FINAL_SCALE_RATIO = 0.7f; // 可配置的目标缩放比例
-    constexpr UInt32 ANIMATION_MS = 150;       // 动画可以更快一些,感觉更清脆
+
+    // unmapped animation params setup
+    constexpr Float32 FINAL_SCALE_RATIO = 0.7f;
+    constexpr UInt32 ANIMATION_MS = 150;
 
     fadeOutView->setPos(initialPos);
     fadeOutView->enableParentOffset(false);
@@ -133,29 +135,22 @@ void Surface::startUnmappedAnimation() noexcept
     LAnimation::oneShot(ANIMATION_MS, 
         [fadeOutView, initialPos, FINAL_SCALE_RATIO](LAnimation *animation) {
             
-            // 使用更平滑的 "Ease-In-Out" 缓动函数
-            // 这会让动画的开始和结束都感觉非常自然,没有突兀感
+            // scaling animation
             const Float32 ease = (1.f - cosf(animation->value() * M_PI)) * 0.5f;
 
-            // 重新计算缩放插值
-            // 我们使用自己的 lerp 函数,将动画进程(ease: 0->1)映射到缩放范围(1.0f -> 0.8f)
             const float scaleFactor = tiley::math::lerp(1.f, FINAL_SCALE_RATIO, ease);
             fadeOutView->setScalingVector(scaleFactor);
-            
-            // 重新计算位置插值
-            // 目标位置不再是中心点,而是根据缩放比例计算出的新位置
-            // 这样能确保窗口的中心在动画过程中保持不动
+
             const LPoint currentPos = initialPos + (fadeOutView->size() * (1.f - scaleFactor)) / 2;
             fadeOutView->setPos(currentPos);
             
-            // 透明度插值
-            // 让窗口在缩小的同时, 完全淡出。这会产生一个非常干净的收尾效果。
+            // opacity animation
             const float opacity = 1.f - ease;
             fadeOutView->setOpacity(opacity);
 
             compositor()->repaintAllOutputs();
         },
-        [fadeOutView, weakSelf](LAnimation *) { // 在 onFinish 中捕获 weakSelf 以便调用 close
+        [fadeOutView, weakSelf](LAnimation *) {
 
             if (fadeOutView) {
                 delete fadeOutView->texture();
@@ -204,18 +199,17 @@ Surface::Surface(const void *params) : LSurface(params){
     });
 }
 
-// 获取要操作的view的方法
-// 对于正在平铺的窗口, 返回包装器; 对于目前没有平铺的窗口或其他任意角色, 返回view本身
+
 LView* Surface::getView() noexcept{
 
     if(tl() && tl()->container && TileyWindowStateManager::getInstance().isTiledWindow(tl())){
-        return tl()->container->getContainerView();
+        return tl()->container->getContainerView();  // window is tilable
     }else{
-        return view.get();
+        return view.get(); // return raw view of window
     }
 }
 
-// 用于需要直接访问的情况
+// TODO: deprecation
 LSurfaceView* Surface::getSurfaceView() noexcept{
     return view.get();
 }
@@ -226,54 +220,46 @@ void Surface::printWindowGeometryDebugInfo(LOutput* activeOutput, const LRect& o
         const LRect& acquiredGeometry = size();
         const LRect& windowGeometry = toplevel()->windowGeometry();
 
-        LLog::log("**************新建窗口信息(内存地址: %d)**************", this);
-        LLog::log("屏幕可用空间: %dx%d", outputAvailable.w(), outputAvailable.h());
+        LLog::log("**************New Window information: %s**************", this);
+        LLog::log("Display geometry available: %dx%d", outputAvailable.w(), outputAvailable.h());
         for(auto zone : activeOutput->exclusiveZones()){
-            LLog::log("屏幕保留空间: %dx%d, 附着在边缘: %b", zone->rect().w(), zone->rect().h(), zone->edge());
+            LLog::log("Display reserved geometry: %dx%d, attached edge: %b", zone->rect().w(), zone->rect().h(), zone->edge());
         }
-        LLog::log("额外的空间: top: %d, right: %d, bottom: %d, left: %d", margin.top, margin.right, margin.bottom, margin.left);
-        LLog::log("请求大小: %dx%d", acquiredGeometry.w(), acquiredGeometry.h());
-        LLog::log("实际占用大小: %dx%d", windowGeometry.w(), windowGeometry.h());
-        LLog::log("窗口画面偏移: (%d, %d)", toplevel()->windowGeometry().pos().x(), toplevel()->windowGeometry().pos().y());
+        LLog::log("Extra zone for margin: top: %d, right: %d, bottom: %d, left: %d", margin.top, margin.right, margin.bottom, margin.left);
+        LLog::log("client acquired geometry: %dx%d", acquiredGeometry.w(), acquiredGeometry.h());
+        LLog::log("client real geometry: %dx%d", windowGeometry.w(), windowGeometry.h());
+        LLog::log("window offect: (%d, %d)", toplevel()->windowGeometry().pos().x(), toplevel()->windowGeometry().pos().y());
 
     }else{
-        LLog::log("警告: 目标Surface不是窗口角色, 跳过信息打印。");
+        LLog::log("[printWindowGeometryDebugInfo]: target surface is not toplevelrole, skip printing");
     }
 }
 
-// 调用路径: roleChanged() -> orderChanged -> ((如果是窗口) -> configureRequest() -> atomsChanged()) -> mappingChanged 
-// 首先分配一个角色, 再组装顺序(窗口和他的子Surface之间), 之后判断: 如果一个Surface是窗口, 则触发配置过程。配置的结果可以由atomsChanged接收。配置完成后, 客户端开始显示: 调用MappingChanged, 随后就是显示之后自己的工作了。 
-// 如果不是窗口, 则在组装顺序后直接MappingChanged.
-
-// roleChanged: 角色发生变化。目前不影响渲染。
-// 只需做一件事, 将软件光标隐藏即可, 我们有硬件鼠标。
+// path: roleChanged() -> orderChanged -> ((if window) -> configureRequest() -> atomsChanged()) -> mappingChanged 
 void Surface::roleChanged(LBaseSurfaceRole *prevRole){
-    // 执行父类的方法。父类方法只是刷新一下屏幕
     LSurface::roleChanged(prevRole);
-
     TileyServer& server = TileyServer::getInstance();
 
     if(cursorRole()){
-        // 我们不能控制提交过来的surface, 但我们可以不渲染它。
+        // display software cursor
         getView()->setVisible(false);
         return;
     }else if (roleId() == LSurface::SessionLock || roleId() == LSurface::Popup){
-        LLog::debug("打开了一个弹出菜单");
+        LLog::debug("[roleChanged]: a popup is shown");
         getView()->setParent(&server.layers()[LLayerOverlay]);
     }
 }
 
-// orderChanged: surface的顺序发生变化。我们需要据此对应调整view的顺序。
+// orderChanged: adjust views order to align surfaces order
 void Surface::orderChanged()
 {   
-    //LLog::debug("顺序改变, surface地址: %d, 层次: %d", this, layer());
+    //LLog::debug("Order Changed, address of surface object: %d, layer: %d", this, layer());
     
-    // 调试: 打印surface前后关系
+    // debug: print order of surfaces
     // TileyServer& server = TileyServer::getInstance();
     // server.compositor()->printToplevelSurfaceLinklist();
 
-    // Louvre-views 官方写法
-
+    // from Louvre-views
     if (toplevel() && toplevel()->fullscreen())
         return;
 
@@ -297,75 +283,69 @@ void Surface::orderChanged()
         view->insertAfter(nullptr);
 }
 
-// layerChanged: 层次发生变化。对于我们来讲最有用的就是平铺层<->浮动层之间的互相切换。
-// 只需将toplevel的view移动到新的层即可, 它的弹出窗口和它的subsurface会自动跟随。
+// move surface of toplevel is enough, subsurfaces will follow as Louvre handles this
 void Surface::layerChanged(){
-    //LLog::debug("%d: 层次改变: ", this);
+    //LLog::debug("%d: Layer changed: ", this);
     TileyServer& server = TileyServer::getInstance();
     getView()->setParent(&server.layers()[layer()]);
 }
 
-// mappingChanged: 一个窗口的显示状态发生变化。常见于: 新的窗口要显示/窗口被关闭/窗口被最小化等
-// 我们要做的: 为每个surface指定父亲(之后他就可以自动跟随(计算相对位置)了)
+// A Surface changed its mapping state, we do layout management here
 void Surface::mappingChanged(){
 
     TileyWindowStateManager& manager = TileyWindowStateManager::getInstance();
     TileyServer& server = TileyServer::getInstance();
 
-    // 先刷新一次屏幕, 确保视觉更新
     compositor()->repaintAllOutputs();
 
     if(mapped()){
-        // 如果不是窗口, 则无需额外的操作了(SurfaceView构造函数已经初始化过默认显示层级是APPLICATION_LAYER, 不用担心非窗口的Surface没有得到处理)
+        // if the surface is not a toplevel, stop processing as parent is defined in constructor
         if(!toplevel()){
             return;
         }
-        // 否则, 为窗口分配一个类型
+        // else we assign a type to the toplevel
         tl()->assignToplevelType();
-        // 准备插入
+
         Container* tiledContainer = nullptr;
-        // 尝试插入窗口。如果窗口角色不满足插入平铺层的条件, 则不会插入
         manager.addWindow(tl(), tiledContainer);
-        // 如果成功插入平铺层
+        
+        // if inserted successfully
         if(tiledContainer){
-            // 如果是显示出了窗口
-            // 设置到应用层(在SurfaceView的构造函数中已经初始化过, 这里调用是为了防止某些地方使其发生了变化)
+            // set parent again to APPLICATION_LAYER for unexpected layer change
             getView()->setParent(&server.layers()[APPLICATION_LAYER]);
-            // 设置活动容器
+
             manager.setActiveContainer(tiledContainer);
-            LLog::debug("设置上一个活动容器为新打开的窗口容器");
-            // 重新计算布局
+            LLog::debug("[mappingChanged]: set active container to newly added window");
+
             manager.recalculate();
         }
 
-        // 最后, 无论何种类型的窗口, 播放创建动画
+        // play animation
         fadeInAnimation.setDuration(400 * 1.5f);
         fadeInAnimation.start();
 
     } else {
-        // 如果是关闭(隐藏)了窗口
+
         if(toplevel()){
-            // 如果不全屏, 则播放关闭窗口动画
+            
             if(!toplevel()->fullscreen()){
                 startUnmappedAnimation();
             }
-            // 准备移除
+            
+            // remove window(suitable for all type of windows, including floating ones)
             Container* siblingContainer = nullptr;
-            // 移除窗口(包括平铺的和非平铺的都是这个方法)
             manager.removeWindow(tl(), siblingContainer);
-            // 如果移除的是平铺层的窗口
             if(siblingContainer != nullptr){
-                // 重新布局
                 manager.recalculate();
             }
         }
 
-        // 从该surface上移除焦点
+        // remove focus from the surface
         if(seat()->pointer()->focus() == this){
             seat()->pointer()->setFocus(nullptr);
         }
 
-        // 最后, 无论是什么surface, 都将view从parent的列表中移除, 销毁view
+        // destroy view
         getView()->setParent(nullptr);
     }
     

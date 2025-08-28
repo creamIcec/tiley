@@ -25,13 +25,11 @@ void stopMoveSession(bool recalculateLayout){
         if ((*it)->triggeringEvent().type() != LEvent::Type::Touch){
             ToplevelRole* window = static_cast<ToplevelRole*>((*it)->toplevel());
             if(recalculateLayout && window){
-                // 下面是平铺层的处理: 如果是正常窗口, 并且没有被堆叠
+                // for normal window not stacked
                 if(window->type == NORMAL && !manager.isStackedWindow(window)){
-                    // 插入管理器
                     bool attached = manager.attachTile(window);
-                    // TODO: 允许跨屏幕插入
+                    // TODO: Allow insert to another monitor
                     if(attached){
-                        // 如果插入成功, 重新组织并重新布局
                         manager.reapplyWindowState(window);
                         manager.recalculate();
                     }

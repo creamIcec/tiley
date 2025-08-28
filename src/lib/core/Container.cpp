@@ -10,26 +10,25 @@
 
 using namespace tiley;
 
-// 创建的是分割容器
+// Constructor for splitting containers
 Container::Container(){
-    // 默认设置
     this->child1 = nullptr;
     this->child2 = nullptr;
     this->splitType = SPLIT_NONE;
 }
 
-// 创建的是窗口
+// Constructor for windows
 Container::Container(ToplevelRole* window) : Container::Container(){
     this->window = window;
     window->container = this;
 
-    // 设置src/lib/core/Container.hpp containerView的父级为应用层
+    // set containerView to child of APPLICATION_LAYER
     containerView = std::make_unique<LLayerView>(&TileyServer::getInstance().layers()[APPLICATION_LAYER]);
 
-    // 先对齐一遍containerView和surfaceView, 避免初始化问题
+    // align containerView and surfaceView first to avoid later problem
     if(window->surface() && window->surface()->mapped()){
-        LLog::debug("初始化容器View, 对齐surface");
-        LLog::debug("surface位置: (%d,%d), 大小: (%dx%d)", window->surface()->pos().x(), window->surface()->pos().y(), window->surface()->size().width(), window->surface()->size().height());
+        LLog::debug("Initialize containerView, align surface");
+        LLog::debug("position of surface: (%d,%d), size: (%dx%d)", window->surface()->pos().x(), window->surface()->pos().y(), window->surface()->size().width(), window->surface()->size().height());
         containerView->setPos(window->surface()->pos());
         containerView->setSize(window->surface()->size());
         LLog::debug("containerView: nativePos: (%d,%d)", containerView->nativePos().x(), containerView->nativePos().y());
@@ -43,66 +42,60 @@ void Container::printContainerWindowInfo(){
         ToplevelRole* win = static_cast<ToplevelRole*>(this->window);
 
         LLog::log("window->type: %d", win->type);
-        LLog::log("window->container: %d", win->container);
+        LLog::log("object address of window->container: %d", win->container);
         LLog::log("window->container->floating_reason: %d", win->container->floating_reason);
     }
 }
 
-// 该函数应该在操作平铺层之前调用。
+// enable when container is tiled otherwise disable
 void Container::enableContainerView(bool enable){
-    // 1. 获取window的父级情况, 如果是containerView, 则设置成containerView的parent(更上面一层, 比如APPLICATION_LAYER); 否则设置成containerView
-    // 2. 同样根据上面的情况, 如果window父级是containerView, 则显示containerView; 否则隐藏
 
     if(!window){
-        LLog::debug("该容器不是窗口容器, 无法切换包装状态, 停止操作。");
+        LLog::debug("[enableContainerView]: the container inside this view is not for window, stop action");
         return;
     }
 
     Surface* surface = static_cast<Surface*>(window->surface());
 
     if(!surface){
-        LLog::warning("[enableContainerView]: 窗口的surface不存在, 是否已被销毁? 无法切换包装状态, 停止操作。");
+        LLog::warning("[enableContainerView]: The surface of window is null, is it destroyed? stop action");
         return;
     }
 
-    // 如果是surfaceView的父级是containerView
     if(!enable){
+
         disableContainerFeatures();
-        // 禁用
         surface->view->setParent(containerView->parent());
         containerView->setVisible(false);
-        // 关闭自定义位置, 恢复默认逻辑, surface控制位置
         surface->view->enableCustomPos(false);
 
     }else if(enable){
-        // 否则启用
+
         surface->view->setParent(containerView.get());
         containerView->setVisible(true);
-        // 启用自定义位置, 全权交给我们的containerView控制位置
+
         surface->view->enableCustomPos(true);
         //surface->view->setCustomPos(0,0);
 
         enableContainerFeatures();
     }
 
-    // 立即触发重绘
     surface->view->repaint();
 
 }
 
+// 2 functions for enable/disable container features should be modified in pair
 void Container::enableContainerFeatures(){
     for(LView* child : containerView->children()){
-        // 启用父级裁剪
         child->enableParentClipping(true);
-        // 未来有什么新的特性就在这里写...
-        // 别忘了同步disable. 之所以没有用一个bool值控制, 是因为有些特性可能不是一个简单的true/false就能控制的, 可能需要更多的状态修改代码, 因此分成了两个函数
+        // new features going here
     }
 }
 
 void Container::disableContainerFeatures(){
     for(LView* child : containerView->children()){
-        // 关闭父级裁剪
         child->enableParentClipping(false);
+        // new features going here
     }
 }
 

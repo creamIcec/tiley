@@ -16,18 +16,15 @@ namespace tiley {
 
     class WallpaperManager {
         public:
-            // 单例模式
             static WallpaperManager& getInstance();
             struct WallpaperManagerDeleter {
                 void operator()(WallpaperManager* p) const { delete p; }
             };
-            // 初始化
+
             void initialize();
 
-            // 应用壁纸到输出
             void applyToOutput(LOutput* output);
 
-            // 弹出文件选择框
             void selectAndSetNewWallpaper();
 
             inline bool wallpaperChanged() { return m_wallpaperChanged; }
@@ -36,7 +33,6 @@ namespace tiley {
             WallpaperManager();
             ~WallpaperManager();
 
-            // 禁止拷贝
             WallpaperManager(const WallpaperManager&) = delete;
             WallpaperManager& operator=(const WallpaperManager&) = delete;
 
@@ -46,16 +42,14 @@ namespace tiley {
             static std::unique_ptr<WallpaperManager, WallpaperManagerDeleter> INSTANCE;
             static std::once_flag onceFlag;
             
-            // 定时器回调函数
             void checkDialogStatus();
 
-            // 壁纸更新时置为true
+            // Flag of a wallpaper is recently changed for render thread to refresh their wallpaper
             bool m_wallpaperChanged = false;
 
             std::string m_configPath;
             std::string m_wallpaperPath;
 
-            // 用 LTimer 和锁文件路径代替 PID 和信号源
             Louvre::LTimer m_dialogCheckTimer;
             std::string m_dialogLockFilePath;
             std::string m_dialogResultFilePath;

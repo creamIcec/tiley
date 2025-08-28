@@ -15,7 +15,7 @@ T Config::get(const std::string& key, const T& default_value){
             return (*config)[key].get<T>();
         }
     } catch (const std::exception& e){
-        std::cerr << "获取配置项失败 '" << key << "': " << e.what() << std::endl;
+        std::cerr << "[Config]: Unable to get configuration item: '" << key << "': " << e.what() << std::endl;
     }
     return default_value;
 }

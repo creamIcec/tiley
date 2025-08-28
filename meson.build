@@ -12,27 +12,27 @@ project(
 
 fs = import('fs')
 
-# 安装后的目录
+# installation dir
 install_asset_dir = get_option('datadir') / meson.project_name() / 'assets'
 install_config_dir = get_option('datadir') / meson.project_name() / 'config'
-# 开发时的目录
+# development dir
 source_shader_dir = join_paths(meson.project_source_root(), 'src/assets/shaders')
 source_asset_dir = join_paths(meson.project_source_root(), 'src/assets')
 source_config_dir = join_paths(meson.project_source_root(), 'src/config')
 
-# 程序安装数据
+# program installation data
 # shader
 install_data(
     'src/assets/shaders/rounded_corners.vert',
     'src/assets/shaders/rounded_corners.frag',
     install_dir: install_asset_dir / 'shaders'
 )
-# 壁纸
+# wallpaper
 install_data(
     'src/assets/wallpaper/tiley_16x10@2x.png',
     install_dir: install_asset_dir / 'wallpaper'
 )
-# 快捷键列表
+# shortcut list
 install_data(
     'src/config/hotkey.json',
     install_dir: install_config_dir
@@ -88,13 +88,12 @@ add_project_arguments(
   language: 'c'
 )
 
-# 公共包含文件夹
+# public include dir
 common_includes = include_directories(['include', '.'])
-# 收集源文件
 all_tiley_sources = []
 subdir('src')
 
-# 创建可执行文件
+# executable creation
 exe = executable(
   'tiley',
   all_tiley_sources,
@@ -103,5 +102,5 @@ exe = executable(
   include_directories: common_includes
 )
 
-# 进行基本运行测试
+# basic testing
 test('basic_run_test', exe)
