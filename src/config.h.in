@@ -1,5 +1,4 @@
 // config.h.in
-// 编译配置文件, 由meson使用, 在编译时进行预编译操作, 替换字符串
 
 #pragma once
 

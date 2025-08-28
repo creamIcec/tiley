@@ -21,9 +21,9 @@ namespace tiley{
 namespace tiley{
 
     enum TOPLEVEL_TYPE{
-        NORMAL,  // 正常窗口
-        RESTRICTED_SIZE,    // 窗口被客户端限了尺寸。这种窗口不应该参加平铺, 因为他们有自己的尺寸限制
-        FLOATING   // 被用户指定应该"浮动"的窗口或本身是一个子窗口
+        NORMAL,  // normal window: can be tiled
+        RESTRICTED_SIZE,    // size of window is restricted: cannot be tiled
+        FLOATING   // normal window but is floating: user stacked the window or is moving
     };
 
     class ToplevelRole final : public LToplevelRole{
@@ -34,13 +34,11 @@ namespace tiley{
 
             ToplevelRole(const void *params) noexcept;
 
-            // 双向指针其一: Surface(Role=Toplevel) -> NodeContainer
             Container* container = nullptr;
-            // 一个窗口的自定义类型。默认是正常窗口。类型见TOPLEVEL_TYPE
             TOPLEVEL_TYPE type = NORMAL;
-            // 属于的显示屏
+            // monitor for displaying the window
             Output* output = nullptr;
-            // 属于的工作区
+            // id of workspace in which the window resides
             UInt32 workspaceId;
 
             void atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev) override;
@@ -53,7 +51,7 @@ namespace tiley{
             
             void assignToplevelType();
 
-            // 调试: 打印windowGeometry和window的surface的区域信息
-            void printWindowAreaInfo(LToplevelRole* toplevel);
+            // debug: print window geometry info
+            void printWindowGeometryInfo(LToplevelRole* toplevel);
     };
 }

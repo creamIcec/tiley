@@ -14,7 +14,7 @@ using namespace tiley;
 
 ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
 {
-    //由Louvre提供,用于计算允许的移动范围。
+    // from Louvre-views
     moveSession().setOnBeforeUpdateCallback([](LToplevelMoveSession *session)
     {
         LMargins constraints { session->toplevel()->calculateConstraintsFromOutput(cursor()->output()) };
@@ -24,27 +24,24 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
             constraints.bottom += session->toplevel()->windowGeometry().size().h()
                 + session->toplevel()->extraGeometry().top
                 + session->toplevel()->extraGeometry().bottom
-                - 0;   //- 50;  // 官方代码用的50, 这个地方是因为他的dock栏高度是50像素, 我们之后可以根据我们的dock栏具体情况来修改。最好从IPC/外部文件读取
+                - 0;   //- 50;  // TODO: better read from IPC/config
         }
 
-        // 移动范围限制 = 屏幕范围 - 底部50像素
         session->setConstraints(constraints);
 
-        // 阻止客户端的默认只用按下左键就可以移动的行为, 这个函数是最合适的位置? 
+        // Any better place?
         if(!TileyServer::getInstance().is_compositor_modifier_down){
             stopMoveSession(false);
         }
     });
 
-    //同理,但是是限制屏幕大小
     resizeSession().setOnBeforeUpdateCallback([](LToplevelResizeSession *session)
     {
-        // 更改大小也限制在屏幕范围内
         LMargins constraints { session->toplevel()->calculateConstraintsFromOutput(cursor()->output()) };
-        // 更改大小范围限制 = 屏幕范围
+
         session->setConstraints(constraints);
 
-        // 新增: 阻止客户端的默认只用按下左键就可以移动的行为, 这个函数是最合适的位置? 
+        // Any better place?
         if(!TileyServer::getInstance().is_compositor_modifier_down){
             stopResizeSession(false);
         }
@@ -52,21 +49,20 @@ ToplevelRole::ToplevelRole(const void *params) noexcept : LToplevelRole(params)
 }
 
 
-void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
+void ToplevelRole::printWindowGeometryInfo(LToplevelRole* toplevel){
 
     if(!toplevel){
-        LLog::log("目标窗口不存在, 无法显示信息。");
+        LLog::log("[printWindowAreaInfo]: cannot print window geometry info of null");
         return;
     }
-
-    LLog::log("windowGeometry发生改变");
-    LLog::log("额外的geometry: left: %d, top: %d, right: %d, bottom: %d", 
+    
+    LLog::log("[printWindowAreaInfo]: extra geometry: left: %d, top: %d, right: %d, bottom: %d", 
         toplevel->extraGeometry().left,
         toplevel->extraGeometry().top,
         toplevel->extraGeometry().right,
         toplevel->extraGeometry().bottom
     );
-    LLog::log("window geometry: width: %d, height: %d, x: %d, y: %d, bottomRight: (%dx%d)",
+    LLog::log("[printWindowAreaInfo]: window geometry: width: %d, height: %d, x: %d, y: %d, bottomRight: (%dx%d)",
         toplevel->windowGeometry().width(),
         toplevel->windowGeometry().height(),
         toplevel->windowGeometry().x(),
@@ -76,15 +72,14 @@ void ToplevelRole::printWindowAreaInfo(LToplevelRole* toplevel){
     );
 }
 
-//重载窗口属性变化函数,驱动平铺驱点。
 void ToplevelRole::atomsChanged(LBitset<AtomChanges> changes, const Atoms &prev){
-    //LLog::log("窗口状态改变");
+    //LLog::log("[atomsChanged]: window properties changed");
     LToplevelRole::atomsChanged(changes, prev);
 };
 
-//服务端向客户端下发配置请求
+// client triggers configuration and we need to respond with proper settings
 void ToplevelRole::configureRequest(){
-    LLog::debug("接收到配置请求");
+    LLog::debug("[configureRequest]: client requires configuration");
 
     LOutput *output { cursor()->output() };
  
@@ -100,22 +95,20 @@ void ToplevelRole::configureRequest(){
  
     configureSize(0,0);
     configureState(pendingConfiguration().state | Activated);
-
-    // 判断客户端是否支持服务端装饰模式
     
+    // server-sided decorations are not well supported by GTK applications
     if (supportServerSideDecorations()){
         configureDecorationMode(ServerSide);
     }
 
     configureCapabilities(WindowMenuCap | FullscreenCap | MaximizeCap | MinimizeCap);
 
-    LLog::debug("客户端偏好: %d", preferredDecorationMode());
+    LLog::debug("[configureRequest]: client preferred decoration mode: %d", preferredDecorationMode());
 
 }
 
-
 // from https://gitlab.com/fakinasa/polowm/-/blob/master/src/roles/ToplevelRole.cpp
-// 检查一个窗口有无大小限制, 如果有, 则加入浮动层
+// Check whether the size of a window is restricted
 bool ToplevelRole::hasSizeRestrictions()
 {
     return ( (minSize() != LSize{0, 0}) &&
@@ -125,27 +118,24 @@ bool ToplevelRole::hasSizeRestrictions()
 
 void ToplevelRole::assignToplevelType(){
 
-    // TODO: 添加获取用户制定浮动的机制
+    // TODO: read user prefer floating application ids from config
     bool userFloat = false;
 
-    // 如果有尺寸限制
     if(hasSizeRestrictions()){
         this->type = RESTRICTED_SIZE;
-    // 如果是子窗口或者用户指定
     }else if(surface()->parent() || userFloat){
         this->type = FLOATING;
-    // 否则就是普通窗口
     }else{
         this->type = NORMAL;
     }
 }
 
 void ToplevelRole::startMoveRequest(const LEvent& triggeringEvent){
-    // TODO: 要不要在移动开始时关闭所有popup?
+    // TODO: close any popups before moving?
     LToplevelRole::startMoveRequest(triggeringEvent);
 }
 
 void ToplevelRole::startResizeRequest(const LEvent& triggeringEvent, LBitset<LEdge> edge){
-    // TODO: 要不要在移动开始时关闭所有popup?
+    // TODO: close any popups before resizing?
     LToplevelRole::startResizeRequest(triggeringEvent, edge);    
 }

@@ -31,27 +31,25 @@ namespace tiley{
 
             static TileyServer& getInstance();
 
-            // 记录是否合成器修饰键被按下
+            // temp
             bool is_compositor_modifier_down = false;
 
-            // TODO: 配置加载函数
+            // TODO: config loading function
             bool load_config();
 
-            // TODO: 统一管理shader着色脚本
-            // 获取窗口圆角的渲染脚本
+            // TODO: manage shader scripts in one place
+            // Window round corner shader
             inline Shader* roundedCornerShader() const { return m_roundedCornerShader.get(); }
 
             GLuint quadVBO() const { return m_quadVBO; }
             GLuint quadEBO() const { return m_quadEBO; }
 
-            // 初始化OpenGL渲染脚本
             void initOpenGLResources();
             void uninitOpenGLResources();
-            // 初始化快捷键处理器
             void initKeyEventHandlers();
-            // 装入启动时运行的指令
+
             void populateStartupCMD(std::string cmd);
-            // 获取启动时运行的指令
+            
             inline const std::vector<std::string> getStartupCMD() const { return startUpCMD; }
         private:
             struct ServerDeleter {
@@ -70,7 +68,7 @@ namespace tiley{
             TileyServer& operator=(const TileyServer&) = delete;
 
             std::unique_ptr<Shader> m_roundedCornerShader;
-            // 启动合成器时要运行的指令
+            // command to execute after Tiley launches
             std::vector<std::string> startUpCMD;
 
             GLuint m_quadVBO { 0 }; // 顶点缓冲对象

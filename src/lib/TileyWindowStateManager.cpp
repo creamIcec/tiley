@@ -1,10 +1,4 @@
 #include "TileyWindowStateManager.hpp"
-#include "LAnimation.h"
-#include "LBitset.h"
-#include "LEdge.h"
-#include "LSurface.h"
-#include "LToplevelMoveSession.h"
-#include "LToplevelRole.h"
 #include "src/lib/client/ToplevelRole.hpp"
 #include "src/lib/client/views/SurfaceView.hpp"
 #include "src/lib/core/Container.hpp"
@@ -26,15 +20,16 @@
 #include <cassert>
 #include <memory>
 #include <functional> 
+
 using namespace tiley;
 
 UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
     if(!container){
-        LLog::debug("传入的容器为空, 返回当前工作区");
+        LLog::debug("container is null, return default workspace");
         return CURRENT_WORKSPACE;
     }
 
-    // 一路回溯到根节点
+    // trace up to root
     Container* root = container;
     while(root->parent){
         root = root->parent;
@@ -46,7 +41,7 @@ UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
         }
     }
 
-    LLog::error("错误: 无法找到一个容器所在树的根节点, 可能存在bug, 请报告!");
+    LLog::error("Error: Cannot find a root of target container. This may be a critical bug, please report.");
     return CURRENT_WORKSPACE;
 
 }
@@ -54,7 +49,7 @@ UInt32 TileyWindowStateManager::getWorkspace(Container* container) const{
 
 void TileyWindowStateManager::setActiveContainer(Container* container){
     if(!container){
-        activeContainer = container;  //设置为空容器
+        activeContainer = container;
         return;
     }
 
@@ -63,47 +58,41 @@ void TileyWindowStateManager::setActiveContainer(Container* container){
         workspaceActiveContainers[workspace] = container;
     }
 
-    // 同步更新, 非常重要, 在我们没有完全迁移过来之前, 需要随时更新activeContainer和workspaceActiveContainers, 让他们保持同步
+    // compatibility: assign activeContainer to currently activated container.
+    // TODO: replace all `activeContainer` access to `workspaceActiveContainers` only, 
     activeContainer = workspaceActiveContainers[workspace];
 }
 
-// insert(插入)函数
-// 检查清单:
-// 父容器是否指向了子容器?
-// 子容器是否指向了父容器?
 bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowContainer, Container* targetContainer, SPLIT_TYPE splitType, Float32 splitRatio){
 
     L_UNUSED(workspace);
 
     if(targetContainer == nullptr){
-        LLog::debug("目标窗口为空, 停止插入");
+        LLog::debug("Target container is null, stop inserting");
         return false;
     }
 
     if(newWindowContainer == nullptr){
-        LLog::debug("传入的窗口为空, 停止插入");
+        LLog::debug("New container is null, stop inserting");
         return false;
     }
 
     if(newWindowContainer == targetContainer){
-        LLog::debug("容器不能作为自己的子节点, 停止插入");
+        LLog::debug("New container and target container is identical, stop inserting");
         return false;
     }
 
     if(targetContainer->window == nullptr){
-        LLog::debug("目标位置必须是窗口, 停止插入");
+        LLog::debug("Target container must be typed window, stop inserting");
         return false;
     }
 
-    // 1. 获取父容器
     auto parent = targetContainer->parent;
     
-    // 2. 创建新的分割容器
     auto splitContainer = new Container();
     splitContainer->splitType = splitType;
     splitContainer->splitRatio = splitRatio;
 
-    // 3. 判断目标容器是父容器的child几, 挂载分割容器上去
     if(parent->child1 == targetContainer){
         parent->child1 = splitContainer;
         splitContainer->parent = parent;
@@ -111,11 +100,10 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
         parent->child2 = splitContainer;
         splitContainer->parent = parent;
     }else{
-        // TODO: 可能有意外嘛?   这里测试的时候可以看看,逻辑上感觉没问题
+        // Any exception?
     }
 
-    // 4. 挂载窗口
-    // TODO: 根据鼠标位置不同决定1和2分别是谁    鼠标位置？计算坐标即可。完成。
+    // TODO: move cursor access to where before calling `insertTile` for separation of data and environment
     const LRect& geo = targetContainer->geometry;
     LPointF mouse = cursor()->pos();
     bool before;
@@ -129,44 +117,32 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
     }
 
     if (before) {
-        // 鼠标在“前半区”：新窗口 child1,原窗口 child2
         splitContainer->child1 = newWindowContainer;
         splitContainer->child2 = targetContainer;
-        //LLog::debug("前半区");
+        //LLog::debug("Cursor at first part");
     } else {
-        // 鼠标在“后半区”：原窗口 child1,新窗口 child2
         splitContainer->child1 = targetContainer;
         splitContainer->child2 = newWindowContainer;
-        //LLog::debug("后半区");
+        //LLog::debug("Cursor at second part");
     }
     
     newWindowContainer->parent = splitContainer;
     targetContainer->parent = splitContainer;
     LLog::debug("%d, %d, %d, %d",geo.x(),geo.y(),geo.w(),mouse.x());
-    //LLog::debug("确实在调用这个函数");
-    /*
-    splitContainer->child1 = targetContainer;
-    splitContainer->child2 = newWindowContainer;
-    targetContainer->parent = splitContainer;
-    newWindowContainer->parent = splitContainer;
-*/
-    // 增加追踪数量(+1 分割容器, +1 窗口)
+
+    // accumulate trace amount
     containerCount += 2;
 
     return true;
 }
 
-
-// insert(插入)函数
 bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowContainer, Float32 splitRatio){
 
-    // 找到鼠标所在位置的平铺Container
     Container* targetContainer = getInsertTargetTiledContainer(workspace);
 
-    // 如果是根节点, 表示是桌面
+    // if targetContainer is root, insert directly after desktop node
     if(targetContainer == workspaceRoots[workspace]){
-        // 只有桌面的时候, 直接插入到桌面节点
-        LLog::debug("只有桌面节点, 仅插入窗口");
+        LLog::debug("No window presents, insert after desktop container");
         workspaceRoots[workspace]->child1 = newWindowContainer;
         newWindowContainer->parent = workspaceRoots[workspace];
         containerCount += 1;
@@ -174,68 +150,65 @@ bool TileyWindowStateManager::insertTile(UInt32 workspace, Container* newWindowC
     }
 
     if(targetContainer){
-        LLog::debug("鼠标位置有窗口容器");
+        LLog::debug("Found window at cursor position");
         Surface* windowSurface = static_cast<Surface*>(targetContainer->window->surface());
         SPLIT_TYPE split = windowSurface->size().w() >= windowSurface->size().h() ? SPLIT_H : SPLIT_V;
         return insertTile(workspace, newWindowContainer, ((ToplevelRole*)windowSurface->toplevel())->container, split, splitRatio);   
     }
 
-    // 如果既不是桌面, 鼠标也没有聚焦到任何窗口, 尝试插入上一个被激活的container之后
+    // try inserting after last activated container if failed to find targetContainer
     if(activeContainer != nullptr){
-        LLog::debug("插入到上一个激活的窗口后");
+        LLog::debug("insert after last activated container");
         const LRect& size = activeContainer->window->surface()->size();
         SPLIT_TYPE split = size.w() >= size.h() ? SPLIT_H : SPLIT_V; 
         return insertTile(workspace, newWindowContainer, activeContainer, split, splitRatio);
     }
-    // TODO: 其他鼠标没有聚焦的情况,比如呢？
-    //
+    // Any other situations?
 
-    LLog::error("[insertTile]: 插入失败, 未知情况。");
+    LLog::error("[insertTile]: failed to insert window");
     return false;
 }
 
 Container* TileyWindowStateManager::detachTile(LToplevelRole* window, FLOATING_REASON reason){
-    // 和removeTile逻辑接近, 就是不删除容器。
-    // TODO: 考虑和remove合并, 通过一个参数区分是分离还是关闭
+
+    // TODO: merge identical logical parts of `detachTile` and `removeTile`
 
     if(window == nullptr){
-        LLog::debug("要分离的窗口为空, 停止分离");
+        LLog::debug("[detachTile]: target window is null, stop detaching");
         return nullptr;
     }
 
-    // 2. 找到这个window对应的container
     Container* containerToDetach = ((ToplevelRole*)window)->container;
-    // 同时保存父亲和祖父的指针
+    // Save parent and grandParent pointers for later use
     Container* grandParent = containerToDetach->parent->parent;
     Container* parent = containerToDetach->parent;
 
     if(containerToDetach == nullptr){
-        LLog::warning("[detachTile]: 要分离的窗口没有container? 正常情况下不应该发生, 停止分离");
+        LLog::warning("[detachTile]: target window is not inside a container? This may be a bug, please report");
         return nullptr;
     }
 
-    // TODO: 将下面的这行代码移动到一个更好的位置。视图和逻辑应该分开处理。
+    // TODO: Move to a better place for separation of data and environment
     window->surface()->raise();
 
-    // 3. 处理只剩一个或两个窗口的情况
     if(grandParent == nullptr){
         Container* sibling = (parent->child1 == containerToDetach) ? parent->child2 : parent->child1;
         if(sibling == nullptr){
-            // 3.1 这是最后一个窗口
-            LLog::debug("分离最后一个窗口");
+
+            LLog::debug("[detachTile]: detach last window");
             parent->child1 = nullptr;
-            
+        
         }else{
-            // 3.2 屏幕上还剩一个窗口
-            LLog::debug("分离后仅剩一个窗口");
-            // 直接把兄弟节点的内容(它本身应该是个窗口容器)移动到根容器
+
+            LLog::debug("[detachTile]: only one window remaining after detaching");
             parent->child1 = sibling;
             parent->child2 = nullptr;
-            sibling->parent = parent; // 更新兄弟节点的父指针
-            //分割容器 -1
+            sibling->parent = parent;
             containerCount -= 1;
+
         }
-        // 窗口 -1
+
+        // Accumulating checksum count
         containerCount -= 1;
 
         containerToDetach->parent = nullptr;
@@ -243,45 +216,42 @@ Container* TileyWindowStateManager::detachTile(LToplevelRole* window, FLOATING_R
         return containerToDetach;
     }
     
-    // 4. 不止一个窗口时, 保存兄弟container
     Container* sibling = (parent->child1 == containerToDetach) ? parent->child2 : parent->child1;
 
-    // 4.1 让祖父节点收养兄弟节点
     if (grandParent->child1 == parent) {
         grandParent->child1 = sibling;
-    } else { // grandParent->child2 == parent
+    } else {
         grandParent->child2 = sibling;
     }
 
-    // 4.2 更新兄弟节点的父指针
-    if (sibling != nullptr) { // 如果被删除的窗口有兄弟
+    if (sibling != nullptr) {
         sibling->parent = grandParent;
     }
 
-    // 清理所有被移除的容器
-    containerToDetach->parent = nullptr; // 断开连接,好习惯
+    containerToDetach->parent = nullptr;
     containerToDetach->floating_reason = reason;
-    delete parent; // 删除旧的分割容器
+    delete parent;
     parent = nullptr;
 
-    // 窗口 -1, 分割容器 -1
+    // Accumulating checksum count
     containerCount -= 2;
 
     return containerToDetach;
 };
 
 bool TileyWindowStateManager::attachTile(LToplevelRole* window){
-    // 直接调用insertTile
+
+    // Call `insertTile` directly cause logics are nearly the same
 
     if(!window){
-        LLog::debug("要合并的窗口为空, 取消合并");
+        LLog::debug("[attachTile]: target window is null, stop attaching");
         return false;
     }
 
     ToplevelRole* windowToAttach = static_cast<ToplevelRole*>(window);
 
     if(!windowToAttach || !windowToAttach->container){
-        LLog::debug("要合并的窗口没有容器, 取消合并");
+        LLog::debug("[attachTile]: target window is not inside a container, stop attaching");
         return false;
     }
 
@@ -293,54 +263,44 @@ bool TileyWindowStateManager::attachTile(LToplevelRole* window){
     return inserted;
 }
 
-// 移除一个平铺层窗口, 如果该窗口有兄弟节点, 则返回。
-// 1. 由于关闭可以连带进行, 我们必须传入目标窗口。只使用鼠标位置是不可靠
 Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
 
     Container* result = nullptr;
 
     if(!window){
-        LLog::debug("要移除的窗口为空, 停止移除");
+        LLog::debug("[removeTile]: target window is null, stop removing");
         return nullptr;
     }
 
-    // 2. 找到这个window对应的container
     Container* containerToRemove = ((ToplevelRole*)window)->container;
     
-    // 2.1. 首先处理是浮动的可平铺窗口, 因为他们没有父容器
     if(containerToRemove->floating_reason != NONE){
-        LLog::debug("关闭浮动窗口");
+        LLog::debug("[removeTile]: removing a floating window");
         delete containerToRemove;
         containerToRemove = nullptr;
         return nullptr;
     }
     
-    // 是一般窗口, 同时保存父亲和祖父的指针
     Container* grandParent = containerToRemove->parent->parent;
     Container* parent = containerToRemove->parent;
 
     if(containerToRemove == nullptr){
-        LLog::warning("[removeTile]: 要移除的窗口没有container? 正常情况下不应该发生, 停止移除");
+        LLog::warning("[removeTile]: target window is not inside a container? This may be a bug, please report");
         return nullptr;
     }
 
-    // 3. 处理只剩一个或两个窗口的情况
     if(grandParent == nullptr){
         Container* sibling = (parent->child1 == containerToRemove) ? parent->child2 : parent->child1;
         if(sibling == nullptr){
-            // 3.1 这是最后一个窗口
-            LLog::debug("关闭最后一个窗口");
+            LLog::debug("[removeTile]: removing last existing window");
             parent->child1 = nullptr;
-            // TODO: 找到窗口所在的workspace
-            result = workspaceRoots[0];
+            result = workspaceRoots[getWorkspace(containerToRemove)];
         }else{
-            // 3.2 屏幕上还剩一个窗口
-            LLog::debug("关闭后仅剩一个窗口");
-            // 直接把兄弟节点的内容(它本身应该是个窗口容器)移动到根容器
+            LLog::debug("[removeTile]: only one window remains after removing");
             parent->child1 = sibling;
             parent->child2 = nullptr;
-            sibling->parent = parent; // 更新兄弟节点的父指针
-            //分割容器 -1
+            sibling->parent = parent;
+            // Accumulating checksum count
             containerCount -= 1;
             result = sibling;
         }
@@ -348,72 +308,47 @@ Container* TileyWindowStateManager::removeTile(LToplevelRole* window){
         delete containerToRemove;
         containerToRemove = nullptr;
 
-        // 窗口 -1
+        // Accumulating checksum count
         containerCount -= 1;
 
         return result;
     }
     
-    // 4. 不止一个窗口时, 保存兄弟container
     Container* sibling = (parent->child1 == containerToRemove) ? parent->child2 : parent->child1;
 
-    // 4.1 让祖父节点收养兄弟节点
+    // parent reclaims its children 
     if (grandParent->child1 == parent) {
         grandParent->child1 = sibling;
-    } else { // grandParent->child2 == parent
+    } else {
         grandParent->child2 = sibling;
     }
 
-    // 4.2 更新兄弟节点的父指针
-    if (sibling != nullptr) { // 如果被删除的窗口有兄弟
+    if (sibling != nullptr) {
         sibling->parent = grandParent;
         result = sibling;
     }
 
-    // 清理所有被移除的容器
-    containerToRemove->parent = nullptr; // 断开连接,好习惯
-    delete parent; // 删除旧的分割容器
-    delete containerToRemove; // 删除被关闭窗口的容器
+    containerToRemove->parent = nullptr;
+    delete parent;
+    delete containerToRemove;
     parent = nullptr;
     containerToRemove = nullptr;
 
-    // 窗口 -1, 分割容器 -1
+    // Accumulating checksum count
     containerCount -= 2;
 
     return result;
 
 }
 
-// 这是你的 resizeTile 的最终形态
 bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
 
-    // 计算机坐标系从屏幕左上角开始向右为x正方向, 向下为y正方向。在平铺式管理器中, 我们遵循一条法则:
-    // 调整该窗口所在容器A的分割比例和其祖父容器B(A的父容器)的分割比例即可。(Hyprland的行为)
-    // 例如现在有如下容器树(H=horizontal, 横向分割; V=vertical, 纵向分割):
-    //       root
-    //        |
-    //        H
-    //       / \
-    //      1   V
-    //         / \
-    //        2   3
-    // 如果我们调整窗口2的大小, 则会调整V的纵向分割比例和H的横向分割比例; 调整3同理;
-    // 如果我们调整窗口1的大小, 则会调整H的横向分割比例, 但由于其祖父容器为桌面, 就只能调整横向分割比例了。
-    // 此外, 如果有更多层:
-    //       root
-    //        |
-    //        H1
-    //       / \
-    //      1   V
-    //         / \
-    //        2   H2
-    //           /  \
-    //          3    4
-    // 此时调整4的大小, 只会影响到H2和V的比例, 而不会影响H1的比例, 调整3同理。
+    // the direction of adjustment is set up generally by where the cursor drags
+
     bool resized = false;
     LPointF mouseDelta = cursorPos - initialCursorPos;
 
-    // 如果有水平目标,根据鼠标水平移动量调整
+    // cursor dragging horizontally
     if (resizingHorizontalTarget) {
         double totalWidth = resizingHorizontalTarget->geometry.w();
         if (totalWidth >= 1) {
@@ -424,7 +359,7 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
         }
     }
 
-    // 如果有垂直目标,根据鼠标垂直移动量调整
+    // cursor dragging vertically
     if (resizingVerticalTarget) {
         double totalHeight = resizingVerticalTarget->geometry.h();
         if (totalHeight >= 1) {
@@ -436,7 +371,7 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
     }
 
     if (resized) {
-        LLog::debug("成功调整容器分割比例");
+        LLog::debug("[resizeTile] successfully resized tiled windows");
         return true;
     }
     return false;
@@ -445,11 +380,11 @@ bool TileyWindowStateManager::resizeTile(LPointF cursorPos){
 void TileyWindowStateManager::printContainerHierachy(UInt32 workspace){
 
     if(workspace < 0 || workspace >= WORKSPACES){
-        LLog::log("目标工作区超出范围: 工作区%d, 停止打印容器树", workspace);
+        LLog::log("[printContainerHierachy]: Target workspace id is out of range: %d, stop printing", workspace);
         return;
     }
 
-    LLog::log("***************打印容器树***************");
+    LLog::log("***************Container Hierachy of workspace: %d***************", workspace);
     auto current = workspaceRoots[workspace];
     _printContainerHierachy(current);
     LLog::log("***************************************");
@@ -460,9 +395,9 @@ void TileyWindowStateManager::_printContainerHierachy(Container* current){
     if(!current){
         return;
     }
-    LLog::log("容器: %d, 类型: %s, parent: %d, child1: %d, child2: %d, 活动显示器: %d", 
+    LLog::log("container: %d, type: %s, parent: %d, child1: %d, child2: %d, active monitor: %d", 
                         current, 
-                        current->window != nullptr ? "窗口" : "容器", 
+                        current->window != nullptr ? "window" : "container", 
                         current->parent, 
                         current->child1, 
                         current->child2,
@@ -479,7 +414,7 @@ void TileyWindowStateManager::_printContainerHierachy(Container* current){
 
 
 void TileyWindowStateManager::reflow(UInt32 workspace, const LRect& region, bool& success){
-    LLog::debug("重新布局");
+    LLog::debug("[reflow]: recalculate geometry of tiled windows");
     // 调试: 打印当前容器树
     //printContainerHierachy(workspace);
 
@@ -489,10 +424,10 @@ void TileyWindowStateManager::reflow(UInt32 workspace, const LRect& region, bool
 
     success = (accumulateCount == containerCount);
 
-    LLog::debug("容器数量: %d", containerCount);
-    LLog::debug("布局容器数量: %d", accumulateCount);
+    LLog::debug("Amount of containers: %d", containerCount);
+    LLog::debug("Recalculated containers: %d", accumulateCount);
     if(!success){
-        LLog::error("[reflow]: 重新布局失败, 可能是有容器被意外修改");
+        LLog::error("[reflow]: Warning: count of recalculated containers is not equal to total containers");
     }
 }
 
@@ -504,30 +439,25 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
 
     container->geometry = areaRemain;
 
-    // 间隔大小
+    // window visual gap
     const Int32 GAP = 5;
 
-    // 1. 判断我是窗口(叶子)还是分割容器
     if(container->window){
-        LLog::debug("我是窗口, 我获得的大小是: %dx%d, 位置是:(%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
-        // 我是窗口
-        
-        // 2. 如果我是窗口, 获取areaRemain, 分别调整surface大小/位置
+        LLog::debug("[reflow]: window recalculated, size: %dx%d, pos: (%d,%d)", areaRemain.w(), areaRemain.h(), areaRemain.x(), areaRemain.y());
         
         Surface* surface = static_cast<Surface*>(container->window->surface());
         
-        // TODO: 心跳检测逻辑问题
+        // TODO: clients heartbeat detection
         /*
         ToplevelRole* toplevel = static_cast<ToplevelRole*>(container->window);
         if (toplevel->pendingConfiguration().serial != 0 &&
             toplevel->serial() != toplevel->pendingConfiguration().serial){
-            LLog::debug("客户端仍在处理序列号 %u, 本次跳过配置", toplevel->pendingConfiguration().serial);
+            LLog::debug("Client still processes last serial: %u, skip configuration", toplevel->pendingConfiguration().serial);
             return;
         }
         */
         
         if(surface->mapped()){
-            // 窗口空隙实现
             const LRect& areaWithGaps = areaRemain;
 
             LRect areaForWindow = {
@@ -537,27 +467,25 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
                 areaWithGaps.h() - GAP * 2
             };
 
-            // 如果窗口太小, 就不留空隙了, 避免负数宽高
+            // avoid negative geometry of windows too small
             if (areaForWindow.w() < 50) areaForWindow.setW(50);
             if (areaForWindow.h() < 50) areaForWindow.setH(50);
 
-            // 3. 显示部分调整为“内部区域”
             container->containerView->setPos(areaForWindow.pos());
             container->containerView->setSize(areaForWindow.size());
 
-            // 3. 请求客户端也调整为“内部区域”
             surface->setPos(areaRemain.pos());
             container->window->configureSize(areaForWindow.size());
             container->window->setExtraGeometry({GAP, GAP, GAP, GAP});
             
-            LLog::debug("containerView的children数量: %zu", container->containerView->children().size());
+            LLog::debug("[reflow]: children of containerView: %zu", container->containerView->children().size());
             SurfaceView* surfaceView = static_cast<SurfaceView*>(container->containerView->children().front());
 
             const LRect& windowGeometry = container->window->windowGeometry();
 
-            // 如果窗口不支持服务端装饰, 并且windowGeometry有偏移(确实画了客户端装饰)
+            // if window does not support server side decorations and window draws its own decorations
             if(!container->window->supportServerSideDecorations() && (windowGeometry.x() > 0 || windowGeometry.y() > 0)){
-                // 则说明它大概率会无论如何都要画自己的装饰, 我们移动customPos, 将装饰部分移动到外边(不影响布局的位置)
+                // set a custom position to align main part of window to upper-left corner
                 surfaceView->setCustomPos(-windowGeometry.x(), -windowGeometry.y());
             }
 
@@ -565,16 +493,15 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
         }
 
         accumulateCount += 1;
-    // 3. 如果我是分割容器
+
     }else if(!container->window){
 
         LRect area1, area2;
-        // 横向分割
-        LLog::debug("我是分割容器, 我的分割是: %d, 比例是: %f, 尺寸是: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
+        LLog::debug("[reflow]: container recalculated, type: %d, ratio: %f, size: %dx%d", container->splitType, container->splitRatio, container->geometry.width(), container->geometry.height());
         if(container->splitType == SPLIT_H){
             Int32 child1Width = (Int32)(areaRemain.width() * (container->splitRatio));
             Int32 child2Width = (Int32)(areaRemain.width() - child1Width);
-            // TODO: 浮点数误差
+            // potential rounding errors?
             area1 = {areaRemain.x(),areaRemain.y(),child1Width,areaRemain.height()};
             area2 = {areaRemain.x() + child1Width, areaRemain.y(), child2Width, areaRemain.height()};
         }else if(container->splitType == SPLIT_V){
@@ -594,41 +521,40 @@ void TileyWindowStateManager::_reflow(Container* container, const LRect& areaRem
 bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &container){
 
     if(!window){
-        LLog::debug("尝试添加空指针窗口, 停止操作");
+        LLog::debug("[addWindow]: Attempt to add a null window, stop adding");
         return false;
     }
 
     Surface* surface = static_cast<Surface*>(window->surface());
 
-    LLog::debug("添加窗口, surface位置: (%d,%d)", surface->pos().x(), surface->pos().y());
+    LLog::debug("[addWindow]: adding window with surface position: (%d,%d)", surface->pos().x(), surface->pos().y());
     for(LSurface* surf : surface->children()){
-        LLog::debug("子surface位置: (%d,%d)", surf->pos().x(), surf->pos().y());
+        LLog::debug("[addWindow]: position of children surfaces: (%d,%d)", surf->pos().x(), surf->pos().y());
     }
 
-    // 获取屏幕显示区域
     Output* activeOutput = ((Output*)cursor()->output());
     const LRect& availableGeometry = activeOutput->availableGeometry();
 
     if(!surface){
-        LLog::debug("目标窗口没有Surface, 是否已经被销毁?");
+        LLog::debug("[addWindow]: surface of target window is null, is it destroyed?");
         return false;
     }
 
-    // 调试: 打印新建窗口的信息
+    // print geometry debug info
     //surface->printWindowGeometryDebugInfo(activeOutput, availableGeometry);
 
-    // 设置窗口属于当前活动显示器 TODO: 当后面允许静默在其他显示器创建窗口时修改
+    // TODO: Allow add window to other inactive outputs
     window->output = activeOutput;
 
     switch (window->type) {
         case FLOATING:
         case RESTRICTED_SIZE: {
-            LLog::debug("显示了一个尺寸限制/瞬态窗口。surface地址: %d, 层次: %d", surface, surface->layer());
+            LLog::debug("[addWindow]: added a restricted window, address of surface object: %d, layer: %d", surface, surface->layer());
             reapplyWindowState(window);
             break;
         }
         case NORMAL:{
-            LLog::debug("显示了一个普通窗口。surface地址: %d, 层次: %d", surface, surface->layer());
+            LLog::debug("[addWindow]: added a common window, address of surface object: %d, layer: %d", surface, surface->layer());
             Container* newContainer = new Container(window);
             insertTile(CURRENT_WORKSPACE, newContainer, 0.5);
             reapplyWindowState(window);
@@ -636,21 +562,19 @@ bool TileyWindowStateManager::addWindow(ToplevelRole* window, Container* &contai
             break;
         }
         default:
-            LLog::warning("[addWindow]: 显示了一个未知类型的窗口。该窗口将不会被插入管理列表");
+            LLog::warning("[addWindow]: warning: added a unknown window, this will not be handled by manager");
     }
 
-    // 无论如何, 向窗口添加工作区信息
     window->workspaceId = CURRENT_WORKSPACE;
 
     return true;
 }
 
-// 移除窗口
 bool TileyWindowStateManager::removeWindow(ToplevelRole* window, Container*& container){
     switch(window->type){
         case FLOATING:
         case RESTRICTED_SIZE: {
-            LLog::debug("关闭了一个尺寸限制/瞬态窗口。");
+            LLog::debug("[removeWindow]: removed a restricted window");
             break;
         }
         case NORMAL:{
@@ -662,19 +586,18 @@ bool TileyWindowStateManager::removeWindow(ToplevelRole* window, Container*& con
             break;
         }
         default:
-            LLog::warning("[removeWindow]: 移除窗口失败。该窗口不属于可管理的类型。");
+            LLog::warning("[removeWindow]: failed to remove a window that is unmanaged.");
     }
 
     return false;
 }
 
-// 改变平铺布局后调用, 配置该窗口的全局状态(显示层次、激活状态等等)
 bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
     
     Surface* surface = static_cast<Surface*>(window->surface());
 
     if(!surface){
-        LLog::warning("[reapplyWindowState]: 目标窗口没有Surface, 是否已经被销毁?");
+        LLog::warning("[reapplyWindowState]: surface of target window is null, is it destroyed?");
         return false;
     }
 
@@ -691,7 +614,7 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
     }
     
     if(window->container->floating_reason == STACKING){
-        LLog::debug("堆叠窗口: 暂时禁用containerView");
+        LLog::debug("[reapplyWindowState]: toggle window to 'stack' mode, temporarily disable containerView");
         window->container->enableContainerView(false);
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
             surface->topmostParent()->raise();
@@ -699,7 +622,7 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
             surface->raise();
         }
     }else if(window->container->floating_reason == MOVING){
-        LLog::debug("移动窗口: 暂时禁用containerView");
+        LLog::debug("[reapplyWindowState]: window is moving, temporarily disable containerView");
         window->container->enableContainerView(false);
         if(surface->topmostParent() && surface->topmostParent()->toplevel()){
             surface->topmostParent()->raise();
@@ -707,11 +630,11 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
             surface->raise();
         }
     }else{
-        LLog::debug("窗口进入平铺: 启用containerView");
+        LLog::debug("[reapplyWindowState]: window is in 'tiled' mode, enable containerView");
         window->container->enableContainerView(true);
     }
 
-    // 激活
+    // activate window
     window->configureState(window->pendingConfiguration().state | LToplevelRole::Activated);
     seat()->pointer()->setFocus(window->surface());
     seat()->keyboard()->setFocus(window->surface());
@@ -719,87 +642,73 @@ bool TileyWindowStateManager::reapplyWindowState(ToplevelRole* window){
     return true;
 }
 
-// 切换一个窗口的平铺/堆叠状态
 bool TileyWindowStateManager::toggleStackWindow(ToplevelRole* window){
 
-    //1. 拿到toplevel的container
-    //1.1 入参检查
     if(!window || !window->container){
-        LLog::debug("切换状态: 切换目标窗口或其容器不能为空。停止操作");
+        LLog::debug("[toggleStackWindow]: target window and it's container should not be null, stop toggling");
         return false;
     }
 
     if(window->type != NORMAL){
-        LLog::debug("切换状态: 切换的窗口不能是必须浮动的窗口, 如尺寸限制窗口。停止操作");
+        LLog::debug("[toggleStackWindow]: target window must be tilable, stop toggling");
         return false;
     }
 
     if(window->container->floating_reason == MOVING){
-        LLog::debug("切换状态: 暂时不支持移动中的窗口切换状态。停止操作");
+        LLog::debug("[toggleStackWindow]: target window is moving, stop toggling");
         return false;
     }
 
-    // 如果是平铺状态
     if(window->container->floating_reason == NONE){
-        // 从管理器分离
         Container* detachedContainer = detachTile(window, STACKING);
         if(detachedContainer){
-            // 如果分离成功, 重新组织并重新布局
             reapplyWindowState(window);
             recalculate();
         }
         return detachedContainer != nullptr;
     }else if(window->container->floating_reason == STACKING){
-       // 如果是浮动状态
-       // 插入管理器
         bool attached = attachTile(window);
-        // TODO: 允许跨屏幕插入
+        // TODO: Allow inserting to other inactive workspaces
         if(attached){
-            // 如果插入成功, 重新组织并重新布局
             reapplyWindowState(window);
             recalculate();
         }
         return attached;
     }
 
-    LLog::error("[toggleStackWindow]: 切换窗口浮动状态失败, 未知原因");
+    LLog::error("[toggleStackWindow]: failed to toggle window stacking state, this may be a bug, please report");
     return false;
 }
 
-// 获取某个工作区的第一个窗口
 Container* TileyWindowStateManager::getFirstWindowContainer(UInt32 workspace){
     
-    // 0. workspace范围必须合理
     if(workspace < 0 || workspace >= WORKSPACES){
-        LLog::warning("[getFirstWindowContainer]: 传入的工作区无效, 返回空");
+        LLog::warning("[getFirstWindowContainer]: target workspace id is out of range, stop fetching");
         return nullptr;
     }
 
     Container* root = workspaceRoots[workspace];
     Container* result = nullptr;
 
-    // 1. 如果只有桌面, 返回空指针
     if(root && !root->child1 && !root->child2){
-        LLog::debug("工作区没有窗口, 返回空");
+        LLog::debug("[getFirstWindowContainer]: no window exists in target workspace, return nullptr");
         return nullptr;
-    // 2. 如果只有一个窗口
+    // if only one child presents
     }else if(root && root->child1 && root->child1->window){
         return root->child1;
-    // 3. 如果不止一个窗口
+    // if more than one children presents
     }else if(root && root->child1 && !root->child1->window){
-        // 递归
         result =  _getFirstWindowContainer(root);
     }
 
     if(result == nullptr){
-        LLog::debug("无法获取工作区的第一个窗口, 未知原因, 返回空");
+        LLog::debug("[getFirstWindowContainer]: cannot find root container of workspace: %d, returning nullptr", workspace);
     }
     return result;
 }
 
 Container* TileyWindowStateManager::_getFirstWindowContainer(Container* container){
     
-    // 中序查找
     if(container->child1 != nullptr){
         return _getFirstWindowContainer(container->child1);
     }
@@ -814,23 +723,23 @@ Container* TileyWindowStateManager::_getFirstWindowContainer(Container* containe
 }
 
 bool TileyWindowStateManager::recalculate(){
-    // 用当前工作区
+
     UInt32 workspace = CURRENT_WORKSPACE;
     Container* root = workspaceRoots[workspace];
 
     if (!root) {
-        LLog::warning("[recalculate]: 工作区 %u 的根节点为空。", workspace);
+        LLog::warning("[recalculate]: warning: root container of workspace id %u is null, this may be a bug, please report", workspace);
         return false;
     }
 
     if (!root->child1 && !root->child2) {
-        LLog::debug("工作区 %u 没有窗口, 无需重排平铺。", workspace);
+        LLog::debug("[recalculate]: no window exists in workspace id: %u, unable to recalculate layout", workspace);
         return false;
     }
 
-    LLog::log("当前重新布局工作区: %d", workspace);
+    LLog::log("Currently recalculate layout for workspace id: %d", workspace);
 
-    // 选一个可用的输出：优先取该工作区第一个窗口的输出；没有就退回到鼠标所在输出
+    // Get root container of a workspace
     Output* rootOutput = nullptr;
     if (auto* first = getFirstWindowContainer(workspace)) {
         rootOutput = static_cast<ToplevelRole*>(first->window)->output;
@@ -839,24 +748,23 @@ bool TileyWindowStateManager::recalculate(){
         rootOutput = static_cast<Output*>(cursor()->output());
     }
     if (!rootOutput) {
-        LLog::warning("[recalculate]: 工作区 %u 找不到有效输出,放弃重排。", workspace);
+        LLog::warning("[recalculate]: no monitor available for workspace id %u, giving up", workspace);
         return false;
     }
 
     const LRect& availableGeometry = rootOutput->availableGeometry();
 
-    // 当前工作区的期望节点数
     containerCount = countContainersOfWorkspace(root);   
 
     bool reflowSuccess = false;
-    LLog::debug("执行重新布局... ws=%u, nodes=%u", workspace, containerCount);
+    LLog::debug("[recalculate]: executing reflow... ws=%u, nodes=%u", workspace, containerCount);
 
     reflow(workspace, availableGeometry, reflowSuccess);
     if (reflowSuccess){
-        LLog::debug("重新布局成功。");
+        LLog::debug("[recalculate]: reflow layout successfully");
         return true;
     } else {
-        LLog::debug("重新布局失败, 可能有容器被意外修改。");
+        LLog::debug("[recalculate]: failed to reflow workspace");
         return false;
     }
 }
@@ -868,7 +776,8 @@ UInt32 TileyWindowStateManager::countContainersOfWorkspace(const Container* root
     UInt32 n = 0;
     std::function<void(const Container*)> dfs = [&](const Container* c){
         if (!c) return;
-        // 和 _reflow 对齐：无论是窗口容器还是分割容器,节点本身都计数
+        
+        // count container whether it is a 'container' or a 'window'
         ++n;
         dfs(c->child1);
         dfs(c->child2);
@@ -1156,7 +1065,9 @@ void TileyWindowStateManager::initialize(){
 
         auto seat = Louvre::seat();
         if(activeContainer && activeContainer->window){
-            seat->keyboard()->setFocus(activeContainer->window->surface());
+            /*if(!seat->keyboard()->grab()){
+                seat->keyboard()->setFocus(activeContainer->window->surface());
+            }*/
         } else {
             seat->keyboard()->setFocus(nullptr);
         }
