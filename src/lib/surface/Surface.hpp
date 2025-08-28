@@ -48,13 +48,13 @@ namespace tiley{
         private:
             std::unique_ptr<SurfaceView> view = std::make_unique<SurfaceView>(this);
             bool isFirstMap = false;
-            // 打开窗口的动画
+            // mapped animation
             LAnimation fadeInAnimation;
-            // 关闭窗口的动画
+            // unmapped animation
             void startUnmappedAnimation() noexcept;
-            // 标记防止动画重复执行
+            // avoid duplicated execution of animations
             bool isClosing = false;
-            // 快照用: 窗口在被快照时的矩形区域
+            // for window snapshot(e.g. before unmapping a window)
             LRect minimizeStartRect;
     };
 }

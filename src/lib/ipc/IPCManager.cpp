@@ -110,7 +110,7 @@ json createWorkspaceEvent(UInt32 currentWorkspace, UInt32 totalWorkspaces) {
 void IPCManager::initialize() {
     m_socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (m_socket_fd < 0) {
-        LLog::fatal("[IPC] 无法创建Socket连接地址 : %s", strerror(errno));
+        LLog::fatal("[IPCManager] unable to create socket connection address : %s", strerror(errno));
         return;
     }
 
@@ -131,7 +131,7 @@ void IPCManager::initialize() {
     unlink(socket_path.c_str());
 
     if (bind(m_socket_fd, (const sockaddr*)&addr, sizeof(addr)) < 0) {
-        LLog::fatal("[IPC] 无法绑定到Socket : %s (path: %s)", strerror(errno), socket_path.c_str());
+        LLog::fatal("[IPCManager]: unable to bind socket : %s (path: %s)", strerror(errno), socket_path.c_str());
         close(m_socket_fd);
         m_socket_fd = -1;
         return;
@@ -140,7 +140,7 @@ void IPCManager::initialize() {
     chmod(socket_path.c_str(), 0666);
 
     if (listen(m_socket_fd, 10) < 0) {
-        LLog::fatal("[IPC] 无法监听Socket连接: %s", strerror(errno));
+        LLog::fatal("[IPCManager]: unable to listen to socket: %s", strerror(errno));
         close(m_socket_fd);
         m_socket_fd = -1;
         return;
@@ -155,7 +155,7 @@ void IPCManager::initialize() {
     );
 
     if (!m_listen_event_source) {
-        LLog::fatal("[IPC] 无法初始化Socket连接事件到事件循环中");
+        LLog::fatal("[IPCManager]: Unable to initialize socket connection eventloop");
         close(m_socket_fd);
         m_socket_fd = -1;
     }
@@ -168,7 +168,7 @@ int IPCManager::handleNewConnection(int fd, uint32_t mask, void *data) {
     
     int client_fd = accept(self->m_socket_fd, nullptr, nullptr);
     if (client_fd < 0) {
-        LLog::error("[IPC] 无法处理客户端连接请求 : %s", strerror(errno));
+        LLog::error("[IPCManager] Unable to handle client connection request: %s", strerror(errno));
         return 0;
     }
     
@@ -188,7 +188,7 @@ int IPCManager::handleNewConnection(int fd, uint32_t mask, void *data) {
     );
     
     if (!client.read_event_source) {
-        LLog::error("[IPC] 无法注册客户端。");
+        LLog::error("[IPCManager]: Unable to register client socket to wayland");
         close(client_fd);
         self->m_clients.pop_back();
     }
@@ -305,7 +305,7 @@ void IPCManager::handleGetWorkspaces(IPCClient& client) {
         std::string packet = createIPCPacket(IPC_GET_WORKSPACES, workspaces.dump());
         sendMessage(client, packet);
     } catch (const std::exception& e) {
-        LLog::error("[IPC] Exception in handleGetWorkspaces: %s", e.what());
+        LLog::error("[IPCManager] Exception in handleGetWorkspaces: %s", e.what());
         std::string emergency_response = R"([{"id":1,"name":"1","focused":true}])";
         std::string packet = createIPCPacket(IPC_GET_WORKSPACES, emergency_response);
         sendMessage(client, packet);
@@ -329,13 +329,13 @@ void IPCManager::handleSubscribe(IPCClient& client, const std::string& payload) 
         std::string packet = createIPCPacket(IPC_REPLY_SUBSCRIBE, response);
         sendMessage(client, packet);
         
-        // 发送工作区切换事件
+        // Send workspace switching event
         if (subscribed_to_workspace_event) {
             auto& manager = TileyWindowStateManager::getInstance();
             broadcastWorkspaceUpdate(manager.currentWorkspace(), manager.WORKSPACES, &client);
         }
     } catch (const std::exception& e) {
-        LLog::error("[IPC] 在处理订阅事件时发生错误: %s", e.what());
+        LLog::error("[IPCManager] Error occurs when processing client subscription: %s", e.what());
     }
 }
 

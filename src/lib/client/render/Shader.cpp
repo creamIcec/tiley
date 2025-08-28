@@ -10,12 +10,11 @@ using namespace tiley;
 using namespace Louvre;
 
 Shader::Shader() {
-    // 创建一个空的着色器程序
     m_programID = glCreateProgram();
 }
 
 Shader::~Shader() {
-    // 程序销毁时,删除 OpenGL 程序对象
+    // destroy shader program object
     if (m_programID != 0) {
         glDeleteProgram(m_programID);
     }
@@ -26,24 +25,22 @@ bool Shader::link(GLuint vertexShader, GLuint fragmentShader) {
         return false;
     }
 
-    // 将编译好的着色器附加到程序上
+    // attach
     glAttachShader(m_programID, vertexShader);
     glAttachShader(m_programID, fragmentShader);
 
-    // 链接程序
+    // link
     glLinkProgram(m_programID);
 
-    // 检查链接是否成功
     GLint success;
     glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
     if (!success) {
         char infoLog[512];
         glGetProgramInfoLog(m_programID, 512, NULL, infoLog);
-        Louvre::LLog::error("shader渲染脚本链接失败, 原因:\n%s", infoLog);
+        Louvre::LLog::error("[link]: failed to link shader program, caused by: \n%s", infoLog);
         return false;
     }
 
-    // 链接成功后, 可以分离并删除着色器对象, 因为它们已经链接到程序里了
     glDetachShader(m_programID, vertexShader);
     glDetachShader(m_programID, fragmentShader);
 
@@ -54,7 +51,8 @@ void Shader::use() const {
     glUseProgram(m_programID);
 }
 
-// --- Uniform 入参设置函数 ---
+// Uniform set toolkit
+// TODO: STL
 void Shader::setUniform(const char* name, int value) {
     glUniform1i(glGetUniformLocation(m_programID, name), value);
 }

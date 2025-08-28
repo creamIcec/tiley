@@ -1,1 +1,1 @@
-//预计这个文件里进行快捷函数功能的实现
+// TODO: move to Action class

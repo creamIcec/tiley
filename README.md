@@ -1,22 +1,28 @@
 <center>
 
-# Tiley: 高度可自定义平铺式桌面管理器
+# Tiley: Highly Customizable Tiling Desktop Manager
+
+</center>
+
+<center>
+
+[English](./README.md) | [简体中文](./README_zh_cn.md)
 
 </center>
 
 ![Tiley Theme](./assets/tiley_wallpaper.png)
 
-欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **Louvre** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 合成器。
+Welcome to **tiley**! This is a desktop manager developed based on **Wayland** and **Louvre**. Our goal is to create an efficient, customizable, and user-friendly Wayland compositor.
 
 ![Tiley Architecture](./assets/tiley-architecture.png)
 
-## 开发环境搭建
+## Development Environment Setup
 
-本指南将帮助你快速在你的机器上设置 `tiley` 的开发环境。
+This guide will help you quickly set up the development environment for `tiley` on your machine.
 
-### 1. 克隆仓库
+### 1. Clone the Repository
 
-首先,克隆 `tiley` 的主仓库, 并初始化 `Louvre` 等子模块:
+First, clone the main `tiley` repository and initialize submodules like `Louvre`:
 
 ```bash
 git clone https://github.com/creamIcec/tiley.git
@@ -24,11 +30,11 @@ cd tiley
 git submodule update --init --recursive
 ```
 
-### 2. 安装依赖
+### 2. Install Dependencies
 
-`tiley` 依赖于 `Louvre` 及其核心后端 `SRM`,以及相关的 `Wayland` 生态系统库。
+`tiley` depends on `Louvre` and its core backend `SRM`, as well as related `Wayland` ecosystem libraries.
 
-**核心依赖(以`meson`语句格式表示)**
+**Core Dependencies (expressed in `meson` format)**
 
 ```meson
 wayland_server_dep  = dependency('wayland-server', version: '>= 1.20.0')
@@ -47,117 +53,117 @@ pthread_dep         = cpp.find_library('pthread')
 dl_dep              = cpp.find_library('dl')
 ```
 
-**可选依赖(随项目开发可能发生改变)**
+**Optional Dependencies (subject to change as project develops)**
 
-- **`zwp_linux_dmabuf_v1`**: 为了支持更广泛的现代应用（如 GNOME 系应用）,建议启用 DMA-BUF 支持。这通常不需要额外安装,依赖于核心库 `libdrm` 和 `mesa`。
-- **`wayland-protocols`**: 提供了一系列标准的 Wayland 扩展协议,增强兼容性。
+- **`zwp_linux_dmabuf_v1`**: To support a broader range of modern applications (such as GNOME applications), enabling DMA-BUF support is recommended. This usually doesn't require additional installation, depending on core libraries `libdrm` and `mesa`.
+- **`wayland-protocols`**: Provides a series of standard Wayland extension protocols, enhancing compatibility.
 
-**X11 兼容依赖**
+**X11 Compatibility Dependencies**
 
-`tiley` 目标是尽可能兼容 `X11` 应用程序, 因此需要安装下面的依赖:
+`tiley` aims to be as compatible as possible with `X11` applications, so the following dependencies need to be installed:
 
-- **xwayland**: 提供 X11 兼容层 (编译需要, 运行时可选)
-- **libxcb**: X 协议 C binding
-- **libxcb-render-util**: `libxcb`的渲染工具
-- **libxcb-wm**: `libxcb`的窗口管理器扩展
-- **libxcb-errors**: `libxcb`的错误报告库, 用于更加易读
+- **xwayland**: Provides X11 compatibility layer (required for compilation, optional at runtime)
+- **libxcb**: X protocol C binding
+- **libxcb-render-util**: Rendering utilities for `libxcb`
+- **libxcb-wm**: Window manager extensions for `libxcb`
+- **libxcb-errors**: Error reporting library for `libxcb`, for better readability
 
-**安装示例**
+**Installation Examples**
 
-**Arch Linux(或基于 Arch 的发行版)**
+**Arch Linux (or Arch-based distributions)**
 
-如果你使用 Arch Linux, 可以通过 `pacman` 安装相关依赖。`Louvre` 和 `SRM` 将作为子模块被构建,无需通过包管理器安装。
+If you're using Arch Linux, you can install related dependencies through `pacman`. `Louvre` and `SRM` will be built as submodules, no need to install them through package manager.
 
 ```bash
 sudo pacman -S --needed meson wayland wayland-protocols libdrm libinput libxkbcommon pixman systemd libseat libxcursor mesa libglvnd
 ```
 
-下面是 `X11` 兼容部分:
+For `X11` compatibility part:
 
 ```bash
 sudo pacman -S xorg-xwayland libxcb libxcb-render-util libxcb-wm libxcb-errors
 ```
 
-**其他发行版(Debian/Ubuntu/Fedora/SUSE 等)**
+**Other Distributions (Debian/Ubuntu/Fedora/SUSE etc.)**
 
-请根据对应的包管理器安装与上述列表对应的包 (某些包可能需要添加 `-dev` 或者 `-devel` 的后缀)。一个高效的策略是,在首次编译时,若 `meson` 报告缺少某个依赖,则根据提示安装它。
+Please install packages corresponding to the above list according to your package manager (some packages may need `-dev` or `-devel` suffix). An efficient strategy is to install dependencies as `meson` reports missing ones during the first compilation.
 
-### 3. 构建项目
+### 3. Build the Project
 
-`tiley` 使用 **Meson** 作为构建系统。首先进入项目根目录, 然后:
+`tiley` uses **Meson** as the build system. First enter the project root directory, then:
 
-1.  配置构建目录:
+1.  Configure build directory:
 
     ```bash
     meson setup build/
     ```
 
-    为了方便开发,`meson.build` 文件被配置为优先使用子模块。它会自动寻找 `subprojects/Louvre` 和 `subprojects/SRM` 中的代码并构建它们,确保你总是在使用与 `tiley` 兼容的框架版本。
+    For development convenience, the `meson.build` file is configured to prioritize submodules. It will automatically find and build code in `subprojects/Louvre` and `subprojects/SRM`, ensuring you're always using framework versions compatible with `tiley`.
 
-2.  编译项目:
+2.  Compile the project:
 
     ```bash
     meson compile -C build/
     ```
 
-### 4. 运行
+### 4. Running
 
-编译成功后,你就可以运行 `tiley` 啦！
+After successful compilation, you can run `tiley`!
 
-`tiley` 是一个 Wayland 合成器,它可以通过两种主要方式运行：
+`tiley` is a Wayland compositor that can run in two main ways:
 
-1.  在现有的桌面环境（如 X11 或另一个 Wayland 合成器）中以一个窗口的形式运行。
-2.  切换到 TTY (通常通过 `Ctrl+Alt+F3` 等),登录后直接运行,此时 `tiley` 将接管整个屏幕。
+1.  Running as a window within an existing desktop environment (such as X11 or another Wayland compositor).
+2.  Switch to TTY (usually via `Ctrl+Alt+F3` etc.), log in and run directly, where `tiley` will take over the entire screen.
 
-无论哪种方式,启动指令都是：
+Either way, the startup command is:
 
 ```bash
 ./build/tiley
 ```
 
-### 5. 常见问题
+### 5. Common Issues
 
-- **Q: (运行时) 提示找不到 `.so` 运行库, 比如 `libSRM.so` 或 `libLouvre.so`,怎么办?**
+- **Q: (Runtime) Getting "cannot find .so library" errors like `libSRM.so` or `libLouvre.so`, what to do?**
 
-  A: 这说明你的系统动态链接器找不到我们刚刚从子模块编译出的库。因为它们被放在了 `build/` 目录中,而不是标准的系统路径（如 `/usr/lib`）。解决方法是临时将这个路径添加到环境变量中：
+  A: This means your system dynamic linker can't find the libraries we just compiled from submodules. Because they're placed in the `build/` directory, not in standard system paths (like `/usr/lib`). The solution is to temporarily add this path to environment variables:
 
   ```bash
-  # SRM 是 Louvre 的核心运行时库
+  # SRM is Louvre's core runtime library
   export LD_LIBRARY_PATH=$PWD/build/subprojects/SRM:$LD_LIBRARY_PATH
   ./build/tiley
   ```
 
-  如果不想每次都手动设置,可以考虑在开发时将其加入到你的 `.bashrc` 或 `.zshrc` 中。
+  If you don't want to set this manually every time, consider adding it to your `.bashrc` or `.zshrc` during development.
 
-- **Q: (开发时) 出现 `undefined reference to Louvre::LCompositor::...` 等链接错误, 怎么办?**
+- **Q: (Development) Getting `undefined reference to Louvre::LCompositor::...` linking errors, what to do?**
 
-  A: 这个问题通常不会在 `Louvre` 项目中出现,因为 `Louvre` 本身就是用 C++ 编写的,你的项目 `tiley` 也是 C++。这意味着编译器和链接器对符号（函数名、类名等）的处理方式是一致的,不会出现 C/C++ 混合编程时的“符号粉碎 (Name Mangling)”问题。
+  A: This issue usually doesn't occur in `Louvre` projects because `Louvre` itself is written in C++, and your `tiley` project is also C++. This means the compiler and linker handle symbols (function names, class names, etc.) consistently, avoiding "name mangling" issues from C/C++ mixed programming.
 
-  如果你遇到了这类链接错误,原因很可能是：
+  If you encounter such linking errors, the cause is likely:
 
-  1.  **Meson 配置问题**：检查你的 `meson.build` 文件,确保你正确地将 `Louvre` 和 `SRM` 的依赖添加到了你的 `tiley` 可执行文件的 `dependencies` 列表中。
+  1.  **Meson configuration issue**: Check your `meson.build` file, ensure you've correctly added `Louvre` and `SRM` dependencies to your `tiley` executable's `dependencies` list.
       ```meson
-      # 示例
+      # Example
       executable('tiley',
           'src/main.cpp',
-          # ... 其他源文件
-          dependencies: [louvre_dep, srm_dep, /* 其他依赖 */],
+          # ... other source files
+          dependencies: [louvre_dep, srm_dep, /* other dependencies */],
           install: true)
       ```
-  2.  **子模块构建失败**：`meson compile` 可能在构建 `Louvre` 或 `SRM` 子模块时就已经失败了,但你没有注意到。请仔细检查编译日志,确保子模块被成功编译成了 `.so` 或 `.a` 文件。
+  2.  **Submodule build failure**: `meson compile` might have failed when building `Louvre` or `SRM` submodules, but you didn't notice. Please carefully check the compilation log to ensure submodules were successfully compiled into `.so` or `.a` files.
 
-- **Q: (开发时) `Louvre` 或 `SRM` 子模块构建失败了?**
+- **Q: (Development) `Louvre` or `SRM` submodule build failed?**
 
-  A: 如果 `meson compile` 在构建子模块时失败,这几乎总是由于核心依赖没有被满足。请仔细阅读 `build/meson-logs/meson-log.txt` 中关于 `Louvre` 或 `SRM` 子项目构建部分的错误信息。日志会明确告诉你缺少哪个库（比如 `libseat-devel` 或 `wayland-protocols`）,根据提示用你的包管理器安装它即可。
+  A: If `meson compile` fails when building submodules, it's almost always due to unsatisfied core dependencies. Please carefully read the error information about `Louvre` or `SRM` subproject builds in `build/meson-logs/meson-log.txt`. The log will clearly tell you which library is missing (like `libseat-devel` or `wayland-protocols`), install it with your package manager according to the prompts.
 
-- **Q: (运行时) 我打开某些应用（如 GNOME 系应用）时,`tiley` 崩溃或应用窗口不显示,日志里有 `Unknown buffer type` 或 `Failed to convert buffer to OpenGL texture` 的错误,这是为什么？**
+- **Q: (Runtime) When I open certain applications (like GNOME applications), `tiley` crashes or application windows don't display, and the logs show `Unknown buffer type` or `Failed to convert buffer to OpenGL texture` errors. Why?**
 
-  A: 这是个非常经典的问题！它意味着你的合成器只支持基础的 `wl_shm` 共享内存缓冲区,而客户端应用正在尝试使用更高效的 `DMA-BUF` 进行硬件缓冲区共享。`Louvre` 默认不会启用所有扩展协议,需要你手动开启。
+  A: This is a very classic issue! It means your compositor only supports basic `wl_shm` shared memory buffers, while client applications are trying to use more efficient `DMA-BUF` for hardware buffer sharing. `Louvre` doesn't enable all extension protocols by default, you need to manually enable them.
 
-  **解决方法**：在你的主服务类（例如 `TileyServer.cpp`）的初始化代码中,实例化 `LDMABufProtocol`。
+  **Solution**: In your main service class (e.g., `TileyServer.cpp`) initialization code, instantiate `LDMABufProtocol`.
 
   ```cpp
-  // 在你的 TileyServer.h 或类似的地方
+  // In your TileyServer.h or similar
   #include <Louvre/protocols/LinuxDMABuf/LDMABufProtocol.h>
   #include <memory>
 
@@ -167,32 +173,30 @@ sudo pacman -S xorg-xwayland libxcb libxcb-render-util libxcb-wm libxcb-errors
       std::unique_ptr<Louvre::Protocols::LinuxDMABuf::LDMABufProtocol> m_dmaBufProtocol;
   };
 
-  // 在你的 TileyServer.cpp 的构造函数或初始化函数里
+  // In your TileyServer.cpp constructor or initialization function
   TileyServer::TileyServer() {
-      // ... 其他初始化 ...
+      // ... other initialization ...
 
-      // 启用 zwp_linux_dmabuf_v1 协议支持
+      // Enable zwp_linux_dmabuf_v1 protocol support
       m_dmaBufProtocol = std::make_unique<Louvre::Protocols::LinuxDMABuf::LDMABufProtocol>();
   }
   ```
 
-  重新编译后,你的合成器就学会了如何处理 `DMA-BUF`,从而能够兼容更多现代应用程序。
+  After recompiling, your compositor will learn how to handle `DMA-BUF`, thus being compatible with more modern applications.
 
-- **Q: 我该如何调试 `tiley`？**
+- **Q: How should I debug `tiley`?**
 
-  A: `Louvre` 和 Wayland 生态提供了强大的调试工具：
+  A: `Louvre` and the Wayland ecosystem provide powerful debugging tools:
 
-  1.  **Louvre 日志**：`Louvre` 内置了 `LLog` 日志系统。你可以在代码中通过 `LLog::debug("My message: %d", my_var);` 等方式添加详细的调试信息。
-  2.  **WAYLAND_DEBUG**：这是 Wayland 的终极调试工具。通过设置这个环境变量,你可以看到客户端和你的合成器之间所有协议层面的通信细节。
+  1.  **Louvre logging**: `Louvre` has a built-in `LLog` logging system. You can add detailed debug information in your code via `LLog::debug("My message: %d", my_var);` etc.
+  2.  **WAYLAND_DEBUG**: This is the ultimate Wayland debugging tool. By setting this environment variable, you can see all protocol-level communication details between clients and your compositor.
       ```bash
       WAYLAND_DEBUG=1 ./build/tiley
       ```
-      这对于诊断协议实现问题、客户端兼容性问题等非常有帮助。
+      This is very helpful for diagnosing protocol implementation issues, client compatibility issues, etc.
 
 ---
 
-我们希望这份指南能让你在 `tiley` 的开发之旅中一帆风顺。如果你发现了任何问题,或者有任何建议,欢迎随时提出 Issue 或 Pull Request！
+We hope this guide will make your development journey with `tiley` smooth sailing. If you discover any issues or have any suggestions, feel free to raise Issues or Pull Requests anytime!
 
 **Happy Hacking!**
-
-这个项目现在是**全国大学生计算机系统能力大赛(2025) 国赛**参赛作品, 因此代码使用协议暂时未定, 但如果之后开源, 为了确保一直保持开源(包括衍生项目), 项目遵循 LPGLv2.1 协议 ❤️。
