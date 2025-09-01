@@ -16,6 +16,7 @@
 #include <LLauncher.h>
 
 #include "src/lib/TileyWindowStateManager.hpp"
+#include "src/lib/client/WallpaperManager.hpp"
 #include "src/lib/Utils.hpp"
 
 using json = nlohmann::json;

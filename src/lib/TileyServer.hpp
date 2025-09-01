@@ -71,7 +71,7 @@ namespace tiley{
             // command to execute after Tiley launches
             std::vector<std::string> startUpCMD;
 
-            GLuint m_quadVBO { 0 }; // 顶点缓冲对象
-            GLuint m_quadEBO { 0 }; // 索引缓冲对象
+            GLuint m_quadVBO { 0 };
+            GLuint m_quadEBO { 0 };
     };
 }

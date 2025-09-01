@@ -8,8 +8,6 @@
 
 欢迎使用 **tiley**！这是一个基于 **Wayland** 和 **Louvre** 开发的桌面管理器。我们的目标是创建一个高效、可定制且用户友好的 Wayland 合成器。
 
-![Tiley Architecture](./assets/tiley-architecture.png)
-
 ## 开发环境搭建
 
 本指南将帮助你快速在你的机器上设置 `tiley` 的开发环境。

@@ -14,8 +14,6 @@
 
 Welcome to **tiley**! This is a desktop manager developed based on **Wayland** and **Louvre**. Our goal is to create an efficient, customizable, and user-friendly Wayland compositor.
 
-![Tiley Architecture](./assets/tiley-architecture.png)
-
 ## Development Environment Setup
 
 This guide will help you quickly set up the development environment for `tiley` on your machine.
