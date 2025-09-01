@@ -21,7 +21,7 @@
 
 using namespace tiley;
 
-// 组合键构造（基于 Louvre 提供接口）
+// combo construction
 static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, Louvre::LKeyboard* keyboard){
     std::vector<std::string> modifiers;
     if (keyboard->isModActive(XKB_MOD_NAME_CTRL, XKB_STATE_MODS_EFFECTIVE))  modifiers.emplace_back("ctrl");
@@ -39,7 +39,7 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
         key = "code" + std::to_string(event.keyCode());
     }
 
-    // 统一小写并拼接
+    // normalize lettercase and concatenate
     std::string raw;
     for(auto& m : modifiers){
         std::string lower;
@@ -53,20 +53,18 @@ static std::string buildComboFromEvent(const Louvre::LKeyboardKeyEvent& event, L
 }
 
 void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
-    // 父类部分处理逻辑下移
     const bool L_CTRL      { isKeyCodePressed(KEY_LEFTCTRL)  };
     const bool L_SHIFT     { isKeyCodePressed(KEY_LEFTSHIFT) };
 
     const bool sessionLocked { sessionLockManager()->state() != LSessionLockManager::Unlocked };
- 
-    // 将按键发送给客户端
+
+    // Directly send key event with data to client in case the clients need them
     sendKeyEvent(event);
 
     if (L_CTRL && !L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::Copy); }
     else if (!L_CTRL && L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::Move); }
     else if (!L_CTRL && !L_SHIFT) { seat()->dnd()->setPreferredAction(LDND::NoAction); }
  
-    // 如果锁屏, 直接结束
     if (sessionLocked) { return; }
 
     bool altDown = isModActive(XKB_MOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE);
@@ -83,7 +81,7 @@ void Keyboard::keyEvent(const Louvre::LKeyboardKeyEvent& event){
         std::string combo = buildComboFromEvent(event, this);
 
         if(!combo.empty()){
-            LLog::debug("按键组合: %s", combo.c_str());
+            LLog::debug("[Keyboard::KeyEvent]: key combo: %s", combo.c_str());
             ShortcutManager::getInstance().tryDispatch(combo);
         }
 
