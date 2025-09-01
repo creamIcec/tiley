@@ -516,7 +516,7 @@ void Pointer::pointerMoveEvent(const LPointerMoveEvent& event){
     });
 
     Surface* _targetInsertWindowSurface = static_cast<Surface*>(targetInsertWindowSurface);
-    if(_targetInsertWindowSurface && manager.activateContainer() != _targetInsertWindowSurface->tl()->container){
+    if(_targetInsertWindowSurface && manager.activatedContainer() != _targetInsertWindowSurface->tl()->container){
         manager.setActiveContainer(_targetInsertWindowSurface->tl()->container);
         LLog::debug("已将插入活动目标更新为鼠标处的平铺窗口");
     }
