@@ -6,7 +6,7 @@
 #include "LEvent.h"
 #include "LNamespaces.h"
 #include "src/lib/client/render/SSD.hpp"
-#include "src/lib/core/Container.hpp"
+#include "src/lib/core/BaseContainer.hpp"
 #include "src/lib/output/Output.hpp"
 
 #include <LToplevelResizeSession.h>
@@ -34,7 +34,7 @@ namespace tiley{
 
             ToplevelRole(const void *params) noexcept;
 
-            Container* container = nullptr;
+            BaseContainer* container = nullptr;
             TOPLEVEL_TYPE type = NORMAL;
             // monitor for displaying the window
             Output* output = nullptr;
